@@ -16,7 +16,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
-import { BanIcon, ChevronLeftIcon, EditIcon, PhoneIcon, WhatsAppIcon } from "@/components/ui/icons";
+import { BanIcon, EditIcon, PhoneIcon, WhatsAppIcon } from "@/components/ui/icons";
 import {
   customerWhatsAppLink,
   deliveryLabel,
@@ -191,14 +191,7 @@ export function OrderDetail({ id }: { id: string }) {
 
   return (
     <div className="pb-20 lg:pb-0">
-      <Link
-        href={adminRoutes.orders}
-        className="-ml-1 inline-flex min-h-11 items-center gap-1 text-sm text-ash hover:text-ink"
-      >
-        <ChevronLeftIcon width={18} height={18} /> Commandes
-      </Link>
-
-      <div className="mt-1 flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="font-display text-[2rem] leading-none font-medium uppercase lg:text-[2.4rem]">
             {order.fullName}

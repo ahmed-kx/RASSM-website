@@ -3,25 +3,31 @@
 import type { Admin } from "@rassm/shared";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, type ComponentType, type ReactNode, type SVGProps } from "react";
+import {
+  Fragment,
+  useEffect,
+  useState,
+  type ComponentType,
+  type ReactNode,
+  type SVGProps,
+} from "react";
 import {
   BanIcon,
-  BellIcon,
+  ChevronRightIcon,
   DashboardIcon,
-  LogoutIcon,
+  HomeIcon,
   MailIcon,
   MoreIcon,
   OrdersIcon,
   ShirtIcon,
-  SoundOffIcon,
-  SoundOnIcon,
   TruckIcon,
   UsersIcon,
 } from "@/components/ui/icons";
 import { adminRoutes } from "@/lib/admin/routes";
 import { cn } from "@/lib/cn";
-import { adminLogout, setUnauthorizedHandler } from "@/lib/data/admin";
+import { setUnauthorizedHandler } from "@/lib/data/admin";
 import { AdminDialog } from "./admin-dialog";
+import { AccountMenu, NotificationBell, SoundButton } from "./admin-top-bar";
 import { LiveOrdersProvider, useLiveOrders } from "./live-orders";
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
@@ -63,58 +69,12 @@ function CountBadge({ count, className }: { count: number; className?: string })
   );
 }
 
-function useLogout() {
-  const router = useRouter();
-  return async () => {
-    await adminLogout();
-    router.replace(adminRoutes.login);
-    router.refresh();
-  };
-}
-
-function SoundButton({ className }: { className?: string }) {
-  const { muted, toggleMuted } = useLiveOrders();
-  const Icon = muted ? SoundOffIcon : SoundOnIcon;
-  return (
-    <button
-      type="button"
-      onClick={toggleMuted}
-      aria-pressed={!muted}
-      aria-label={
-        muted ? "Activer le son des nouvelles commandes" : "Couper le son des nouvelles commandes"
-      }
-      className={cn("grid size-11 place-items-center hover:opacity-70", className)}
-    >
-      <Icon />
-    </button>
-  );
-}
-
-function NotificationsButton({ onDone }: { onDone?: () => void }) {
-  const { notificationPermission, enableNotifications } = useLiveOrders();
-  if (notificationPermission === "unsupported" || notificationPermission === "granted") return null;
-  return (
-    <button
-      type="button"
-      disabled={notificationPermission === "denied"}
-      onClick={() => void enableNotifications().then(onDone)}
-      className="flex min-h-11 w-full items-center gap-3 px-3 text-left text-sm disabled:opacity-50"
-    >
-      <BellIcon />
-      {notificationPermission === "denied"
-        ? "Notifications bloquées par le navigateur"
-        : "Activer les notifications du navigateur"}
-    </button>
-  );
-}
-
-function Sidebar({ admin }: { admin: Admin }) {
+function Sidebar() {
   const pathname = usePathname();
   const { unopened } = useLiveOrders();
-  const logout = useLogout();
   return (
     <aside className="sticky top-0 hidden h-svh flex-col bg-onyx text-paper lg:flex">
-      <div className="flex items-center justify-between px-6 pt-7 pb-6">
+      <div className="px-6 pt-7 pb-6">
         <Link
           href={adminRoutes.home}
           className="font-display text-[1.75rem] leading-none tracking-[0.12em]"
@@ -124,7 +84,6 @@ function Sidebar({ admin }: { admin: Admin }) {
             Admin
           </span>
         </Link>
-        <SoundButton className="-mr-2 text-mist hover:text-paper" />
       </div>
       <nav aria-label="Navigation du tableau de bord" className="flex-1 px-3">
         <ul className="space-y-0.5">
@@ -151,20 +110,6 @@ function Sidebar({ admin }: { admin: Admin }) {
           })}
         </ul>
       </nav>
-      <div className="border-t border-paper/10 px-3 py-4 text-mist">
-        <NotificationsButton />
-        <p className="truncate px-3 pt-2 text-xs" title={admin.email}>
-          {admin.email}
-        </p>
-        <button
-          type="button"
-          onClick={() => void logout()}
-          className="mt-1 flex min-h-11 w-full items-center gap-3 px-3 text-sm hover:text-paper"
-        >
-          <LogoutIcon width={20} height={20} />
-          Déconnexion
-        </button>
-      </div>
     </aside>
   );
 }
@@ -172,7 +117,6 @@ function Sidebar({ admin }: { admin: Admin }) {
 function MobileBars({ admin }: { admin: Admin }) {
   const pathname = usePathname();
   const { unopened } = useLiveOrders();
-  const logout = useLogout();
   const [moreOpen, setMoreOpen] = useState(false);
   const secondary = NAV.filter((item) => !item.primary);
   const moreActive = secondary.some((item) => isActive(pathname, item.href));
@@ -192,7 +136,11 @@ function MobileBars({ admin }: { admin: Admin }) {
             ADMIN
           </span>
         </Link>
-        <SoundButton />
+        <div className="flex items-center">
+          <SoundButton surface="dark" />
+          <NotificationBell surface="dark" />
+          <AccountMenu admin={admin} surface="dark" />
+        </div>
       </header>
 
       <nav
@@ -249,19 +197,79 @@ function MobileBars({ admin }: { admin: Admin }) {
             </li>
           ))}
         </ul>
-        <div className="mt-3 text-ash">
-          <NotificationsButton onDone={() => setMoreOpen(false)} />
-        </div>
-        <p className="mt-3 truncate text-xs text-stone">Connecté : {admin.email}</p>
-        <button
-          type="button"
-          onClick={() => void logout()}
-          className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 border border-ink text-[11px] font-semibold tracking-button uppercase"
-        >
-          <LogoutIcon width={18} height={18} /> Déconnexion
-        </button>
       </AdminDialog>
     </>
+  );
+}
+
+/** Top bar of the content area on computers (on phones it is in MobileBars). */
+function DesktopTopBar({ admin }: { admin: Admin }) {
+  return (
+    <header className="sticky top-0 z-30 hidden h-16 items-center justify-end border-b border-line bg-bone/95 px-6 backdrop-blur-sm lg:flex">
+      <SoundButton surface="light" />
+      <NotificationBell surface="light" />
+      <AccountMenu admin={admin} surface="light" />
+    </header>
+  );
+}
+
+interface Crumb {
+  label: string;
+  href?: string;
+}
+
+function breadcrumbFor(pathname: string): Crumb[] {
+  if (pathname === adminRoutes.home) return [{ label: "Tableau de bord" }];
+  const section = NAV.find(
+    (item) => item.href !== adminRoutes.home && pathname.startsWith(item.href),
+  );
+  if (!section) return [];
+  if (pathname === section.href) return [{ label: section.label }];
+  return [
+    { label: section.label, href: section.href },
+    { label: section.href === adminRoutes.orders ? "Détail de la commande" : "Détail" },
+  ];
+}
+
+/** Home icon / section / page, under the top bar. */
+function AdminBreadcrumb() {
+  const crumbs = breadcrumbFor(usePathname());
+  const separator = <ChevronRightIcon width={14} height={14} className="shrink-0 text-stone" />;
+  return (
+    <nav aria-label="Fil d'Ariane" className="mb-4 lg:mb-6">
+      <ol className="flex min-w-0 items-center gap-1.5 text-xs text-stone">
+        <li className="flex">
+          <Link
+            href={adminRoutes.home}
+            aria-label="Tableau de bord"
+            className="-m-1.5 grid size-8 place-items-center hover:text-ink"
+          >
+            <HomeIcon width={16} height={16} />
+          </Link>
+        </li>
+        {crumbs.map((crumb, index) => (
+          <Fragment key={crumb.label}>
+            <li aria-hidden="true" className="flex">
+              {separator}
+            </li>
+            <li className="min-w-0 truncate">
+              {crumb.href ? (
+                <Link href={crumb.href} className="hover:text-ink">
+                  {crumb.label}
+                </Link>
+              ) : (
+                <span
+                  aria-current={index === crumbs.length - 1 ? "page" : undefined}
+                  className="text-ink"
+                >
+                  {crumb.label}
+                </span>
+              )}
+            </li>
+          </Fragment>
+        ))}
+      </ol>
+    </nav>
   );
 }
 
@@ -281,10 +289,12 @@ export function AdminShell({ admin, children }: { admin: Admin; children: ReactN
   return (
     <LiveOrdersProvider>
       <div className="min-h-svh bg-bone text-ink lg:grid lg:grid-cols-[248px_minmax(0,1fr)]">
-        <Sidebar admin={admin} />
+        <Sidebar />
         <div className="min-w-0">
           <MobileBars admin={admin} />
-          <main className="mx-auto w-full max-w-6xl px-4 pt-5 pb-28 sm:px-6 lg:px-10 lg:pt-9 lg:pb-12">
+          <DesktopTopBar admin={admin} />
+          <main className="mx-auto w-full max-w-6xl px-4 pt-4 pb-28 sm:px-6 lg:px-10 lg:pt-6 lg:pb-12">
+            <AdminBreadcrumb />
             {children}
           </main>
         </div>

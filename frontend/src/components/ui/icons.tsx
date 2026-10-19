@@ -392,3 +392,12 @@ export function EditIcon(props: IconProps) {
     </LineIcon>
   );
 }
+
+export function HomeIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="M3.5 11 12 4l8.5 7M6 9v11h12V9" />
+      <path d="M10 20v-5.5h4V20" />
+    </LineIcon>
+  );
+}

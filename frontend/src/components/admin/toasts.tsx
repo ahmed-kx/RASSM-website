@@ -15,6 +15,8 @@ export interface Toast {
 
 interface ToastContextValue {
   showToast: (toast: Omit<Toast, "id">) => void;
+  /** Removes every toast (e.g. the notification panel already shows the same orders). */
+  dismissAll: () => void;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -27,7 +29,7 @@ export function useToast(): ToastContextValue {
 
 const DURATION_MS = 7000;
 
-/** Short messages at the top of the screen (above the content, reachable on a phone). */
+/** Short messages under the top bar (above the content, reachable on a phone). */
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const nextId = useRef(1);
@@ -45,14 +47,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     [dismiss],
   );
 
-  const value = useMemo(() => ({ showToast }), [showToast]);
+  const dismissAll = useCallback(() => setToasts([]), []);
+
+  const value = useMemo(() => ({ showToast, dismissAll }), [showToast, dismissAll]);
 
   return (
     <ToastContext value={value}>
       {children}
       <div
         aria-live="polite"
-        className="pointer-events-none fixed inset-x-0 top-0 z-50 flex flex-col items-center gap-2 p-3 lg:items-end lg:p-5"
+        className="pointer-events-none fixed inset-x-0 top-14 z-50 flex flex-col items-center gap-2 p-3 lg:top-16 lg:items-end lg:p-5"
       >
         {toasts.map((toast) => (
           <div
