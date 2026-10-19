@@ -1,4 +1,4 @@
-import { mockProducts } from "@rassm/shared/mocks";
+import { mockProducts } from "../mocks";
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_FILTERS,

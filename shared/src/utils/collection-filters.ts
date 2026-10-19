@@ -3,15 +3,15 @@ import {
   CATEGORY_LABELS,
   SIZES,
   categorySchema,
-  getSizeStock,
   sizeSchema,
   type Category,
-  type Product,
   type Size,
-} from "@rassm/shared";
+} from "../schemas/common";
+import { getSizeStock, type Product } from "../schemas/product";
 
 // Collection filters live in the URL (?category=hoodie,tshirt&color=noir&size=M&min=…&max=…&sort=…&view=…)
 // so links can be shared and the homepage category cards land on the right filter.
+// The API (GET /api/products) accepts the same query parameters and uses the same logic.
 
 export const SORT_KEYS = ["featured", "new", "price-asc", "price-desc"] as const;
 export type SortKey = (typeof SORT_KEYS)[number];

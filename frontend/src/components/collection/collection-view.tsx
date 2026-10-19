@@ -1,14 +1,8 @@
 "use client";
 
-import { CATEGORIES, CATEGORY_LABELS, type Category, type Product } from "@rassm/shared";
-import { usePathname, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ProductCard, ProductListItem } from "@/components/product/product-card";
-import { Button } from "@/components/ui/button";
-import { Container } from "@/components/ui/container";
-import { ChevronDownIcon, CloseIcon, FilterIcon, GridIcon, ListIcon } from "@/components/ui/icons";
-import { cn } from "@/lib/cn";
 import {
+  CATEGORIES,
+  CATEGORY_LABELS,
   DEFAULT_FILTERS,
   SORT_KEYS,
   SORT_LABELS,
@@ -16,9 +10,18 @@ import {
   getCollectionFacets,
   parseCollectionFilters,
   serializeCollectionFilters,
+  type Category,
   type CollectionFilters,
+  type Product,
   type SortKey,
-} from "@/lib/collection-filters";
+} from "@rassm/shared";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ProductCard, ProductListItem } from "@/components/product/product-card";
+import { Button } from "@/components/ui/button";
+import { Container } from "@/components/ui/container";
+import { ChevronDownIcon, CloseIcon, FilterIcon, GridIcon, ListIcon } from "@/components/ui/icons";
+import { cn } from "@/lib/cn";
 import { FiltersPanel } from "./filters-panel";
 
 const GRID_IMAGE_SIZES = "(min-width: 1280px) 22vw, (min-width: 768px) 31vw, 50vw";

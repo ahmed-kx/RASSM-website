@@ -6,7 +6,7 @@ import {
   formatDiscount,
   formatPrice,
   getWilaya,
-  type Order,
+  type PlacedOrder,
 } from "@rassm/shared";
 import Image from "next/image";
 import { useEffect, useState, type ReactNode } from "react";
@@ -16,7 +16,8 @@ import { PIXEL_CURRENCY, trackPurchaseOnce } from "@/lib/analytics/meta-pixel";
 import { getLastOrder } from "@/lib/data/orders";
 import { routes } from "@/lib/routes";
 
-type State = { status: "loading" } | { status: "missing" } | { status: "found"; order: Order };
+type State =
+  { status: "loading" } | { status: "missing" } | { status: "found"; placed: PlacedOrder };
 
 /** "0555123456" → "0555 12 34 56" */
 function formatPhone(phone: string): string {
@@ -48,19 +49,21 @@ function Row({
 
 /**
  * Thank-you content: the order is "reçue", confirmed only after our phone call. Loads the last
- * order, then sends the Purchase event once per order. The order number is internal (it is
- * the Pixel event id) and is never shown.
+ * order, then sends the Purchase event once per order, with the internal order id as event
+ * id (the same as the server-side Conversions API event, so Meta counts it once). The order
+ * number is internal and is never shown.
  */
 export function OrderReceived() {
   const [state, setState] = useState<State>({ status: "loading" });
 
   useEffect(() => {
     let cancelled = false;
-    void getLastOrder().then((order) => {
+    void getLastOrder().then((placed) => {
       if (cancelled) return;
-      setState(order ? { status: "found", order } : { status: "missing" });
-      if (order) {
-        trackPurchaseOnce(order.orderNumber, {
+      setState(placed ? { status: "found", placed } : { status: "missing" });
+      if (placed) {
+        const { order } = placed;
+        trackPurchaseOnce(placed.eventId, {
           value: order.total,
           currency: PIXEL_CURRENCY,
           content_ids: [order.item.productId],
@@ -102,7 +105,7 @@ export function OrderReceived() {
     );
   }
 
-  const { order } = state;
+  const { order } = state.placed;
   const { item } = order;
   const wilaya = getWilaya(order.wilayaCode);
 

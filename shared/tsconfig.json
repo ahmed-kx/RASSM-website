@@ -1,6 +1,8 @@
 {
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
+    // URLSearchParams (collection filters) exists in browsers and in Node: the DOM lib types it.
+    "lib": ["ES2023", "DOM"],
     "types": []
   },
   "include": ["src"]

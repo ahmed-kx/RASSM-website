@@ -1,14 +1,15 @@
-import type { ProductOrder } from "@rassm/shared";
+import type { PlacedOrder, ProductOrder } from "@rassm/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { placeProductOrder } from "./orders";
+import { OrderError, getLastOrder, placeProductOrder } from "./orders";
 
-// Fragment Sweatshirt: 6 900 DA, tiers 1 → −100 DA, 2 → −200 DA, 3 → free delivery.
-// Alger: 400 DA home, 250 DA stop desk. Tindouf (37): no stop desk.
-const base: ProductOrder = {
+// Pricing, stock and fraud checks are tested in the backend (backend/test/orders.test.ts).
+// Here: what the frontend sends, how it reads the answer and the French errors.
+
+const order: ProductOrder = {
   productId: "prod_003",
   color: "Noir",
   size: "M",
-  quantity: 1,
+  quantity: 2,
   fullName: "Yacine Benali",
   phone: "0555123456",
   wilayaCode: 16,
@@ -17,77 +18,118 @@ const base: ProductOrder = {
   address: "Cité 1200 logements, bâtiment 5",
 };
 
-async function place(overrides: Partial<ProductOrder>) {
-  const pending = placeProductOrder({ ...base, ...overrides });
-  // Keep a handled reference so a rejection is not reported before the test awaits it.
-  pending.catch(() => undefined);
-  await vi.advanceTimersByTimeAsync(1000);
-  return pending;
-}
+const { productId: _p, color: _c, size: _s, quantity: _q, ...customer } = order;
+
+const placed: PlacedOrder = {
+  eventId: "6710f0c2a1b2c3d4e5f60718",
+  order: {
+    ...customer,
+    item: {
+      productId: "prod_003",
+      color: "Noir",
+      size: "M",
+      quantity: 2,
+      name: "Fragment Sweatshirt",
+      slug: "fragment-sweatshirt",
+      image: "/images/products/fragment-sweatshirt-front.jpg",
+      unitPrice: 6900,
+    },
+    subtotal: 13800,
+    deliveryFeeBase: 400,
+    deliveryDiscount: 200,
+    deliveryFee: 200,
+    freeDelivery: false,
+    deliveryDiscountLines: [
+      {
+        productId: "prod_003",
+        productName: "Fragment Sweatshirt",
+        quantity: 2,
+        tier: { type: "amount", minQuantity: 2, amount: 200 },
+        amount: 200,
+      },
+    ],
+    total: 14000,
+    status: "pending",
+    paymentMethod: "cash_on_delivery",
+    createdAt: "2026-10-19T10:00:00.000Z",
+  },
+};
+
+const json = (status: number, body: unknown) =>
+  new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
 beforeEach(() => {
-  vi.useFakeTimers();
+  const store = new Map<string, string>();
+  vi.stubGlobal("sessionStorage", {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => store.set(key, value),
+  });
 });
 afterEach(() => {
-  vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
 describe("placeProductOrder", () => {
-  it.each([
-    { quantity: 1, subtotal: 6900, discount: 100, fee: 300, free: false, total: 7200 },
-    { quantity: 2, subtotal: 13800, discount: 200, fee: 200, free: false, total: 14000 },
-    { quantity: 3, subtotal: 20700, discount: 400, fee: 0, free: true, total: 20700 },
-  ])(
-    "prices $quantity Fragment Sweatshirt(s) delivered at home in Alger",
-    async ({ quantity, subtotal, discount, fee, free, total }) => {
-      const order = await place({ quantity });
-      expect(order).toMatchObject({
-        orderNumber: expect.stringMatching(/^RSM-\d{6}$/),
-        item: { productId: "prod_003", color: "Noir", size: "M", quantity, unitPrice: 6900 },
-        subtotal,
-        deliveryFeeBase: 400,
-        deliveryDiscount: discount,
-        deliveryFee: fee,
-        freeDelivery: free,
-        total,
-        status: "pending",
-        paymentMethod: "cash_on_delivery",
-      });
-    },
-  );
+  it("posts the customer's choices only (no price), with the honeypot and Meta data", async () => {
+    const fetchMock = vi.fn(async () => json(201, placed));
+    vi.stubGlobal("fetch", fetchMock);
 
-  it("uses the stop desk price", async () => {
-    const order = await place({ deliveryType: "stopdesk", address: "" });
-    expect(order).toMatchObject({ deliveryFeeBase: 250, deliveryFee: 150, total: 7050 });
+    const result = await placeProductOrder(order, {
+      website: "",
+      tracking: { fbp: "fb.1.1712345678901.123456789" },
+    });
+
+    expect(result).toEqual(placed);
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toMatch(/\/api\/orders$/);
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(String(init.body))).toEqual({
+      order,
+      website: "",
+      tracking: { fbp: "fb.1.1712345678901.123456789" },
+    });
+    expect(String(init.body)).not.toMatch(/price|total|deliveryFee/i);
   });
 
-  it("refuses stop desk in Tindouf, in French", async () => {
-    await expect(place({ wilayaCode: 37, deliveryType: "stopdesk" })).rejects.toThrow(
-      "La livraison au bureau (stop desk) n'est pas disponible dans la wilaya de Tindouf.",
+  it("keeps the answer for /merci (no order number in it)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json(201, placed)),
     );
+    await placeProductOrder(order);
+    expect(await getLastOrder()).toEqual(placed);
+    expect(JSON.stringify(await getLastOrder())).not.toMatch(/RSM-\d/);
   });
 
-  it("accepts an available variant of a multi-color product", async () => {
-    const order = await place({ productId: "prod_005", color: "Noir", size: "M", quantity: 3 });
-    expect(order.item).toMatchObject({ color: "Noir", size: "M", quantity: 3, unitPrice: 4900 });
+  it("throws the server's French errors with their field", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        json(409, {
+          error: {
+            message: "La taille M est épuisée en Noir.",
+            fields: { size: "La taille M est épuisée en Noir." },
+          },
+        }),
+      ),
+    );
+    const error = await placeProductOrder(order).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(OrderError);
+    expect(error).toMatchObject({
+      message: "La taille M est épuisée en Noir.",
+      fields: { size: "La taille M est épuisée en Noir." },
+    });
   });
 
-  it("checks color and stock per color + size against the product", async () => {
-    await expect(place({ color: "Rose" })).rejects.toThrow(
-      "Cette couleur n'est pas disponible pour ce produit.",
+  it("explains a network failure in French", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("fetch failed");
+      }),
     );
-    // Canvas Hoodie: 2 left in S. Silence Hoodie: XXL sold out. Classic Tee: Crème M sold out.
-    await expect(
-      place({ productId: "prod_009", color: "Anthracite", size: "S", quantity: 3 }),
-    ).rejects.toThrow("Il ne reste que 2 articles en taille S (Anthracite).");
-    await expect(place({ productId: "prod_006", size: "XXL" })).rejects.toThrow(
-      "La taille XXL est épuisée en Noir.",
+    await expect(placeProductOrder(order)).rejects.toThrow(
+      "Impossible de joindre le serveur. Vérifiez votre connexion internet et réessayez.",
     );
-    await expect(place({ productId: "prod_005", color: "Crème", size: "M" })).rejects.toThrow(
-      "La taille M est épuisée en Crème.",
-    );
-    await expect(
-      place({ productId: "prod_005", color: "Crème", size: "L", quantity: 4 }),
-    ).rejects.toThrow("Il ne reste que 3 articles en taille L (Crème).");
   });
 });

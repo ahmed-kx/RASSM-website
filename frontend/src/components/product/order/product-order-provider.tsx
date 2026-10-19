@@ -9,9 +9,19 @@ import {
 } from "@rassm/shared";
 import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { useRouter } from "next/navigation";
-import { createContext, use, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { PIXEL_CURRENCY, trackMetaEvent } from "@/lib/analytics/meta-pixel";
+import {
+  createContext,
+  use,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
+import { PIXEL_CURRENCY, getMetaTracking, trackMetaEvent } from "@/lib/analytics/meta-pixel";
 import { OrderError, placeProductOrder } from "@/lib/data/orders";
+import { toServerErrors } from "@/lib/form-errors";
 import { routes } from "@/lib/routes";
 
 /** Id of the order form section: the mobile sticky button scrolls to it. */
@@ -32,6 +42,7 @@ function revealFirstError(root: HTMLElement | null) {
 function useProductOrderForm(product: Product, onSubmitted: () => void) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const honeypotRef = useRef<HTMLInputElement>(null);
   // The shared rules plus this product's colors and stock per color + size.
   const schema = useMemo(() => createProductOrderFormSchema(product), [product]);
 
@@ -56,11 +67,26 @@ function useProductOrderForm(product: Product, onSubmitted: () => void) {
     onSubmit: async ({ value }) => {
       setSubmitError(null);
       try {
-        await placeProductOrder(schema.parse(value));
+        await placeProductOrder(schema.parse(value), {
+          website: honeypotRef.current?.value ?? "",
+          tracking: getMetaTracking(),
+        });
         onSubmitted();
       } catch (error) {
+        if (error instanceof OrderError) {
+          // The server's French errors go under their field (e.g. stock just sold out).
+          const { errors, unknownMessages } = toServerErrors(
+            error.fields,
+            Object.keys(defaultValues),
+          );
+          form.setErrorMap({ onDynamic: errors });
+          const shownUnderFields = Object.keys(errors.fields).length > 0;
+          setSubmitError(shownUnderFields ? (unknownMessages[0] ?? null) : error.message);
+          if (shownUnderFields) requestAnimationFrame(() => revealFirstError(rootRef.current));
+          return;
+        }
         setSubmitError(
-          error instanceof OrderError || error instanceof DeliveryTypeUnavailableError
+          error instanceof DeliveryTypeUnavailableError
             ? error.message
             : "Une erreur est survenue, votre commande n'a pas été envoyée. Veuillez réessayer.",
         );
@@ -72,7 +98,7 @@ function useProductOrderForm(product: Product, onSubmitted: () => void) {
     },
   });
 
-  return { form, submitError, rootRef };
+  return { form, submitError, rootRef, honeypotRef };
 }
 
 type ProductOrderForm = ReturnType<typeof useProductOrderForm>["form"];
@@ -88,6 +114,8 @@ interface ProductOrderContextValue {
   placed: boolean;
   /** InitiateCheckout, sent the first time the customer starts filling the form. */
   startCheckout: () => void;
+  /** Hidden anti-spam field of the order form. */
+  honeypotRef: RefObject<HTMLInputElement | null>;
 }
 
 const ProductOrderContext = createContext<ProductOrderContextValue | null>(null);
@@ -117,7 +145,7 @@ export function ProductOrderProvider({
   const sending = useRef(false);
   const placedRef = useRef(false);
   const checkoutStarted = useRef(false);
-  const { form, submitError, rootRef } = useProductOrderForm(product, () => {
+  const { form, submitError, rootRef, honeypotRef } = useProductOrderForm(product, () => {
     placedRef.current = true;
     setPlaced(true);
     router.push(routes.orderReceived);
@@ -163,7 +191,16 @@ export function ProductOrderProvider({
 
   return (
     <ProductOrderContext
-      value={{ form, product, deliveryFees, submit, submitError, placed, startCheckout }}
+      value={{
+        form,
+        product,
+        deliveryFees,
+        submit,
+        submitError,
+        placed,
+        startCheckout,
+        honeypotRef,
+      }}
     >
       <div ref={rootRef}>{children}</div>
     </ProductOrderContext>

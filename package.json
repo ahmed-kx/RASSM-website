@@ -3,16 +3,17 @@
   "private": true,
   "packageManager": "pnpm@10.34.7",
   "engines": {
-    "node": ">=20.9.0"
+    "node": ">=20.12.0"
   },
   "scripts": {
-    "dev": "pnpm --filter @rassm/frontend dev",
+    "dev": "pnpm --parallel --filter @rassm/frontend --filter @rassm/backend dev",
     "build": "pnpm -r --if-present build",
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "pnpm -r --if-present lint",
     "test": "pnpm -r --if-present test",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "seed": "pnpm --filter @rassm/backend seed"
   },
   "devDependencies": {
     "prettier": "^3.9.10",

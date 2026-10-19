@@ -1,10 +1,19 @@
-import { WILAYAS, type DeliveryFee } from "@rassm/shared";
-import { mockDeliveryFees } from "@rassm/shared/mocks";
+import { API_PATHS, WILAYAS, deliveryFeeSchema, type DeliveryFee } from "@rassm/shared";
+import { z } from "zod";
+import { apiGet } from "@/lib/api";
 
-// Data access for the delivery fee table (Anderson rates). Mocks today, the API later.
+// Data access for the delivery fee table (Anderson rates), from the API.
+
+/** The rates change rarely: Next asks the API again after 5 minutes. */
+const DELIVERY_FEES_REVALIDATE = 300;
+
+const deliveryFeesResponseSchema = z.object({ deliveryFees: z.array(deliveryFeeSchema) });
 
 export async function getDeliveryFees(): Promise<DeliveryFee[]> {
-  return [...mockDeliveryFees];
+  const data = await apiGet(API_PATHS.deliveryFees, deliveryFeesResponseSchema, {
+    revalidate: DELIVERY_FEES_REVALIDATE,
+  });
+  return data?.deliveryFees ?? [];
 }
 
 /** One row of the public delivery table: a wilaya and its rates. */

@@ -11,6 +11,15 @@ Things that are placeholders or decisions still to make. Remove an item once it 
 
 - [ ] **Meta Pixel ID**: set `NEXT_PUBLIC_META_PIXEL_ID` in `frontend/.env.local` (and in the hosting environment). Without it, no Meta script is loaded.
 
+- [ ] **Meta Conversions API**: set `META_PIXEL_ID` and `META_CAPI_ACCESS_TOKEN` in `backend/.env` (and on the API host). Check the events in Events Manager > Test events (`META_TEST_EVENT_CODE`).
+- [ ] **Hosting the API**: set `FRONTEND_ORIGIN` to the real domain(s), `TRUST_PROXY` to the number of proxies of the host, `NEXT_PUBLIC_API_URL` in the frontend, and allow the server IP in MongoDB Atlas Network Access.
+
+## Dashboard step
+
+- [ ] Restore the stock when an order is cancelled or returned.
+- [ ] Send `sendOrderConfirmed` (Meta, `backend/src/meta/conversions-api.ts`) when an order is confirmed by phone.
+- [ ] Show `suspicious` / `suspiciousReason` and `metaPurchase.status` on the orders list.
+
 ## Later
 
 - [ ] Search: add a search page and the header search icon back once the catalogue is bigger (removed for now, only 9 products).

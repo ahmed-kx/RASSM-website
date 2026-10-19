@@ -28,31 +28,32 @@ Oversized hoodies, sweatshirts and t-shirts with artistic sketch prints.
 
 - **Monorepo:** pnpm workspaces
   - `frontend/`: Next.js (App Router), TypeScript, Tailwind CSS v4, TanStack Form, TanStack Query
-  - `backend/`: Express.js + TypeScript, MongoDB with Mongoose (not built yet)
-  - `shared/`: Zod schemas, inferred types, constants, helpers, mock data
+  - `backend/`: Express 5 + TypeScript, MongoDB (Atlas) with Mongoose, run with `tsx`
+  - `shared/`: Zod schemas, inferred types, constants, helpers (pricing, collection filters), API request/response shapes, mock data
   - `config/eslint/`: shared ESLint flat config (`/base`, `/next`)
 - **Validation:** Zod v4. **All schemas live in `shared/`** and are used by both the frontend forms and the backend. Never redefine a schema or type in an app; import it from `@rassm/shared`.
-- Mock data comes from `@rassm/shared/mocks` and is parsed through the schemas at load time.
+- Mock data (`@rassm/shared/mocks`, parsed through the schemas at load time) is used **only by the seed script and the tests**. The site reads everything from the API.
 - TypeScript is pinned to `~6.0` because typescript-eslint does not support 7.x yet.
 - Next.js is v16 (Turbopack, `next lint` removed, ESLint runs directly). Read `frontend/AGENTS.md` and the docs in `frontend/node_modules/next/dist/docs/` before using a Next API you are unsure about.
 - `@rassm/shared` ships TS source with extensionless imports. It runs through Next (`transpilePackages`) or `tsx`, not plain `node`.
 
 ### Commands (run from the root)
 
-| Command          | What it does                                            |
-| ---------------- | ------------------------------------------------------- |
-| `pnpm dev`       | Starts the web app on http://localhost:3000             |
-| `pnpm build`     | Builds every workspace                                  |
-| `pnpm typecheck` | Type-checks every workspace                             |
-| `pnpm lint`      | Lints every workspace                                   |
-| `pnpm test`      | Runs the unit tests (Vitest, `shared/` and `frontend/`) |
-| `pnpm format`    | Formats everything with Prettier                        |
+| Command          | What it does                                                                          |
+| ---------------- | ------------------------------------------------------------------------------------- |
+| `pnpm dev`       | Starts the web app (http://localhost:3000) and the API (http://localhost:4000)        |
+| `pnpm seed`      | Loads the products and the Anderson fees into MongoDB (`--reset` overwrites products) |
+| `pnpm build`     | Builds every workspace                                                                |
+| `pnpm typecheck` | Type-checks every workspace                                                           |
+| `pnpm lint`      | Lints every workspace                                                                 |
+| `pnpm test`      | Runs the tests (Vitest: `shared/`, `frontend/`, `backend/` with an in-memory MongoDB) |
+| `pnpm format`    | Formats everything with Prettier                                                      |
 
 ## Build order
 
-1. **Frontend first**, using mock data from `@rassm/shared/mocks`.
-2. **Backend:** Express API + MongoDB.
-3. **Connect** the frontend to the API (TanStack Query), replacing mocks.
+1. **Frontend first**, using mock data from `@rassm/shared/mocks`. Done.
+2. **Backend:** Express API + MongoDB. Done (step 3A).
+3. **Connect** the frontend to the API, replacing mocks. Done (step 3A): server components fetch with a short revalidation, forms post with `fetch`. TanStack Query is not needed yet; add it when the dashboard needs client-side caching.
 4. **Admin dashboard.**
 
 Do only the step you are asked to do. Do not start a later step early.
@@ -71,7 +72,7 @@ Do only the step you are asked to do. Do not start a later step early.
 
 - WhatsApp and phone: **0780 29 49 10** (`https://wa.me/213780294910`, `tel:+213780294910`); Instagram **@rassm.wear**. These live in `frontend/src/content/contact.ts` (`CONTACT`): never hard-code the number or the links elsewhere. The footer, the contact page and `SOCIAL_LINKS` read it.
 - No public e-mail address and no opening hours are shown.
-- Contact form (`contactFormSchema` in `shared/src/schemas/forms.ts`): Prénom, Nom, Téléphone (required, Algerian format), E-mail (optional, empty = `undefined`), Sujet (`CONTACT_SUBJECTS`: Commande, Échange, Collaboration, Autre), Message (10 to 2 000 characters). Today `sendContactMessage` (`lib/data/contact.ts`) only validates and simulates the request; **in the backend step the API validates with the same schema and saves the message** (read in the admin dashboard).
+- Contact form (`contactFormSchema` in `shared/src/schemas/forms.ts`): Prénom, Nom, Téléphone (required, Algerian format), E-mail (optional, empty = `undefined`), Sujet (`CONTACT_SUBJECTS`: Commande, Échange, Collaboration, Autre), Message (10 to 2 000 characters). `sendContactMessage` (`lib/data/contact.ts`) posts to `POST /api/contact-messages`, which validates with the same schema (`contactRequestSchema` = the form + the honeypot) and saves a `ContactMessage` (`read: false`, read in the admin dashboard).
 
 ### Delivery fees and stop desk
 
@@ -99,12 +100,12 @@ Do only the step you are asked to do. Do not start a later step early.
 ### Order confirmation (phone call first, no order number for customers)
 
 - A new order has the status `pending` and is **"reçue" (received)**, never "confirmée". It is **confirmed only after our phone call** (we check the product, the size and the address, then the status becomes `confirmed`). Customer texts must never say the order is confirmed before that call.
-- **The customer never sees an order number**: not on `/merci` (the URL has no query string), not in the FAQ, the delivery steps, the form notes or the metadata. `orderNumber` (`RSM-000123`) still exists **internally**: for the admin dashboard and as the Meta Pixel `eventID` of Purchase.
+- **The customer never sees an order number**: not on `/merci` (the URL has no query string), not in the FAQ, the delivery steps, the form notes or the metadata. `orderNumber` (`RSM-000123`, from an atomic counter) exists **internally only**, for the admin dashboard: the API never sends it to the browser. The browser receives the order summary (`orderSummarySchema`: the order without id and number) and an `eventId` (the internal order id), used only as the Meta event id.
 - `/merci` says "Merci, votre commande est bien reçue. Nous vous appellerons très bientôt pour la confirmer. Gardez votre téléphone à portée de main.", keeps the order summary (product, color, size, quantity, delivery, total) and reads the last order saved on the device (`getLastOrder`). A customer who needs to change an order contacts us by WhatsApp with their name and product.
 
 ### Order form (product page)
 
-- Schemas in `shared/src/schemas/product-order.ts`: `productOrderSchema` (the payload the API will validate) and `productOrderFormSchema` (same rules for the form, whose wilaya select and size start empty; its output is a `ProductOrder`). Customer fields and the "address required for home delivery" rule come from `customer.ts`.
+- Schemas in `shared/src/schemas/product-order.ts`: `productOrderSchema` (the payload the API validates, inside `orderRequestSchema`) and `productOrderFormSchema` (same rules for the form, whose wilaya select and size start empty; its output is a `ProductOrder`). Customer fields and the "address required for home delivery" rule come from `customer.ts`.
 - Fields: Nom complet, Numéro de téléphone (05/06/07 + 8 digits, spaces allowed), Wilaya (58, `formatWilaya`, hint for the new wilayas, "Livraison estimée : N jours"), Commune, Mode de livraison ("À domicile" / "Au bureau" with the price of each; "Au bureau" hidden where `getAvailableDeliveryTypes` has no stop desk, and the choice falls back to home), Adresse (required for home delivery only). Color, size and quantity come from the selectors above the form and are part of the same form.
 - Color: required when the product has several colors, selected automatically when it has one. A color can have its own `images`; the gallery then shows them.
 - Size: once a color is chosen, the sizes show that color's stock (sold out = crossed out, "Plus que X en stock" from 3). Before a color is chosen, a size is crossed out only if it is sold out in every color. Changing color unselects the size if it is sold out in the new color.
@@ -117,7 +118,7 @@ Do only the step you are asked to do. Do not start a later step early.
 - Every color must give a stock for all five sizes (0 = not sold or sold out); missing or invalid values get French errors per size.
 - Read stock only with the shared helpers: `getVariantStock(product, color, size)`, `getSizeStock(product, size)` (all colors) and `isProductInStock(product)`.
 - Collection filters: a size filter matches a product that has stock in that size **in one of the filtered colors** (any color when no color is filtered).
-- **Backend step:** store the stock per variant on the product (same structure), validate each order with `createProductOrderSchema(product)` against the product loaded from the database, and **decrement the stock of the ordered variant** (color + size) atomically when the order is created (e.g. a conditional `$inc` on `colors.$[c].stock.<size>` that only matches when the stock is ≥ the quantity), so two orders can never sell the same last unit. Restore it when an order is cancelled or returned.
+- **Backend:** the stock is stored per variant on the product (same structure). Each order is validated with `createProductOrderSchema(product)` against the product loaded from the database, then the stock of the ordered variant is **decremented atomically** (`reserveStock` in `backend/src/services/orders.ts`: one `updateOne` whose filter only matches when `colors.$elemMatch { name, stock.<size> ≥ quantity }`, with `$inc` on `colors.$.stock.<size>`), so two orders can never sell the same last unit; when it does not match, the API answers 409 with the French stock error under the size or quantity. If saving the order fails, the units are given back. **Dashboard step:** restore the stock when an order is cancelled or returned.
 - Live summary above the button: price × quantity, delivery fee, discount line or "Livraison gratuite", total, and the next-tier hint (`formatNextTierMessage`: "Ajoutez 1 article pour la livraison gratuite"). Before the wilaya is chosen it uses `getDeliveryDiscountProgress`.
 - "Confirmer la commande" is disabled while sending and a second click is ignored (one order only). Invalid submit: French error under each field, then scroll to and focus the first invalid field (color and size first).
 
@@ -163,6 +164,18 @@ Tokens are defined in `frontend/src/app/globals.css` (`@theme`). Use the token c
 - Lots of whitespace, a strong grid, generous section padding.
 - Arrows (→) after CTA labels.
 
+## Backend (`backend/src/`)
+
+- `server.ts` (entry: env, MongoDB, listen), `app.ts` (`createApp(options)`: helmet, CORS limited to `FRONTEND_ORIGIN`, JSON body limit 20 kB, NoSQL key guard, routes, 404, error handler), `env.ts` (Zod validation of the environment at startup, see `backend/.env.example`), `db.ts`, `seed.ts` + `seed-cli.ts` (`pnpm seed`).
+- `models/`: Mongoose models matching the shared schemas: `Product` (`_id` = the shared id, e.g. `prod_001`; stock per color + size), `DeliveryFee` (58 wilayas), `Order`, `ContactMessage`, `NewsletterSubscriber` (unique email), `Counter` (order numbers). `toProduct`, `toOrderSummary`, `toOrder` convert documents to the shared types and validate them, so the API always answers in the shared shapes.
+- Public API (paths in `API_PATHS`, `shared/src/schemas/api.ts`): `GET /api/products` (same query parameters as the collection page: `category`, `color`, `size`, `min`, `max`, `sort`; uses the shared `parseCollectionFilters` / `filterAndSortProducts`), `GET /api/products/:slug`, `GET /api/delivery-fees`, `POST /api/orders`, `POST /api/contact-messages`, `POST /api/newsletter`, `GET /health`.
+- **Errors:** every body is validated with a shared schema (`parseOrThrow`). Errors the client may see are `HttpError` (status + French message + French `fields`), answered as `{ error: { message, fields? } }` (`apiErrorSchema`). Anything else is logged (English) and answered with a generic French 500: internals never leak.
+- **Order flow** (`services/orders.ts`, `placeOrder`): validate → load the product → `createProductOrderSchema(product)` → price with `getDeliveryFeeWithDiscount` and the fees from the database → honeypot → duplicate check → atomic stock decrement → order number + fraud flags → save (`pending`, with client IP and user agent, Meta cookies) → Meta Purchase in the background → `201 { order, eventId }`.
+- **Fake orders** (`services/fraud.ts`): rate limit per IP (orders 10, contact 5, newsletter 10 per 15 min, French 429); honeypot `website` filled → same success answer, nothing saved, no stock taken; same phone + same product within 30 min (not cancelled) → the first order is returned, nothing created; from the 3rd order of a phone or the 5th order of an IP in 24 h the order is saved with `suspicious: true` and a French `suspiciousReason`, never blocked.
+- **Meta Conversions API** (`meta/conversions-api.ts`): only when `META_PIXEL_ID` and `META_CAPI_ACCESS_TOKEN` are set. Purchase with `event_id` = order id (same as the browser), `action_source: website`, hashed (SHA-256) phone `213…`, first and last name, wilaya as city, country `dz`, plus IP, user agent, fbp, fbc; value + `DZD`. Sent in the background, the result is stored on the order (`metaPurchase.status`: sent / failed / skipped); a failure is logged and never fails the order. `sendOrderConfirmed` (custom event `CommandeConfirmee`, `action_source: phone_call`) is ready for the dashboard step, when an order is confirmed by phone.
+- **Seed:** creates missing products and upserts the delivery fees; existing products are never overwritten (real stock is kept) unless `pnpm seed --reset`.
+- **Tests** (`backend/test/`): Vitest + Supertest + mongodb-memory-server (one in-memory MongoDB, cleaned and re-seeded before each test, Meta mocked). Cover server-side pricing and discount tiers, ignored client prices, atomic stock, stop desk refused in Tindouf, honeypot, duplicates, fraud flags, rate limits, French validation errors, NoSQL injection, CORS, the Conversions API payload.
+
 ## Frontend structure (`frontend/src/`)
 
 - `app/`: routes. `layout.tsx` holds the header, footer, skip link and default French SEO metadata.
@@ -178,18 +191,18 @@ Tokens are defined in `frontend/src/app/globals.css` (`@theme`). Use the token c
 - **Collection filters live in the URL** (`?category=hoodie,tshirt&color=noir&size=M&min=5000&max=8000&sort=price-asc&view=list`). Pure logic in `lib/collection-filters.ts` (parse, serialize, facets, filter and sort, tested). The page updates the URL with `window.history.replaceState` (no server round trip) and reads it with `useSearchParams`; the page awaits `searchParams`, so a shared link is server-rendered already filtered.
 - `SiteHeader` floats over the photo on `/`, `/collection`, `/a-propos`, `/contact` and the info pages (`HEADER_OVER_HERO`). It has no search icon for now (see `docs/TODO.md`), and uses the narrow width on `/collection/*`. `Container size="narrow"` is the shop page width (design/Collection.png).
 - `content/`: editorial content that is not API data: `hero-slides.ts` (add a slide = add one entry), `navigation.ts` (menu, footer columns, social links), `contact.ts` (WhatsApp, phone and social links, the single source for them), `size-guide.ts` (placeholder measurements, see `docs/TODO.md`; shown by `SizeGuideTable`, used by both the product page dialog and `/guide-des-tailles`), `faq.ts` (questions and answers, links built from `routes` and `CONTACT`).
-- `lib/data/`: the data layer (mocks today, API later). `orders.ts`: `placeProductOrder` validates with `createProductOrderSchema(product)` (color and stock per color + size), prices the order with the shared delivery helper, builds an `Order` (fake number `RSM-123456`) and keeps it in sessionStorage; `getOrder` reads it back for `/merci`. In the connect step both call the API instead. `lib/routes.ts`: every internal URL (every route in it exists: never link to a page that is not built). `lib/cn.ts`: class name helper.
+- `lib/data/`: the data layer, calling the API through `lib/api.ts` (`apiGet`: server-side fetch cached `revalidate` seconds, 30 s for products, 5 min for delivery fees; `apiPost`: browser POST throwing an `ApiError` with the French message and `fields`). `orders.ts`: `placeProductOrder(order, { website, tracking })` posts `orderRequestSchema` (the customer's choices only, never a price) and keeps the answer (`PlacedOrder`) in sessionStorage; `getLastOrder` reads it back for `/merci`. Server errors with `fields` are shown under the matching form field (`toServerErrors` in `lib/form-errors.ts`, set with `form.setErrorMap({ onDynamic })`), e.g. a variant sold out since the page loaded. The order and contact forms have a hidden honeypot field (`components/ui/honeypot-field.tsx`). `lib/routes.ts`: every internal URL (every route in it exists: never link to a page that is not built). `lib/cn.ts`: class name helper.
 - Images live in `frontend/public/images/<section>/`. Placeholders and the photos still needed are listed in `docs/PHOTOS-NEEDED.md`; other open items in `docs/TODO.md`.
 - Product packshots are square on cream and shown with `object-contain` in 5:4 tiles. After replacing an image with the same file name, delete `frontend/.next` if the dev server still shows the old one (image cache).
 - The only English text on the site is the footer tagline next to the logo (`lang="en"`). The homepage story photos (`images/story/`) have English quotes painted on the wall: their alt texts give the quote in French; replace the photos to remove the English.
-- **Meta Pixel** (`lib/analytics/meta-pixel.ts`): loaded only when `NEXT_PUBLIC_META_PIXEL_ID` is set (otherwise no Meta script at all). Always go through `trackMetaEvent` / `trackPurchaseOnce`. Events: PageView on every page (`MetaPixelPageView` in the root layout), ViewContent on product pages (id, name, price), InitiateCheckout on the first focus in the order form, Purchase on `/merci` (value = order total, `eventID` = order number, once per order, remembered in localStorage). Currency `DZD` (`PIXEL_CURRENCY`), kept on purpose: DZD is a supported Meta ad account currency, even though the Pixel script logs a currency warning on Purchase. Duplicate calls caused by React Strict Mode in development are dropped.
+- **Meta Pixel** (`lib/analytics/meta-pixel.ts`): loaded only when `NEXT_PUBLIC_META_PIXEL_ID` is set (otherwise no Meta script at all). Always go through `trackMetaEvent` / `trackPurchaseOnce`. Events: PageView on every page (`MetaPixelPageView` in the root layout), ViewContent on product pages (id, name, price), InitiateCheckout on the first focus in the order form, Purchase on `/merci` (value = order total, `eventID` = the `eventId` returned by the API, once per order, remembered in localStorage). The API sends the same Purchase server-side (Conversions API) with the same event id, so Meta counts it once. The order form sends the `_fbp` / `_fbc` cookies and the page URL with the order (`getMetaTracking`; without `_fbc`, fbc is built from `?fbclid=`). Currency `DZD` (`PIXEL_CURRENCY`), kept on purpose: DZD is a supported Meta ad account currency, even though the Pixel script logs a currency warning on Purchase. Duplicate calls caused by React Strict Mode in development are dropped.
 - Animations respect `prefers-reduced-motion` (`motion-safe:` / `motion-reduce:` classes; the hero slider does not auto-play).
 
 ## Code rules
 
 - TypeScript `strict` everywhere. **No `any`** (lint error). Prefer types inferred from Zod schemas.
 - Small, reusable components. Shared UI goes in `frontend/src/components/`, not copy-pasted.
-- **Data access only through `frontend/src/lib/data/`** (`getFeaturedProducts`, `getCategoryCards`, `subscribeToNewsletter`…). Components and pages never import `@rassm/shared/mocks` directly, so swapping the mocks for the API later only touches that folder.
+- **Data access only through `frontend/src/lib/data/`** (`getFeaturedProducts`, `getCategoryCards`, `subscribeToNewsletter`…). Components and pages never call `fetch` or import `@rassm/shared/mocks`: only `lib/data/` talks to the API.
 - **Mobile first:** write base styles for 375px, then add `md:` / `lg:` overrides.
 - Secrets and URLs go in env variables. Every app with env vars has a committed `.env.example`. Never commit `.env*` files.
 - Use the `@/` alias for imports inside `frontend/src`.

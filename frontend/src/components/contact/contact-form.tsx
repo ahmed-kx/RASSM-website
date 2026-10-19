@@ -10,10 +10,13 @@ import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FormField, describedBy } from "@/components/ui/form-field";
+import { HoneypotField } from "@/components/ui/honeypot-field";
 import { ChevronDownIcon } from "@/components/ui/icons";
 import { CONTACT } from "@/content/contact";
+import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { sendContactMessage } from "@/lib/data/contact";
+import { toServerErrors } from "@/lib/form-errors";
 
 const defaultValues: ContactFormValues = {
   firstName: "",
@@ -36,6 +39,14 @@ export function ContactForm() {
   const [status, setStatus] = useState<"idle" | "sent" | "error">("idle");
   const sending = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
+  const honeypotRef = useRef<HTMLInputElement>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const focusFirstError = () => {
+    requestAnimationFrame(() => {
+      formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+    });
+  };
 
   const form = useForm({
     defaultValues,
@@ -43,18 +54,23 @@ export function ContactForm() {
     validators: { onDynamic: contactFormSchema },
     onSubmit: async ({ value, formApi }) => {
       try {
-        await sendContactMessage(contactFormSchema.parse(value));
+        await sendContactMessage(contactFormSchema.parse(value), honeypotRef.current?.value);
         setStatus("sent");
         formApi.reset();
-      } catch {
+      } catch (error) {
+        if (error instanceof ApiError && Object.keys(error.fields).length > 0) {
+          // The server's French errors go under their field.
+          formApi.setErrorMap({
+            onDynamic: toServerErrors(error.fields, Object.keys(defaultValues)).errors,
+          });
+          focusFirstError();
+          return;
+        }
+        setErrorMessage(error instanceof ApiError && error.status === 429 ? error.message : null);
         setStatus("error");
       }
     },
-    onSubmitInvalid: () => {
-      requestAnimationFrame(() => {
-        formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
-      });
-    },
+    onSubmitInvalid: focusFirstError,
   });
 
   const submit = async () => {
@@ -122,8 +138,9 @@ export function ContactForm() {
         event.stopPropagation();
         void submit();
       }}
-      className="mt-6 grid gap-x-5 gap-y-3.5 sm:grid-cols-2"
+      className="relative mt-6 grid gap-x-5 gap-y-3.5 sm:grid-cols-2"
     >
+      <HoneypotField id="contact-website" ref={honeypotRef} />
       {textField("firstName", "Prénom", {
         autoComplete: "given-name",
         placeholder: "Votre prénom",
@@ -234,8 +251,9 @@ export function ContactForm() {
           )}
           {status === "error" && (
             <p className="text-error">
-              Votre message n&apos;a pas pu être envoyé. Réessayez, ou écrivez-nous sur WhatsApp au{" "}
-              {CONTACT.whatsapp.display}.
+              {errorMessage
+                ? `${errorMessage} Vous pouvez aussi nous écrire sur WhatsApp au ${CONTACT.whatsapp.display}.`
+                : `Votre message n'a pas pu être envoyé. Réessayez, ou écrivez-nous sur WhatsApp au ${CONTACT.whatsapp.display}.`}
             </p>
           )}
         </div>

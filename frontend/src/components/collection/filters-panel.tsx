@@ -1,13 +1,9 @@
 "use client";
 
+import { hasActiveFilters, type CollectionFacets, type CollectionFilters } from "@rassm/shared";
 import type { ReactNode } from "react";
 import { CheckIcon, ChevronDownIcon } from "@/components/ui/icons";
 import { SectionLabel } from "@/components/ui/section-label";
-import {
-  hasActiveFilters,
-  type CollectionFacets,
-  type CollectionFilters,
-} from "@/lib/collection-filters";
 import { PriceRange } from "./price-range";
 
 function toggle<T>(values: readonly T[], value: T): T[] {

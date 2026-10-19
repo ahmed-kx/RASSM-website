@@ -1,11 +1,22 @@
-import type { Product } from "@rassm/shared";
-import { mockProducts } from "@rassm/shared/mocks";
+import { API_PATHS, productSchema, type Product } from "@rassm/shared";
+import { z } from "zod";
+import { apiGet } from "@/lib/api";
 
-// Data access for products. Today it reads the mocks from @rassm/shared; in the
-// "connect" step these functions call the API instead, with the same signatures.
+// Data access for products, from the API. Pages are server-rendered with a short cache,
+// so stock and prices stay fresh; the API checks the stock again on every order.
 
+/** Seconds Next keeps a product response before asking the API again. */
+const PRODUCTS_REVALIDATE = 30;
+
+const productListSchema = z.object({ products: z.array(productSchema) });
+const productResponseSchema = z.object({ product: productSchema });
+
+/** Products on sale, in catalog order (featured first). */
 export async function getProducts(): Promise<Product[]> {
-  return mockProducts.filter((product) => product.isActive);
+  const data = await apiGet(API_PATHS.products, productListSchema, {
+    revalidate: PRODUCTS_REVALIDATE,
+  });
+  return data?.products ?? [];
 }
 
 export async function getFeaturedProducts(limit = 5): Promise<Product[]> {
@@ -14,6 +25,8 @@ export async function getFeaturedProducts(limit = 5): Promise<Product[]> {
 }
 
 export async function getProductBySlug(slug: string): Promise<Product | undefined> {
-  const products = await getProducts();
-  return products.find((product) => product.slug === slug);
+  const data = await apiGet(API_PATHS.product(slug), productResponseSchema, {
+    revalidate: PRODUCTS_REVALIDATE,
+  });
+  return data?.product;
 }

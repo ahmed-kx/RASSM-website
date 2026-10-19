@@ -1,0 +1,175 @@
+import {
+  DELIVERY_TYPES,
+  ORDER_STATUSES,
+  PAYMENT_METHODS,
+  SIZES,
+  orderSchema,
+  orderSummarySchema,
+  type DeliveryDiscountLine,
+  type MetaTracking,
+  type Order,
+  type OrderSummary,
+} from "@rassm/shared";
+import { Schema, model, type Types } from "mongoose";
+
+export type MetaEventStatus = "pending" | "sent" | "failed" | "skipped";
+
+/** An order as stored: the shared Order plus internal data the customer never sees. */
+export interface OrderDoc extends Omit<Order, "id" | "createdAt"> {
+  _id: Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+  /** Who placed it (fraud checks, Meta Conversions API). */
+  client: { ip: string | null; userAgent: string | null };
+  /** Meta browser data (fbp/fbc cookies, page URL) for the Conversions API. Absent when none was sent. */
+  tracking?: MetaTracking;
+  /** Flagged for the dashboard (never blocked): e.g. many orders from the same phone. */
+  suspicious: boolean;
+  /** French, for the dashboard: why the order was flagged. */
+  suspiciousReason: string | null;
+  /** Server-side Purchase event (Conversions API). */
+  metaPurchase: { status: MetaEventStatus; sentAt?: Date; error?: string };
+}
+
+const itemSchema = new Schema(
+  {
+    productId: { type: String, required: true },
+    color: { type: String, required: true },
+    size: { type: String, enum: SIZES, required: true },
+    quantity: { type: Number, required: true, min: 1 },
+    name: { type: String, required: true },
+    slug: { type: String, required: true },
+    image: { type: String, required: true },
+    unitPrice: { type: Number, required: true, min: 0 },
+  },
+  { _id: false },
+);
+
+/** Tier applied per product (copied from the shared delivery helper). */
+const discountLineSchema = new Schema<DeliveryDiscountLine>(
+  {
+    productId: { type: String, required: true },
+    productName: { type: String, required: true },
+    quantity: { type: Number, required: true },
+    tier: {
+      type: { type: String, enum: ["amount", "free"], required: true },
+      minQuantity: { type: Number, required: true },
+      amount: Number,
+    },
+    amount: { type: Number, required: true },
+  },
+  { _id: false },
+);
+
+const orderMongooseSchema = new Schema<OrderDoc>(
+  {
+    /** Internal number, e.g. RSM-000123 (admin dashboard). Never shown to customers. */
+    orderNumber: { type: String, required: true, unique: true },
+    fullName: { type: String, required: true },
+    phone: { type: String, required: true },
+    wilayaCode: { type: Number, required: true },
+    commune: { type: String, required: true },
+    address: { type: String, default: "" },
+    deliveryType: { type: String, enum: DELIVERY_TYPES, required: true },
+    item: { type: itemSchema, required: true },
+    subtotal: { type: Number, required: true },
+    deliveryFeeBase: { type: Number, required: true },
+    deliveryDiscount: { type: Number, required: true },
+    deliveryFee: { type: Number, required: true },
+    freeDelivery: { type: Boolean, required: true },
+    deliveryDiscountLines: { type: [discountLineSchema], default: [] },
+    total: { type: Number, required: true },
+    // New orders are always "pending" (reçue): confirmed only after the phone call.
+    status: { type: String, enum: ORDER_STATUSES, default: "pending" },
+    paymentMethod: { type: String, enum: PAYMENT_METHODS, default: "cash_on_delivery" },
+    client: {
+      ip: { type: String, default: null },
+      userAgent: { type: String, default: null },
+    },
+    tracking: {
+      fbp: String,
+      fbc: String,
+      eventSourceUrl: String,
+    },
+    suspicious: { type: Boolean, default: false },
+    suspiciousReason: { type: String, default: null },
+    metaPurchase: {
+      status: { type: String, enum: ["pending", "sent", "failed", "skipped"], default: "pending" },
+      sentAt: Date,
+      error: String,
+    },
+  },
+  { timestamps: true, versionKey: false },
+);
+
+orderMongooseSchema.index({ status: 1, createdAt: -1 });
+orderMongooseSchema.index({ createdAt: -1 });
+// Duplicate detection (same phone + product) and fraud checks (orders per phone / IP in 24 h).
+orderMongooseSchema.index({ phone: 1, createdAt: -1 });
+orderMongooseSchema.index({ phone: 1, "item.productId": 1, createdAt: -1 });
+orderMongooseSchema.index({ "client.ip": 1, createdAt: -1 });
+orderMongooseSchema.index({ suspicious: 1, createdAt: -1 });
+
+export const OrderModel = model<OrderDoc>("Order", orderMongooseSchema);
+
+type OrderSource = Pick<
+  OrderDoc,
+  | "fullName"
+  | "phone"
+  | "wilayaCode"
+  | "commune"
+  | "address"
+  | "deliveryType"
+  | "item"
+  | "subtotal"
+  | "deliveryFeeBase"
+  | "deliveryDiscount"
+  | "deliveryFee"
+  | "freeDelivery"
+  | "deliveryDiscountLines"
+  | "total"
+  | "status"
+  | "paymentMethod"
+  | "createdAt"
+>;
+
+/** What the customer sees on /merci: no id, no order number. Validated (amounts add up). */
+export function toOrderSummary(doc: OrderSource): OrderSummary {
+  return orderSummarySchema.parse({
+    fullName: doc.fullName,
+    phone: doc.phone,
+    wilayaCode: doc.wilayaCode,
+    commune: doc.commune,
+    address: doc.address,
+    deliveryType: doc.deliveryType,
+    item: {
+      productId: doc.item.productId,
+      color: doc.item.color,
+      size: doc.item.size,
+      quantity: doc.item.quantity,
+      name: doc.item.name,
+      slug: doc.item.slug,
+      image: doc.item.image,
+      unitPrice: doc.item.unitPrice,
+    },
+    subtotal: doc.subtotal,
+    deliveryFeeBase: doc.deliveryFeeBase,
+    deliveryDiscount: doc.deliveryDiscount,
+    deliveryFee: doc.deliveryFee,
+    freeDelivery: doc.freeDelivery,
+    deliveryDiscountLines: doc.deliveryDiscountLines,
+    total: doc.total,
+    status: doc.status,
+    paymentMethod: doc.paymentMethod,
+    createdAt: doc.createdAt.toISOString(),
+  });
+}
+
+/** The full shared Order (admin dashboard later). */
+export function toOrder(doc: OrderDoc): Order {
+  return orderSchema.parse({
+    ...toOrderSummary(doc),
+    id: doc._id.toString(),
+    orderNumber: doc.orderNumber,
+  });
+}

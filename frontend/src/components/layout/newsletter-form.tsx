@@ -4,7 +4,11 @@ import { newsletterFormSchema } from "@rassm/shared";
 import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { useState } from "react";
 import { ArrowRightIcon } from "@/components/ui/icons";
+import { ApiError } from "@/lib/api";
 import { subscribeToNewsletter } from "@/lib/data/newsletter";
+import { toServerErrors } from "@/lib/form-errors";
+
+const SUBSCRIBE_ERROR = "L'inscription n'a pas pu être enregistrée. Veuillez réessayer.";
 
 /**
  * Newsletter sign-up. Validated with the shared Zod schema: first on submit,
@@ -12,15 +16,25 @@ import { subscribeToNewsletter } from "@/lib/data/newsletter";
  */
 export function NewsletterForm() {
   const [subscribed, setSubscribed] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
 
   const form = useForm({
     defaultValues: { email: "" },
     validationLogic: revalidateLogic(),
     validators: { onDynamic: newsletterFormSchema },
     onSubmit: async ({ value, formApi }) => {
-      await subscribeToNewsletter(newsletterFormSchema.parse(value));
-      setSubscribed(true);
-      formApi.reset();
+      setFailure(null);
+      try {
+        await subscribeToNewsletter(newsletterFormSchema.parse(value));
+        setSubscribed(true);
+        formApi.reset();
+      } catch (error) {
+        if (error instanceof ApiError && error.fields.email) {
+          formApi.setErrorMap({ onDynamic: toServerErrors(error.fields, ["email"]).errors });
+          return;
+        }
+        setFailure(error instanceof ApiError ? error.message : SUBSCRIBE_ERROR);
+      }
     },
   });
 
@@ -52,6 +66,7 @@ export function NewsletterForm() {
                   value={field.state.value}
                   onChange={(event) => {
                     setSubscribed(false);
+                    setFailure(null);
                     field.handleChange(event.target.value);
                   }}
                   onBlur={field.handleBlur}
@@ -81,8 +96,11 @@ export function NewsletterForm() {
           );
         }}
       </form.Field>
-      <p role="status" className="mt-2 min-h-4 text-xs text-ash">
-        {subscribed && "Merci ! Votre inscription à la newsletter est confirmée."}
+      <p
+        role="status"
+        className={failure ? "mt-2 min-h-4 text-xs text-error" : "mt-2 min-h-4 text-xs text-ash"}
+      >
+        {failure ?? (subscribed && "Merci ! Votre inscription à la newsletter est confirmée.")}
       </p>
     </form>
   );

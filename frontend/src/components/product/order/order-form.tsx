@@ -14,6 +14,7 @@ import { useStore } from "@tanstack/react-form";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { FormField, describedBy, inputClasses } from "@/components/ui/form-field";
+import { HoneypotField } from "@/components/ui/honeypot-field";
 import { ChevronDownIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
 import { routes } from "@/lib/routes";
@@ -27,7 +28,7 @@ function deliveryPrice(fee: DeliveryFee | undefined, type: DeliveryType): number
 
 /** "Commander maintenant": customer details, delivery, live summary and confirmation. */
 export function OrderForm() {
-  const { form, product, deliveryFees, submit, submitError, placed, startCheckout } =
+  const { form, product, deliveryFees, submit, submitError, placed, startCheckout, honeypotRef } =
     useProductOrder();
   const values = useStore(form.store, (state) => state.values);
   const isSubmitting = useStore(form.store, (state) => state.isSubmitting);
@@ -280,6 +281,7 @@ export function OrderForm() {
           }}
         </form.Field>
 
+        <HoneypotField id="order-website" ref={honeypotRef} />
         <OrderSummary product={product} deliveryFees={deliveryFees} values={values} />
 
         {submitError && (

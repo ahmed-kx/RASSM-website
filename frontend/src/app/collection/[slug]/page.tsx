@@ -15,8 +15,10 @@ import { getDeliveryFees } from "@/lib/data/delivery";
 import { getProductBySlug, getProducts } from "@/lib/data/products";
 import { routes } from "@/lib/routes";
 
+/** Pre-renders the product pages at build time; without the API, pages render on demand. */
 export async function generateStaticParams() {
-  return (await getProducts()).map((product) => ({ slug: product.slug }));
+  const products = await getProducts().catch(() => []);
+  return products.map((product) => ({ slug: product.slug }));
 }
 
 export async function generateMetadata({
