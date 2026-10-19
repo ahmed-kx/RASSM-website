@@ -2,7 +2,7 @@ import { cn } from "@/lib/cn";
 
 /**
  * Handwritten side quote (Covered By Your Grace), slightly rotated, with a short
- * hand-drawn line under it. Quotes are brand phrases and stay in English.
+ * hand-drawn line under it.
  */
 export function HandQuote({
   lines,
@@ -15,7 +15,6 @@ export function HandQuote({
 }) {
   return (
     <figure
-      lang="en"
       className={cn(
         "font-hand text-2xl leading-[1.08] uppercase",
         tilted && "-rotate-6",
@@ -25,7 +24,7 @@ export function HandQuote({
       <blockquote>
         <p>
           {lines.map((line) => (
-            <span key={line} className="block">
+            <span key={line} className="block whitespace-nowrap">
               {line}
             </span>
           ))}

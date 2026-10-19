@@ -31,14 +31,10 @@ export function LookbookStrip() {
       <Container className="grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,4.6fr)] lg:items-center lg:gap-6">
         <div>
           <SectionLabel>Lookbook</SectionLabel>
-          <SectionTitle
-            id="lookbook-title"
-            lang="en"
-            className="mt-3 lg:text-[2rem] xl:text-[2.25rem]"
-          >
-            Real people.
+          <SectionTitle id="lookbook-title" className="mt-3 lg:text-[1.6rem] xl:text-[1.85rem]">
+            De vraies personnes.
             <br />
-            Bigger feelings.
+            Des émotions plus grandes.
           </SectionTitle>
           <ArrowLink href={routes.lookbook} underline className="mt-5">
             Voir le lookbook
@@ -59,7 +55,7 @@ export function LookbookStrip() {
           ))}
           <li className="col-span-2 flex items-center justify-center bg-onyx px-4 py-10 text-paper md:col-span-1 md:py-0">
             <HandQuote
-              lines={["Draw", "what", "you", "can't", "say."]}
+              lines={["Dessiner", "ce qu'on", "ne peut", "pas dire."]}
               tilted={false}
               className="text-[1.65rem] md:text-[1.35rem] lg:text-[1.6rem]"
             />

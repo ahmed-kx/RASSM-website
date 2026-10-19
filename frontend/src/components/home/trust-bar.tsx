@@ -13,7 +13,7 @@ const PROMISES: readonly {
     Icon: TruckIcon,
   },
   { title: "Paiement à la livraison", text: "Simple. Sûr. Partout en Algérie.", Icon: BoxIcon },
-  { title: "Produits premium", text: "Qualité et finitions soignées.", Icon: ShieldCheckIcon },
+  { title: "Qualité supérieure", text: "Matières et finitions soignées.", Icon: ShieldCheckIcon },
 ];
 
 export function TrustBar() {

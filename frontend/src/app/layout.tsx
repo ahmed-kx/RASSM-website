@@ -12,7 +12,7 @@ const description =
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
   title: {
-    default: "RASSM | Draw what you can't say.",
+    default: "RASSM | Dessiner ce qu'on ne peut pas dire.",
     template: "%s | RASSM",
   },
   description,
@@ -20,14 +20,14 @@ export const metadata: Metadata = {
     type: "website",
     locale: "fr_DZ",
     siteName: "RASSM",
-    title: "RASSM | Draw what you can't say.",
+    title: "RASSM | Dessiner ce qu'on ne peut pas dire.",
     description,
     images: [
       {
         url: "/images/og/og-home.jpg",
         width: 1200,
         height: 630,
-        alt: "RASSM, streetwear algérien",
+        alt: "RASSM, mode urbaine algérienne",
       },
     ],
   },

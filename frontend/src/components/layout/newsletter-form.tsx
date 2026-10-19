@@ -64,7 +64,7 @@ export function NewsletterForm() {
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      aria-label="S'inscrire à la newsletter"
+                      aria-label="S'inscrire pour recevoir les nouveautés"
                       className="grid w-12 shrink-0 place-items-center text-ink transition-opacity hover:opacity-70 focus-visible:outline-1 focus-visible:-outline-offset-4 focus-visible:outline-ink disabled:opacity-40"
                     >
                       <ArrowRightIcon width={18} height={18} />

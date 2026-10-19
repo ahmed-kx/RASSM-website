@@ -108,11 +108,8 @@ export function HeroSlider({ slides }: { slides: readonly HeroSlide[] }) {
         <h1 className="font-display text-[clamp(4.5rem,17vw,9.75rem)] leading-[0.82] font-semibold tracking-[-0.01em]">
           RASSM
         </h1>
-        <p
-          lang="en"
-          className="mt-5 text-[12px] font-semibold tracking-wide-label uppercase md:mt-6 md:ml-[0.35em] md:text-[15px]"
-        >
-          Draw what you can&apos;t say.
+        <p className="mt-5 text-[12px] font-semibold tracking-wide-label uppercase md:mt-6 md:ml-[0.35em] md:text-[15px]">
+          Dessiner ce qu&apos;on ne peut pas dire.
         </p>
         <p className="mt-6 max-w-sm text-[15px] leading-relaxed text-paper/90 md:mt-8 md:text-base">
           Plus qu&apos;un vêtement.
@@ -132,7 +129,7 @@ export function HeroSlider({ slides }: { slides: readonly HeroSlide[] }) {
       </div>
 
       <HandQuote
-        lines={["Some", "things", "live", "better", "in art."]}
+        lines={["Certaines", "choses", "vivent mieux", "dans l'art."]}
         className="absolute top-[20%] right-[7%] hidden text-[1.7rem] lg:block"
       />
 

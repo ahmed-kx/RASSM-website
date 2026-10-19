@@ -6,17 +6,17 @@ import { SectionLabel } from "@/components/ui/section-label";
 import { SectionTitle } from "@/components/ui/section-title";
 import type { CategoryCard } from "@/lib/data/categories";
 
-/** Graphite band: "Wear your silence." and the three category cards. */
+/** Graphite band: "Portez votre silence." and the three category cards. */
 export function CollectionSection({ categories }: { categories: readonly CategoryCard[] }) {
   return (
     <section aria-labelledby="collection-title" className="bg-graphite text-paper">
       <Container className="grid gap-8 py-12 md:py-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,3.1fr)] lg:items-center lg:gap-12 lg:py-5">
         <div>
           <SectionLabel className="text-mist">La collection</SectionLabel>
-          <SectionTitle id="collection-title" lang="en" className="mt-4">
-            Wear
+          <SectionTitle id="collection-title" className="mt-4">
+            Portez
             <br />
-            your
+            votre
             <br />
             silence.
           </SectionTitle>

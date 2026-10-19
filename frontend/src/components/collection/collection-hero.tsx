@@ -24,10 +24,10 @@ export function CollectionHero() {
         className="flex min-h-[330px] flex-col justify-end pt-28 pb-10 md:min-h-[340px] md:pb-12 lg:min-h-[330px] lg:justify-center lg:pt-20 lg:pb-8"
       >
         <SectionLabel className="text-mist">La collection</SectionLabel>
-        <SectionTitle as="h1" lang="en" className="mt-4">
-          Wear
+        <SectionTitle as="h1" className="mt-4">
+          Portez
           <br />
-          your silence.
+          votre silence.
         </SectionTitle>
         <p className="mt-4 max-w-xl text-[15px] text-mist md:text-base">
           Des essentiels oversize pour un monde intérieur qui parle plus fort.

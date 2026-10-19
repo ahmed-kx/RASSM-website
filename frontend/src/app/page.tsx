@@ -10,9 +10,9 @@ import { getCategoryCards } from "@/lib/data/categories";
 import { getFeaturedProducts } from "@/lib/data/products";
 
 export const metadata: Metadata = {
-  title: { absolute: "RASSM | Streetwear algérien, Drop 001" },
+  title: { absolute: "RASSM | Mode urbaine algérienne, Drop 001" },
   description:
-    "RASSM, streetwear algérien : hoodies, sweatshirts et t-shirts oversize aux imprimés de croquis. Découvrez le Drop 001. Livraison dans les 58 wilayas, paiement à la livraison.",
+    "RASSM, mode urbaine algérienne : hoodies, sweatshirts et t-shirts oversize aux imprimés de croquis. Découvrez le Drop 001. Livraison dans les 58 wilayas, paiement à la livraison.",
 };
 
 export default async function HomePage() {

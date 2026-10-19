@@ -17,7 +17,7 @@ export const bodyFont = Spectral({
   display: "swap",
 });
 
-/** Handwritten marker: side quotes only ("Some things live better in art."). */
+/** Handwritten marker: side quotes only ("Certaines choses vivent mieux dans l'art."). */
 export const handFont = Covered_By_Your_Grace({
   subsets: ["latin"],
   weight: "400",

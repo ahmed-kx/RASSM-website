@@ -61,7 +61,8 @@ export function SiteHeader() {
                     href={link.href}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "border-b pb-1 text-[11px] font-semibold tracking-button uppercase transition-colors duration-200 focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-current",
+                      // No focus box: keyboard focus shows as a thicker underline (mouse clicks show nothing).
+                      "border-b pb-1 text-[11px] font-semibold tracking-button uppercase transition-colors duration-200 outline-none focus-visible:border-paper focus-visible:shadow-[0_2px_0_0_currentColor]",
                       active ? "border-paper" : "border-transparent hover:border-paper/50",
                     )}
                   >
@@ -144,7 +145,7 @@ function MobileMenu({ pathname, onClose }: { pathname: string; onClose: () => vo
                   onClick={onClose}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "font-display text-4xl font-medium uppercase",
+                    "font-display text-4xl font-medium uppercase outline-none focus-visible:underline focus-visible:decoration-1 focus-visible:underline-offset-8",
                     active && "border-b border-paper pb-1",
                   )}
                 >
@@ -157,8 +158,8 @@ function MobileMenu({ pathname, onClose }: { pathname: string; onClose: () => vo
       </nav>
 
       <div className="border-t border-paper/20 px-4 py-6 text-xs text-mist sm:px-6">
-        <p lang="en" className="font-semibold tracking-wide-label text-paper uppercase">
-          Draw what you can&apos;t say.
+        <p className="font-semibold tracking-wide-label text-paper uppercase">
+          Dessiner ce qu&apos;on ne peut pas dire.
         </p>
         <p className="mt-2">Livraison dans les 58 wilayas · Paiement à la livraison</p>
       </div>

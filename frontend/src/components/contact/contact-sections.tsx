@@ -9,7 +9,7 @@ import { SectionTitle } from "@/components/ui/section-title";
 import { CONTACT } from "@/content/contact";
 import { routes } from "@/lib/routes";
 
-/** Photo banner under the transparent header: "Let's talk." */
+/** Photo banner under the transparent header: "Parlons-en." */
 export function ContactHero() {
   return (
     <section className="relative isolate overflow-hidden bg-ink text-paper">
@@ -27,17 +27,15 @@ export function ContactHero() {
       />
       <Container className="relative flex min-h-[340px] flex-col justify-end pt-28 pb-10 md:pb-12 lg:min-h-[360px] lg:justify-center lg:pt-20 lg:pb-8">
         <SectionLabel className="text-mist">Contact</SectionLabel>
-        <SectionTitle as="h1" lang="en" className="mt-4">
-          Let&apos;s
-          <br />
-          talk.
+        <SectionTitle as="h1" className="mt-4">
+          Parlons-en.
         </SectionTitle>
         <p className="mt-4 max-w-sm text-[15px] leading-relaxed text-mist md:text-base">
           Une question, une collaboration ou simplement envie de partager vos pensées ? Nous serions
           ravis de vous lire.
         </p>
         <HandQuote
-          lines={["Same", "thoughts.", "Different", "stories."]}
+          lines={["Mêmes", "pensées.", "Histoires", "différentes."]}
           className="absolute top-1/2 right-6 hidden -translate-y-1/3 text-[1.6rem] text-paper md:block lg:right-16"
         />
       </Container>
@@ -209,7 +207,7 @@ export function BrandLocation() {
           className="-z-10 object-cover object-[25%_center] lg:object-center"
         />
         <HandQuote
-          lines={["Art", "connects", "us", "everywhere."]}
+          lines={["L'art", "nous relie", "partout."]}
           className="absolute top-1/2 right-6 -translate-y-1/2 text-[1.5rem] md:right-12 lg:right-16"
         />
       </div>

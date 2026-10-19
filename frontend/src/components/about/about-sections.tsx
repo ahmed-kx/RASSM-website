@@ -8,7 +8,7 @@ import { SectionLabel } from "@/components/ui/section-label";
 import { SectionTitle } from "@/components/ui/section-title";
 import { routes } from "@/lib/routes";
 
-/** Photo banner under the transparent header: "More than clothing." */
+/** Photo banner under the transparent header: "Plus que des vêtements." */
 export function AboutHero() {
   return (
     <section className="relative isolate overflow-hidden bg-ink text-paper">
@@ -26,18 +26,18 @@ export function AboutHero() {
       />
       <Container className="relative flex min-h-[380px] flex-col justify-end pt-28 pb-10 md:min-h-[400px] md:pb-12 lg:justify-center lg:pt-24 lg:pb-12">
         <SectionLabel className="text-mist">À propos de RASSM</SectionLabel>
-        <SectionTitle as="h1" lang="en" className="mt-4 lg:text-[4rem]">
-          More than
+        <SectionTitle as="h1" className="mt-4 lg:text-[4rem]">
+          Plus que
           <br />
-          clothing.
+          des vêtements.
         </SectionTitle>
         <p className="mt-5 max-w-md text-[15px] leading-relaxed text-mist md:text-base">
-          RASSM est une marque de streetwear créative, née de vraies personnes, de vraies émotions
+          RASSM est une marque de mode urbaine créative, née de vraies personnes, de vraies émotions
           et d&apos;une vision plus profonde. Nous créons plus que des vêtements : une toile pour ce
           qui vit en vous.
         </p>
         <HandQuote
-          lines={["Same", "thoughts.", "Different", "stories."]}
+          lines={["Mêmes", "pensées.", "Histoires", "différentes."]}
           className="absolute top-1/2 right-6 hidden -translate-y-1/3 text-[1.6rem] text-paper md:block lg:right-16"
         />
       </Container>
@@ -64,12 +64,11 @@ export function AboutStory() {
           <SectionLabel>Notre histoire</SectionLabel>
           <SectionTitle
             id="story-title"
-            lang="en"
             className="mt-3 text-[2.25rem] md:text-[2.6rem] lg:text-[2.75rem]"
           >
-            Art lives
+            L&apos;art vit
             <br />
-            in all of us.
+            en chacun de nous.
           </SectionTitle>
           <div className="mt-5 space-y-3 text-[15px] leading-relaxed text-ash">
             <p>
@@ -77,7 +76,7 @@ export function AboutStory() {
               dessinent.
             </p>
             <p>
-              Nous créons du streetwear oversize pour les penseurs, les hypersensibles, les
+              Nous créons des vêtements oversize pour les penseurs, les hypersensibles, les
               discrets, et pour tous ceux qui voient le monde un peu plus en profondeur. Chaque
               pièce est le reflet d&apos;une émotion humaine, d&apos;une identité et d&apos;un geste
               créatif.
@@ -102,7 +101,7 @@ export function AboutStory() {
             className="absolute inset-0 -z-10 bg-linear-to-l from-ink/55 via-ink/10 to-transparent"
           />
           <HandQuote
-            lines={["Different", "thoughts", "same", "human."]}
+            lines={["Pensées", "différentes,", "même", "humain."]}
             className="absolute top-1/2 right-5 -translate-y-1/2 text-[1.4rem] md:right-8 lg:text-[1.5rem]"
           />
         </div>
@@ -127,7 +126,7 @@ const VALUES: readonly { title: string; lines: readonly string[]; Icon: Icon }[]
   { title: "Liberté", lines: ["Portez vos pensées.", "Sans limites."], Icon: GlobeIcon },
 ];
 
-/** Dark band over a concrete photo: "What we stand for." and the three values. */
+/** Dark band over a concrete photo: "Ce que nous défendons." and the three values. */
 export function AboutValues() {
   return (
     <section
@@ -148,10 +147,10 @@ export function AboutValues() {
       <Container className="grid gap-12 py-14 md:py-16 lg:grid-cols-[1fr_1.15fr] lg:items-center lg:gap-10 lg:py-14">
         <div>
           <SectionLabel className="text-mist">Nos valeurs</SectionLabel>
-          <SectionTitle id="values-title" lang="en" className="mt-4">
-            What
+          <SectionTitle id="values-title" className="mt-4">
+            Ce que nous
             <br />
-            we stand for.
+            défendons.
           </SectionTitle>
           <p className="mt-5 max-w-md text-[15px] leading-relaxed text-mist">
             RASSM repose sur l&apos;authenticité, la créativité et la liberté. Nous croyons en ceux

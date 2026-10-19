@@ -43,7 +43,7 @@ export function SizeGuideDialog() {
           </div>
           <p className="mt-3 text-sm text-ash">
             Coupe oversize : prenez votre taille habituelle pour un tombé ample, une taille en
-            dessous pour un look plus ajusté. Mesures en centimètres, prises à plat.
+            dessous pour une coupe plus ajustée. Mesures en centimètres, prises à plat.
           </p>
           <div className="mt-6 overflow-x-auto">
             <table className="w-full text-left text-sm">

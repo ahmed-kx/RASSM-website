@@ -35,12 +35,11 @@ export default function ContactPage() {
             <SectionLabel>Envoyez-nous un message</SectionLabel>
             <SectionTitle
               id="contact-form-title"
-              lang="en"
               className="mt-3 text-[2.25rem] md:text-[2.6rem] lg:text-[2.6rem]"
             >
-              We&apos;re here
+              Nous sommes là
               <br />
-              for you.
+              pour vous.
             </SectionTitle>
             <ContactForm />
           </div>

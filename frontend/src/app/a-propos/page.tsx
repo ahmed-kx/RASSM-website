@@ -8,7 +8,7 @@ import {
 import { routes } from "@/lib/routes";
 
 const description =
-  "RASSM, marque de streetwear créative née en Algérie : des hoodies, sweatshirts et t-shirts oversize pour ceux qui pensent autrement et ressentent profondément.";
+  "RASSM, marque de mode urbaine créative née en Algérie : des hoodies, sweatshirts et t-shirts oversize pour ceux qui pensent autrement et ressentent profondément.";
 
 export const metadata: Metadata = {
   title: "À propos",
