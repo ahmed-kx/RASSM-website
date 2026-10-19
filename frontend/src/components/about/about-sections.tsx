@@ -177,13 +177,28 @@ export function AboutValues() {
   );
 }
 
-/** Light closing band (not in the design): invitation to the current drop. */
+/** Closing band (not in the design): invitation to the current drop, over a concrete photo. */
 export function AboutClosing() {
   return (
-    <section aria-labelledby="closing-title" className="border-b border-line bg-bone">
+    <section
+      aria-labelledby="closing-title"
+      className="relative isolate overflow-hidden border-t border-paper/10 bg-onyx text-paper"
+    >
+      <Image
+        src="/images/about/about-drop.jpg"
+        alt=""
+        fill
+        sizes="100vw"
+        className="-z-20 object-cover object-[88%_50%] md:object-[70%_50%]"
+      />
+      {/* The photo is sunlit on the right: keep the text and the button readable. */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 -z-10 bg-linear-to-r from-onyx/90 via-onyx/60 to-onyx/45"
+      />
       <Container className="flex flex-col items-start gap-6 py-14 md:flex-row md:items-center md:justify-between md:py-16">
         <div>
-          <SectionLabel className="text-stone">Drop 001</SectionLabel>
+          <SectionLabel className="text-mist">Drop 001</SectionLabel>
           <h2
             id="closing-title"
             className="mt-3 max-w-xl font-display text-3xl leading-[1.05] font-medium uppercase md:text-[2.4rem]"
@@ -191,7 +206,7 @@ export function AboutClosing() {
             Trouvez la pièce qui parle pour vous.
           </h2>
         </div>
-        <Button href={routes.collection} surface="light" withArrow className="shrink-0">
+        <Button href={routes.collection} surface="dark" withArrow className="shrink-0">
           Découvrir la collection
         </Button>
       </Container>

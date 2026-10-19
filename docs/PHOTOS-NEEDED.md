@@ -26,7 +26,7 @@ Provided: `collection-hero.jpg`, `drop-banner.jpg` and the three category photos
 
 ## About page (`frontend/public/images/about/`)
 
-Provided: `about-hero.jpg` (hero), `about-story-1.jpg` and `about-story-2.jpg` (story block, left and right), `about-values.jpg` (concrete background of the values band).
+Provided: `about-hero.jpg` (hero), `about-story-1.jpg` and `about-story-2.jpg` (story block, left and right), `about-values.jpg` (concrete background of the values band), `about-drop.jpg` (concrete background of the closing "Drop 001" band).
 
 ## Contact page (`frontend/public/images/contact/`)
 
