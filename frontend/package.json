@@ -1,0 +1,34 @@
+{
+  "name": "@rassm/frontend",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "next typegen && tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@rassm/shared": "workspace:*",
+    "@tanstack/react-form": "^1.33.5",
+    "next": "^16.4.2",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "zod": "^4.6.7",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@rassm/eslint-config": "workspace:*",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "eslint": "^10.0.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.5"
+  }
+}

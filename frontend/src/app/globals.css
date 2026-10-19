@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+/* RASSM design tokens, sampled from design/Homepage.png. See CLAUDE.md. */
+@theme {
+  --color-ink: #111111; /* headings and text on light, primary buttons */
+  --color-onyx: #1b1b1b; /* black tiles and blocks (quote tile) */
+  --color-graphite: #3a3937; /* dark grey sections (collection, story) */
+  --color-bone: #f5f2ec; /* warm off-white page background */
+  --color-cream: #e8e4dc; /* product tile background */
+  --color-paper: #fbf8f3; /* white text and buttons on dark */
+  --color-mist: #d2d0cd; /* body text on dark */
+  --color-ash: #403e3c; /* product names and secondary text on light */
+  --color-stone: #74706d; /* muted text on light (footer links, meta) */
+  --color-line: #d6d2ca; /* hairline borders on light */
+  --color-error: #9b2c1f; /* form errors (muted brick, readable on bone) */
+
+  --animate-slide-in-right: slide-in-right 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-slide-in-up: slide-in-up 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-fade-in: fade-in 200ms ease-out;
+
+  @keyframes slide-in-right {
+    from {
+      transform: translateX(100%);
+    }
+  }
+  @keyframes slide-in-up {
+    from {
+      transform: translateY(100%);
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  --tracking-button: 0.18em;
+  --tracking-label: 0.3em;
+  --tracking-wide-label: 0.45em;
+}
+
+@theme inline {
+  --font-display: var(--font-cormorant), "Times New Roman", serif;
+  --font-serif: var(--font-spectral), Georgia, serif;
+  --font-hand: var(--font-covered), cursive;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    background-color: var(--color-bone);
+    color: var(--color-ink);
+    font-family: var(--font-serif);
+  }
+}
+
+/* Dual-thumb price slider: two stacked range inputs, only the thumbs catch the pointer. */
+@layer components {
+  .range-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    pointer-events: none;
+    background: transparent;
+  }
+  .range-thumb::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    pointer-events: auto;
+    width: 16px;
+    height: 16px;
+    border-radius: 9999px;
+    background: var(--color-ink);
+    border: 2px solid var(--color-bone);
+    box-shadow: 0 0 0 1px var(--color-ink);
+    cursor: pointer;
+  }
+  .range-thumb::-moz-range-thumb {
+    pointer-events: auto;
+    width: 12px;
+    height: 12px;
+    border-radius: 9999px;
+    background: var(--color-ink);
+    border: 2px solid var(--color-bone);
+    box-shadow: 0 0 0 1px var(--color-ink);
+    cursor: pointer;
+  }
+  .range-thumb:focus-visible::-webkit-slider-thumb {
+    outline: 1px solid var(--color-ink);
+    outline-offset: 3px;
+  }
+  .range-thumb:focus-visible::-moz-range-thumb {
+    outline: 1px solid var(--color-ink);
+    outline-offset: 3px;
+  }
+}

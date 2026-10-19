@@ -1,0 +1,26 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# builds
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# env (keep the examples)
+.env
+.env.*
+!.env.example
+
+# logs & misc
+npm-debug.log*
+pnpm-debug.log*
+coverage/
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/

@@ -1,0 +1,10 @@
+packages:
+  - "frontend"
+  - "backend"
+  - "shared"
+  - "config/*"
+
+onlyBuiltDependencies:
+  - "@tailwindcss/oxide"
+  - sharp
+  - unrs-resolver
