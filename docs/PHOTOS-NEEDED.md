@@ -24,6 +24,10 @@ Already provided: `hero-1.jpg` and `hero-2.jpg` (1672 × 941).
 
 Provided: `collection-hero.jpg`, `drop-banner.jpg` and the three category photos.
 
+## About page (`frontend/public/images/about/`)
+
+Provided: `about-hero.jpg` (hero), `about-story-1.jpg` and `about-story-2.jpg` (story block, left and right), `about-values.jpg` (concrete background of the values band).
+
 ## Contact page (`frontend/public/images/contact/`)
 
 Provided: `contact-hero.jpg`, `contact-side.jpg`, `contact-faq.jpg` and `algeria-map.jpg`. The current `algeria-map.jpg` is a **world map**; the section says "Une marque algérienne.", so replace it with a stylized map of Algeria when you have one (same file name).

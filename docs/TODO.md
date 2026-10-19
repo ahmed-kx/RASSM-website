@@ -13,4 +13,4 @@ Things that are placeholders or decisions still to make. Remove an item once it 
 
 ## Pages linked but not built yet
 
-- [ ] `/recherche`, `/lookbook`, `/a-propos`, `/livraison`, `/echanges` (exchange policy written in CLAUDE.md), `/guide-des-tailles`, `/faq`. They show the French 404 page for now.
+- [ ] `/recherche`, `/lookbook`, `/livraison`, `/echanges` (exchange policy written in CLAUDE.md), `/guide-des-tailles`, `/faq`. They show the French 404 page for now.

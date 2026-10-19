@@ -244,3 +244,36 @@ export function LinkIcon(props: IconProps) {
     </LineIcon>
   );
 }
+
+/** Four-point star (value "Authenticité"). */
+export function SparkleIcon(props: IconProps) {
+  return (
+    <LineIcon width={40} height={40} strokeWidth={0.9} {...props}>
+      <path
+        d="M12 2.5c.6 5.2 3.3 8.5 8.5 9.5-5.2 1-7.9 4.3-8.5 9.5-.6-5.2-3.3-8.5-8.5-9.5 5.2-1 7.9-4.3 8.5-9.5Z"
+        strokeLinejoin="round"
+      />
+    </LineIcon>
+  );
+}
+
+/** Two overlapping circles (value "Créativité"). */
+export function CirclesIcon(props: IconProps) {
+  return (
+    <LineIcon width={40} height={40} strokeWidth={0.9} {...props}>
+      <circle cx="9" cy="12" r="6.5" />
+      <circle cx="15" cy="12" r="6.5" />
+    </LineIcon>
+  );
+}
+
+/** Globe (value "Liberté"). */
+export function GlobeIcon(props: IconProps) {
+  return (
+    <LineIcon width={40} height={40} strokeWidth={0.9} {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <ellipse cx="12" cy="12" rx="4" ry="9" />
+      <path d="M3 12h18M4.5 7h15M4.5 17h15" />
+    </LineIcon>
+  );
+}

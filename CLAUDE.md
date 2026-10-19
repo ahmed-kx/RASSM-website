@@ -7,7 +7,7 @@ Oversized hoodies, sweatshirts and t-shirts with artistic sketch prints.
 - Cash on delivery only, to the **58 wilayas** of Algeria (home delivery or stop desk), shipped by our courier **Anderson** from Alger. Some wilayas have **no stop desk** (see Business rules).
 - **Sales flow (Meta Ads):** visitors land on a product page from an ad and order that product directly with the form on the page. There is **no cart and no checkout page**: one order = one product (one color, one size, a quantity). After the order, the customer lands on `/merci` and the team calls them to confirm.
 - Customer-facing language is **French** (see Language rule below).
-- The design references are `design/Homepage.png`, `design/Collection.png` and `design/Contact.png`. Read the relevant one before any UI work.
+- The design references are `design/Homepage.png`, `design/Collection.png`, `design/Contact.png` and `design/About.png` (ignore the cart icon in the designs: there is no cart). Read the relevant one before any UI work.
 
 ## Language rule
 
@@ -154,6 +154,7 @@ Tokens are defined in `frontend/src/app/globals.css` (`@theme`). Use the token c
 
 - `app/`: routes. `layout.tsx` holds the header, footer, skip link and default French SEO metadata.
 - `components/ui/`: building blocks: `Button` (filled or outlined, `surface="dark" | "light"`), `SectionLabel`, `SectionTitle`, `ArrowLink`, `HandQuote`, `Container`, `Logo`, `icons.tsx` (thin line SVG icons). Reuse them; do not restyle buttons or labels by hand.
+- `components/about/`: the About page sections (`AboutHero`, `AboutStory`, `AboutValues`, `AboutClosing`).
 - `components/contact/`: the contact page sections (`ContactHero`, `ContactChannels`, `FaqBand`, `BrandLocation`) and `ContactForm`. `components/ui/form-field.tsx`: `FormField` (label, control, hint, French error; `labelStyle="caps" | "plain"`), `inputClasses` and `describedBy`, shared by the order and contact forms.
 - `components/layout/`: `SiteHeader` (transparent over the hero on `/`, dark band elsewhere, full-screen menu below `lg`), `SiteFooter`, `NewsletterForm` (TanStack Form + `newsletterFormSchema`, `revalidateLogic`).
 - `components/home/`, `components/collection/`, `components/product/`: page sections, `ProductCard` / `ProductListItem` (the whole card links to the product page, no "+" button), product gallery, quantity stepper, size guide dialog.
@@ -161,7 +162,7 @@ Tokens are defined in `frontend/src/app/globals.css` (`@theme`). Use the token c
 - `app/merci/` + `components/order/OrderConfirmation`: thank-you page (`/merci?commande=RSM-123456`, noindex): order number, summary, "Nous vous appellerons pour confirmer votre commande", link to the collection. Sends Purchase.
 - French tier texts come from `formatDeliveryDiscountTiers` / `formatTierBenefit` / `formatDiscount` / `formatNextTierMessage`.
 - **Collection filters live in the URL** (`?category=hoodie,tshirt&color=noir&size=M&min=5000&max=8000&sort=price-asc&view=list`). Pure logic in `lib/collection-filters.ts` (parse, serialize, facets, filter and sort, tested). The page updates the URL with `window.history.replaceState` (no server round trip) and reads it with `useSearchParams`; the page awaits `searchParams`, so a shared link is server-rendered already filtered.
-- `SiteHeader` floats over the photo on `/`, `/collection` and `/contact`, and uses the narrow width on `/collection/*`. `Container size="narrow"` is the shop page width (design/Collection.png).
+- `SiteHeader` floats over the photo on `/`, `/collection`, `/a-propos` and `/contact` (`HEADER_OVER_HERO`), and uses the narrow width on `/collection/*`. `Container size="narrow"` is the shop page width (design/Collection.png).
 - `content/`: editorial content that is not API data: `hero-slides.ts` (add a slide = add one entry), `navigation.ts` (menu, footer columns, social links), `contact.ts` (WhatsApp, phone and social links, the single source for them), `size-guide.ts` (placeholder measurements, see `docs/TODO.md`).
 - `lib/data/`: the data layer (mocks today, API later). `orders.ts`: `placeProductOrder` validates with `createProductOrderSchema(product)` (color and stock per color + size), prices the order with the shared delivery helper, builds an `Order` (fake number `RSM-123456`) and keeps it in sessionStorage; `getOrder` reads it back for `/merci`. In the connect step both call the API instead. `lib/routes.ts`: every internal URL. `lib/cn.ts`: class name helper.
 - Images live in `frontend/public/images/<section>/`. Placeholders and the photos still needed are listed in `docs/PHOTOS-NEEDED.md`; other open items in `docs/TODO.md`.
