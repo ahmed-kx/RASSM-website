@@ -91,7 +91,10 @@ describe("environment", () => {
       FRONTEND_ORIGIN: ["http://localhost:3000", "https://rassm.dz"],
       META_GRAPH_API_VERSION: "v23.0",
       MONGODB_DB_NAME: "rassm",
+      DNS_FALLBACK_SERVERS: ["1.1.1.1", "8.8.8.8"],
     });
+    expect(parseEnv({ ...valid, DNS_FALLBACK_SERVERS: "" }).DNS_FALLBACK_SERVERS).toEqual([]);
+    expect(() => parseEnv({ ...valid, DNS_FALLBACK_SERVERS: "dns.google" })).toThrow();
   });
 
   it("rejects a missing database URL or a bad origin", () => {

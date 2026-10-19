@@ -13,7 +13,9 @@ const env = loadEnv();
 const reset = process.argv.includes("--reset");
 
 try {
-  await connectDatabase(env.MONGODB_URI, env.MONGODB_DB_NAME);
+  await connectDatabase(env.MONGODB_URI, env.MONGODB_DB_NAME, {
+    dnsFallbackServers: env.DNS_FALLBACK_SERVERS,
+  });
   const result = await seedDatabase({ reset });
   // Create the indexes of the other collections too, so the database is ready.
   await Promise.all(

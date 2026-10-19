@@ -18,10 +18,12 @@ const metaConfig =
     : null;
 
 try {
-  await connectDatabase(env.MONGODB_URI, env.MONGODB_DB_NAME);
+  await connectDatabase(env.MONGODB_URI, env.MONGODB_DB_NAME, {
+    dnsFallbackServers: env.DNS_FALLBACK_SERVERS,
+  });
 } catch (error) {
   logger.error(
-    "Could not connect to MongoDB (check MONGODB_URI and the Atlas network access list)",
+    "Could not connect to MongoDB (check MONGODB_URI, the Atlas network access list, and the DNS or VPN of this computer)",
     describeError(error),
   );
   process.exit(1);

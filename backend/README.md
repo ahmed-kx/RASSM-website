@@ -26,6 +26,7 @@ Validated at startup (`src/env.ts`): the API refuses to start and lists what is 
 | ------------------------ | -------- | --------------------------------------------------------------------------------------- |
 | `MONGODB_URI`            | yes      | `mongodb+srv://user:pass@cluster0.xxx.mongodb.net/rassm`                                |
 | `MONGODB_DB_NAME`        | no       | `rassm` (database inside the cluster)                                                   |
+| `DNS_FALLBACK_SERVERS`   | no       | `1.1.1.1,8.8.8.8` (Atlas lookup when this computer's DNS refuses it; empty = none)      |
 | `FRONTEND_ORIGIN`        | yes      | `http://localhost:3000` (comma-separated list)                                          |
 | `PORT`                   | no       | `4000`                                                                                  |
 | `TRUST_PROXY`            | no       | `0`; set to the number of proxies of the host (often `1`) so the real client IP is used |
@@ -40,6 +41,12 @@ Validated at startup (`src/env.ts`): the API refuses to start and lists what is 
 
 Never commit `.env`. On MongoDB Atlas, allow the IP address of the server (or of your
 computer in development) in **Network Access**.
+
+**`querySrv ECONNREFUSED` at startup** (the dashboard then says "Le serveur est injoignable"):
+Node could not look up the Atlas address with this computer's DNS, which some VPNs (e.g. HMA)
+point to `127.0.0.1`. The API then retries the lookup with `DNS_FALLBACK_SERVERS` and logs a
+warning; if it still fails, disconnect the VPN or fix the DNS of the network adapter. Database
+outages after startup are answered with a French 503, never a generic error.
 
 ## Seed
 

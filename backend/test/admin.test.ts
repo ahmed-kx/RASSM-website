@@ -37,6 +37,7 @@ const setStatus = (agent: Agent, id: string, status: string) =>
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("admin login", () => {
@@ -103,6 +104,23 @@ describe("admin login", () => {
       .post("/api/admin/auth/login")
       .send({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD })
       .expect(200);
+  });
+
+  it("answers a French 503 (not a generic error) when the database is unreachable", async () => {
+    const { api } = testApp();
+    const outage = Object.assign(new Error("querySrv ECONNREFUSED _mongodb._tcp.cluster.example"), {
+      name: "MongooseServerSelectionError",
+    });
+    vi.spyOn(AdminModel, "findOne").mockRejectedValueOnce(outage);
+    const res = await api
+      .post("/api/admin/auth/login")
+      .set("Origin", "http://localhost:3000")
+      .send({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD })
+      .expect(503);
+    expect(res.body.error.message).toBe(
+      "Le service est momentanément indisponible. Veuillez réessayer dans un instant.",
+    );
+    expect(JSON.stringify(res.body)).not.toContain("querySrv");
   });
 
   it("rate limits login attempts per IP", async () => {

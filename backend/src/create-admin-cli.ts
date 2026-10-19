@@ -57,7 +57,9 @@ try {
     throw new Error("The two passwords are different.");
   }
 
-  await connectDatabase(env.MONGODB_URI, env.MONGODB_DB_NAME);
+  await connectDatabase(env.MONGODB_URI, env.MONGODB_DB_NAME, {
+    dnsFallbackServers: env.DNS_FALLBACK_SERVERS,
+  });
   const existing = await AdminModel.findOne({ email: email.data });
   if (existing) {
     const answer = await ask(`An admin ${email.data} already exists. Reset its password? (y/N) `);

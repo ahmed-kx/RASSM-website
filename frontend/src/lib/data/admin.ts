@@ -21,6 +21,9 @@ import { ApiError } from "@/lib/api";
 
 const GENERIC_ERROR = "Une erreur est survenue. Veuillez réessayer.";
 const NETWORK_ERROR = "Connexion impossible. Vérifiez votre connexion internet et réessayez.";
+/** The site answered but could not reach the API (Next.js proxy error, API stopped). */
+export const UNREACHABLE_ERROR =
+  "Le serveur est injoignable pour le moment. Veuillez réessayer dans un instant.";
 
 /** Called on a 401 (session expired): the dashboard sends the admin back to the login page. */
 let onUnauthorized: (() => void) | null = null;
@@ -42,9 +45,10 @@ async function request(path: string, init: RequestInit = {}): Promise<Response> 
   if (response.ok) return response;
   if (response.status === 401 && onUnauthorized && !path.endsWith("/auth/login")) onUnauthorized();
   const body = apiErrorSchema.safeParse(await response.json().catch(() => null));
-  throw body.success
-    ? new ApiError(response.status, body.data.error.message, body.data.error.fields)
-    : new ApiError(response.status, GENERIC_ERROR);
+  if (body.success) {
+    throw new ApiError(response.status, body.data.error.message, body.data.error.fields);
+  }
+  throw new ApiError(response.status, response.status >= 500 ? UNREACHABLE_ERROR : GENERIC_ERROR);
 }
 
 async function requestJson<T extends z.ZodType>(path: string, schema: T, init?: RequestInit) {

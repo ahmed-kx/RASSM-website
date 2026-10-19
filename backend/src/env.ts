@@ -21,6 +21,26 @@ const envSchema = z.object({
     .trim()
     .regex(/^[A-Za-z0-9_-]{1,38}$/, "MONGODB_DB_NAME must be a simple name, e.g. rassm.")
     .default("rassm"),
+  /**
+   * DNS servers used for the Atlas lookup (mongodb+srv://) when the computer's own DNS refuses
+   * it, e.g. under some VPNs. Comma-separated IPs; empty = no fallback.
+   */
+  DNS_FALLBACK_SERVERS: z
+    .string()
+    .default("1.1.1.1,8.8.8.8")
+    .transform((value) =>
+      value
+        .split(",")
+        .map((server) => server.trim())
+        .filter(Boolean),
+    )
+    .pipe(
+      z.array(
+        z.union([z.ipv4(), z.ipv6()], {
+          error: "DNS_FALLBACK_SERVERS must contain IP addresses, e.g. 1.1.1.1,8.8.8.8.",
+        }),
+      ),
+    ),
   /** Site origin(s) allowed by CORS, comma-separated, e.g. https://rassm.dz,https://www.rassm.dz */
   FRONTEND_ORIGIN: z
     .string({ error: "FRONTEND_ORIGIN is required, e.g. http://localhost:3000." })
