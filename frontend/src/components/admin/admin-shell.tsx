@@ -13,7 +13,6 @@ import {
 } from "react";
 import {
   BanIcon,
-  ChevronRightIcon,
   DashboardIcon,
   HomeIcon,
   MailIcon,
@@ -234,24 +233,21 @@ function breadcrumbFor(pathname: string): Crumb[] {
 /** Home icon / section / page, under the top bar. */
 function AdminBreadcrumb() {
   const crumbs = breadcrumbFor(usePathname());
-  const separator = <ChevronRightIcon width={14} height={14} className="shrink-0 text-stone" />;
   return (
     <nav aria-label="Fil d'Ariane" className="mb-4 lg:mb-6">
-      <ol className="flex min-w-0 items-center gap-1.5 text-xs text-stone">
+      <ol className="flex min-w-0 items-center gap-3 text-sm text-stone">
         <li className="flex">
           <Link
             href={adminRoutes.home}
             aria-label="Tableau de bord"
             className="-m-1.5 grid size-8 place-items-center hover:text-ink"
           >
-            <HomeIcon width={16} height={16} />
+            <HomeIcon width={18} height={18} />
           </Link>
         </li>
         {crumbs.map((crumb, index) => (
           <Fragment key={crumb.label}>
-            <li aria-hidden="true" className="flex">
-              {separator}
-            </li>
+            <li aria-hidden="true">/</li>
             <li className="min-w-0 truncate">
               {crumb.href ? (
                 <Link href={crumb.href} className="hover:text-ink">
