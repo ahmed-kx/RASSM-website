@@ -24,7 +24,11 @@ Already provided: `hero-1.jpg` and `hero-2.jpg` (1672 × 941).
 
 Provided: `collection-hero.jpg`, `drop-banner.jpg` and the three category photos.
 
-## Contact page (`frontend/public/images/contact/`) — placeholders
+## Contact page (`frontend/public/images/contact/`)
+
+Provided: `contact-hero.jpg`, `contact-side.jpg`, `contact-faq.jpg` and `algeria-map.jpg`. The current `algeria-map.jpg` is a **world map**; the section says "Une marque algérienne.", so replace it with a stylized map of Algeria when you have one (same file name).
+
+Specs of the originals, for reference:
 
 | File                         | Used in                                                      | Recommended size          | Description of the shot                                                                                                                                                                                                                                                                                                   |
 | ---------------------------- | ------------------------------------------------------------ | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

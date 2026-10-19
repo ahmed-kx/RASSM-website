@@ -147,9 +147,17 @@ export function FaqBand() {
       aria-labelledby="faq-band-title"
       className="relative isolate overflow-hidden bg-onyx text-paper"
     >
+      <Image
+        src="/images/contact/contact-faq.jpg"
+        alt=""
+        fill
+        sizes="100vw"
+        className="-z-20 object-cover"
+      />
+      {/* Keeps the text readable over the photo. */}
       <div
         aria-hidden="true"
-        className="absolute inset-0 -z-10 bg-linear-to-r from-onyx from-45% to-graphite"
+        className="absolute inset-0 -z-10 bg-linear-to-r from-onyx/90 via-onyx/65 to-onyx/45"
       />
       <Container className="flex flex-col gap-6 py-10 md:flex-row md:items-center md:justify-between md:py-8">
         <div>
@@ -198,7 +206,7 @@ export function BrandLocation() {
           alt="Carte stylisée de l'Algérie"
           fill
           sizes="(min-width: 1024px) 56vw, 100vw"
-          className="-z-10 object-cover"
+          className="-z-10 object-cover object-[25%_center] lg:object-center"
         />
         <HandQuote
           lines={["Art", "connects", "us", "everywhere."]}
