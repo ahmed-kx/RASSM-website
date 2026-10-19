@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { cartItemSchema, getCartSubtotal } from "./cart";
-import { checkoutFieldsSchema, refineAddressForHomeDelivery } from "./checkout";
-import { idSchema, isoDateSchema, priceDaSchema } from "./common";
+import { idSchema, imageUrlSchema, isoDateSchema, priceDaSchema, slugSchema } from "./common";
+import { customerFieldsSchema, refineAddressForHomeDelivery } from "./customer";
 import { deliveryDiscountLineSchema } from "./delivery-discount";
+import { productOrderFieldsSchema } from "./product-order";
 
 export const ORDER_STATUSES = [
   "pending",
@@ -30,11 +30,36 @@ export const orderNumberSchema = z
   .string()
   .regex(/^RSM-\d{6}$/, 'Le numéro de commande doit avoir la forme "RSM-000123".');
 
-export const orderSchema = checkoutFieldsSchema
+/**
+ * The ordered product, with name, image and unit price copied from the product when
+ * the order is placed (so the order stays readable if the product changes later).
+ */
+export const orderItemSchema = productOrderFieldsSchema
+  .pick({
+    productId: true,
+    color: true,
+    size: true,
+    quantity: true,
+  })
+  .extend({
+    name: z.string().trim().min(1, "Nom du produit manquant."),
+    slug: slugSchema,
+    image: imageUrlSchema,
+    /** Unit price in DA when the order was placed. */
+    unitPrice: priceDaSchema,
+  });
+export type OrderItem = z.infer<typeof orderItemSchema>;
+
+export function getOrderSubtotal(item: Pick<OrderItem, "unitPrice" | "quantity">): number {
+  return item.unitPrice * item.quantity;
+}
+
+/** A stored order: one product (orders are placed from the product page). */
+export const orderSchema = customerFieldsSchema
   .extend({
     id: idSchema,
     orderNumber: orderNumberSchema,
-    items: z.array(cartItemSchema).min(1, "Une commande doit contenir au moins un article."),
+    item: orderItemSchema,
     subtotal: priceDaSchema,
     /** Delivery fee before discount. */
     deliveryFeeBase: priceDaSchema,
@@ -53,11 +78,11 @@ export const orderSchema = checkoutFieldsSchema
   })
   .superRefine((order, ctx) => {
     refineAddressForHomeDelivery(order, ctx);
-    if (order.subtotal !== getCartSubtotal(order.items)) {
+    if (order.subtotal !== getOrderSubtotal(order.item)) {
       ctx.addIssue({
         code: "custom",
         path: ["subtotal"],
-        message: "Le sous-total ne correspond pas aux articles.",
+        message: "Le sous-total doit être égal au prix unitaire multiplié par la quantité.",
       });
     }
     if (order.deliveryDiscount > order.deliveryFeeBase) {

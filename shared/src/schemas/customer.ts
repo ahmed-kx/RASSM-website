@@ -19,11 +19,8 @@ export const algerianPhoneSchema = z
       ),
   );
 
-/**
- * Plain object with every checkout field. Use `checkoutFormSchema` to validate a
- * submission; this one exists so other schemas (Order) can reuse the fields.
- */
-export const checkoutFieldsSchema = z.object({
+/** Who receives the order and where. Shared by the order form and the stored Order. */
+export const customerFieldsSchema = z.object({
   fullName: z
     .string({ error: "Veuillez entrer votre nom complet." })
     .trim()
@@ -36,31 +33,21 @@ export const checkoutFieldsSchema = z.object({
     .trim()
     .min(2, "Veuillez entrer votre commune.")
     .max(80, "Le nom de la commune est trop long."),
-  /** Required for home delivery, optional for stop desk (see refinement). */
+  /** Required for home delivery, optional for stop desk (see `refineAddressForHomeDelivery`). */
   address: z.string().trim().max(200, "L'adresse ne doit pas dépasser 200 caractères."),
   deliveryType: deliveryTypeSchema,
-  note: z.string().trim().max(500, "La remarque ne doit pas dépasser 500 caractères.").optional(),
 });
+export type CustomerFields = z.infer<typeof customerFieldsSchema>;
 
-type CheckoutFields = z.infer<typeof checkoutFieldsSchema>;
+export const ADDRESS_REQUIRED_MESSAGE =
+  "Veuillez entrer votre adresse complète pour la livraison à domicile.";
 
+/** The address is required for home delivery only. */
 export function refineAddressForHomeDelivery(
-  data: Pick<CheckoutFields, "address" | "deliveryType">,
+  data: Pick<CustomerFields, "address" | "deliveryType">,
   ctx: z.RefinementCtx,
 ): void {
-  if (data.deliveryType === "home" && data.address.length < 5) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["address"],
-      message: "Veuillez entrer votre adresse complète pour la livraison à domicile.",
-    });
+  if (data.deliveryType === "home" && data.address.trim().length < 5) {
+    ctx.addIssue({ code: "custom", path: ["address"], message: ADDRESS_REQUIRED_MESSAGE });
   }
 }
-
-/** What the customer fills in at checkout. */
-export const checkoutFormSchema = checkoutFieldsSchema.superRefine(refineAddressForHomeDelivery);
-
-/** Values the form holds before validation (phone not normalised yet). */
-export type CheckoutFormInput = z.input<typeof checkoutFormSchema>;
-/** Validated, normalised checkout data. */
-export type CheckoutForm = z.output<typeof checkoutFormSchema>;

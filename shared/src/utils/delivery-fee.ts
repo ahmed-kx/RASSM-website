@@ -1,4 +1,3 @@
-import type { CartItem } from "../schemas/cart";
 import type {
   DeliveryDiscountLine,
   DeliveryDiscountTier,
@@ -16,10 +15,13 @@ export type DeliveryDiscountProduct = Pick<
 export interface DeliveryFeeInput {
   wilayaCode: number;
   deliveryType: DeliveryType;
-  /** Cart lines: only product id and quantity are read (one line per size). */
-  items: readonly Pick<CartItem, "productId" | "quantity">[];
   /**
-   * Products of the cart, with their tiers. The backend passes products loaded from the
+   * Ordered lines: only product id and quantity are read. An order from the product
+   * page has one line; lines of the same product add up (e.g. several sizes).
+   */
+  items: readonly { productId: string; quantity: number }[];
+  /**
+   * The ordered products, with their tiers. The backend passes products loaded from the
    * database, never data sent by the client.
    */
   products: readonly DeliveryDiscountProduct[];
@@ -102,9 +104,9 @@ export function getDeliveryFeeWithDiscount({
     throw new Error(`Aucun tarif de livraison pour la wilaya ${wilayaCode}.`);
   }
   const deliveryFeeBase = getDeliveryPrice(fee, deliveryType);
-  const cartProducts = groupCartProducts(items, products);
+  const orderedProducts = groupProducts(items, products);
 
-  const deliveryDiscountLines: DeliveryDiscountLine[] = getAppliedTiers(cartProducts).map(
+  const deliveryDiscountLines: DeliveryDiscountLine[] = getAppliedTiers(orderedProducts).map(
     (applied) => ({
       ...applied,
       amount: applied.tier.type === "free" ? deliveryFeeBase : applied.tier.amount,
@@ -122,11 +124,11 @@ export function getDeliveryFeeWithDiscount({
     deliveryFee,
     freeDelivery,
     deliveryDiscountLines,
-    nextDeliveryDiscountTiers: deliveryFee > 0 ? getNextTiers(cartProducts) : [],
+    nextDeliveryDiscountTiers: deliveryFee > 0 ? getNextTiers(orderedProducts) : [],
   };
 }
 
-/** A tier reached by one product of the cart, before any delivery fee is known. */
+/** A tier reached by one ordered product, before any delivery fee is known. */
 export interface AppliedDeliveryDiscountTier {
   productId: string;
   productName: string;
@@ -137,7 +139,7 @@ export interface AppliedDeliveryDiscountTier {
 export interface DeliveryDiscountProgress {
   /** True when at least one product reached a "free" tier. */
   freeDelivery: boolean;
-  /** Sum of the "amount" tiers reached. The cap at the base fee is applied at checkout. */
+  /** Sum of the "amount" tiers reached. The cap at the base fee is applied once the wilaya is known. */
   amountDiscount: number;
   appliedTiers: AppliedDeliveryDiscountTier[];
   /** Better tiers not reached yet (empty once delivery is free). */
@@ -146,15 +148,15 @@ export interface DeliveryDiscountProgress {
 
 /**
  * The same tier rules as `getDeliveryFeeWithDiscount`, without a wilaya: what the
- * cart has unlocked so far and what the next tiers would give. Used by the cart
- * drawer, before the customer chooses where to deliver.
+ * quantity has unlocked so far and what the next tiers would give. Used by the order
+ * summary before the customer chooses a wilaya.
  */
 export function getDeliveryDiscountProgress({
   items,
   products,
 }: Pick<DeliveryFeeInput, "items" | "products">): DeliveryDiscountProgress {
-  const cartProducts = groupCartProducts(items, products);
-  const appliedTiers = getAppliedTiers(cartProducts);
+  const orderedProducts = groupProducts(items, products);
+  const appliedTiers = getAppliedTiers(orderedProducts);
   const freeDelivery = appliedTiers.some((applied) => applied.tier.type === "free");
   const amountDiscount = appliedTiers.reduce(
     (sum, { tier }) => sum + (tier.type === "amount" ? tier.amount : 0),
@@ -164,20 +166,20 @@ export function getDeliveryDiscountProgress({
     freeDelivery,
     amountDiscount,
     appliedTiers,
-    nextDeliveryDiscountTiers: freeDelivery ? [] : getNextTiers(cartProducts),
+    nextDeliveryDiscountTiers: freeDelivery ? [] : getNextTiers(orderedProducts),
   };
 }
 
-interface CartProduct {
+interface OrderedProduct {
   product: DeliveryDiscountProduct;
   quantity: number;
 }
 
-/** One entry per distinct product, quantities added up across sizes, in cart order. */
-function groupCartProducts(
+/** One entry per distinct product, quantities added up across sizes, in order. */
+function groupProducts(
   items: DeliveryFeeInput["items"],
   products: DeliveryFeeInput["products"],
-): CartProduct[] {
+): OrderedProduct[] {
   const quantities = new Map<string, number>();
   for (const item of items) {
     quantities.set(item.productId, (quantities.get(item.productId) ?? 0) + item.quantity);
@@ -191,15 +193,17 @@ function groupCartProducts(
   });
 }
 
-function getAppliedTiers(cartProducts: readonly CartProduct[]): AppliedDeliveryDiscountTier[] {
-  return cartProducts.flatMap(({ product, quantity }) => {
+function getAppliedTiers(
+  orderedProducts: readonly OrderedProduct[],
+): AppliedDeliveryDiscountTier[] {
+  return orderedProducts.flatMap(({ product, quantity }) => {
     const tier = getApplicableTier(product.deliveryDiscountTiers, quantity);
     return tier ? [{ productId: product.id, productName: product.name, quantity, tier }] : [];
   });
 }
 
-function getNextTiers(cartProducts: readonly CartProduct[]): NextDeliveryDiscountTier[] {
-  return cartProducts.flatMap(({ product, quantity }) => {
+function getNextTiers(orderedProducts: readonly OrderedProduct[]): NextDeliveryDiscountTier[] {
+  return orderedProducts.flatMap(({ product, quantity }) => {
     const tier = getNextBetterTier(product.deliveryDiscountTiers, quantity);
     return tier
       ? [

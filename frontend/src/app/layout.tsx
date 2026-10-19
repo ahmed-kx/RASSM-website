@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { CartProvider } from "@/components/cart/cart-provider";
+import { MetaPixelPageView } from "@/components/analytics/meta-pixel-page-view";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
-import { getProducts } from "@/lib/data/products";
 import { bodyFont, displayFont, handFont } from "@/lib/fonts";
 import "./globals.css";
 
@@ -35,9 +34,7 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image" },
 };
 
-export default async function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
-  const products = await getProducts();
-
+export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="fr" className={`${displayFont.variable} ${bodyFont.variable} ${handFont.variable}`}>
       <body>
@@ -47,11 +44,10 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         >
           Aller au contenu
         </a>
-        <CartProvider products={products}>
-          <SiteHeader />
-          <main id="contenu">{children}</main>
-          <SiteFooter />
-        </CartProvider>
+        <SiteHeader />
+        <main id="contenu">{children}</main>
+        <SiteFooter />
+        <MetaPixelPageView />
       </body>
     </html>
   );

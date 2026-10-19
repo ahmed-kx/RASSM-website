@@ -1,4 +1,4 @@
-import type { DeliveryDiscountTier } from "../schemas/delivery-discount";
+import type { DeliveryDiscountTier, NextDeliveryDiscountTier } from "../schemas/delivery-discount";
 import { formatPrice } from "./format-price";
 
 const MINUS = "−";
@@ -28,4 +28,18 @@ export function formatDeliveryDiscountTiers(tiers: readonly DeliveryDiscountTier
     .sort((a, b) => a.minQuantity - b.minQuantity)
     .map((tier) => `${formatArticleCount(tier.minQuantity)} : ${formatTierBenefit(tier)}`)
     .join(" · ");
+}
+
+/**
+ * The next-tier hint under the order summary:
+ * "Ajoutez 1 article pour la livraison gratuite" or "Ajoutez 2 articles pour −200 DA sur la livraison".
+ */
+export function formatNextTierMessage(
+  next: Pick<NextDeliveryDiscountTier, "missingQuantity" | "tier">,
+): string {
+  const benefit =
+    next.tier.type === "free"
+      ? "la livraison gratuite"
+      : `${formatDiscount(next.tier.amount)} sur la livraison`;
+  return `Ajoutez ${formatArticleCount(next.missingQuantity)} pour ${benefit}`;
 }

@@ -3,6 +3,7 @@ import { getMockProductBySlug, mockProducts } from "../mocks";
 import {
   formatDeliveryDiscountTiers,
   formatDiscount,
+  formatNextTierMessage,
   formatTierBenefit,
 } from "./delivery-discount-format";
 import { getDeliveryDiscountProgress } from "./delivery-fee";
@@ -21,8 +22,8 @@ const classic = id("classic-tee"); // no tiers
 const progress = (items: { productId: string; quantity: number }[]) =>
   getDeliveryDiscountProgress({ items, products: mockProducts });
 
-describe("getDeliveryDiscountProgress (cart drawer, no wilaya yet)", () => {
-  it("empty cart: nothing unlocked, nothing to suggest", () => {
+describe("getDeliveryDiscountProgress (order summary, no wilaya yet)", () => {
+  it("no items: nothing unlocked, nothing to suggest", () => {
     expect(progress([])).toEqual({
       freeDelivery: false,
       amountDiscount: 0,
@@ -101,5 +102,17 @@ describe("French tier formatting", () => {
       ]),
     ).toBe("1 article : −100 DA · 2 articles : −200 DA · 3 articles : livraison gratuite");
     expect(formatDeliveryDiscountTiers([])).toBe("");
+  });
+
+  it("formats the next-tier hint", () => {
+    expect(
+      formatNextTierMessage({ missingQuantity: 1, tier: { type: "free", minQuantity: 3 } }),
+    ).toBe("Ajoutez 1 article pour la livraison gratuite");
+    expect(
+      formatNextTierMessage({
+        missingQuantity: 2,
+        tier: { type: "amount", minQuantity: 3, amount: 200 },
+      }),
+    ).toBe("Ajoutez 2 articles pour −200 DA sur la livraison");
   });
 });

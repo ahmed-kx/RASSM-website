@@ -165,7 +165,7 @@ describe("getDeliveryFeeWithDiscount", () => {
       ).toThrow(DeliveryTypeUnavailableError);
     }
     expect(() => calc([], { wilayaCode: TINDOUF, deliveryType: "stopdesk" })).toThrow(
-      "Le retrait au stop desk n'est pas disponible dans la wilaya de Tindouf. Choisissez la livraison à domicile.",
+      "La livraison au bureau (stop desk) n'est pas disponible dans la wilaya de Tindouf. Choisissez la livraison à domicile.",
     );
   });
 
@@ -302,27 +302,18 @@ describe("product deliveryDiscountTiers validation", () => {
 });
 
 describe("order delivery checks", () => {
-  const items = [
-    {
-      productId: fragment.id,
-      name: "Fragment Sweatshirt",
-      slug: "fragment-sweatshirt",
-      image: "/images/products/fragment-sweatshirt-front.jpg",
-      size: "M",
-      quantity: 1,
-      unitPrice: 6900,
-    },
-    {
-      productId: unspoken.id,
-      name: "Unspoken Tee",
-      slug: "unspoken-tee",
-      image: "/images/products/unspoken-tee-front.jpg",
-      size: "L",
-      quantity: 1,
-      unitPrice: 4900,
-    },
-  ] as const;
-  const { nextDeliveryDiscountTiers: _next, ...delivery } = calc(items);
+  // 2 Fragment Sweatshirts (tier: −200 DA) delivered at home in Alger (400 DA).
+  const item = {
+    productId: fragment.id,
+    name: "Fragment Sweatshirt",
+    slug: "fragment-sweatshirt",
+    image: "/images/products/fragment-sweatshirt-front.jpg",
+    color: "Noir",
+    size: "M",
+    quantity: 2,
+    unitPrice: 6900,
+  } as const;
+  const { nextDeliveryDiscountTiers: _next, ...delivery } = calc([item]);
 
   const order = {
     id: "order_1",
@@ -333,10 +324,10 @@ describe("order delivery checks", () => {
     commune: "Bab Ezzouar",
     address: "Cité 1200 logements, bâtiment 5",
     deliveryType: "home",
-    items,
-    subtotal: 11800,
+    item,
+    subtotal: 13800,
     ...delivery,
-    total: 11800 + delivery.deliveryFee,
+    total: 13800 + delivery.deliveryFee,
     status: "pending",
     paymentMethod: "cash_on_delivery",
     createdAt: "2026-10-17T10:00:00.000Z",
@@ -348,12 +339,18 @@ describe("order delivery checks", () => {
   };
 
   it("accepts an order built from the helper", () => {
-    expect(order.deliveryFee).toBe(250);
+    expect(order.deliveryFee).toBe(200);
     expect(issuePaths(order)).toEqual([]);
   });
 
   it("rejects a total that ignores the discount", () => {
-    expect(issuePaths({ ...order, total: 12200 })).toEqual(["total"]);
+    expect(issuePaths({ ...order, total: 14200 })).toEqual(["total"]);
+  });
+
+  it("rejects a subtotal that is not unit price × quantity", () => {
+    expect(issuePaths({ ...order, subtotal: 6900, total: 6900 + order.deliveryFee })).toEqual([
+      "subtotal",
+    ]);
   });
 
   it("rejects a negative delivery fee", () => {
@@ -369,7 +366,7 @@ describe("order delivery checks", () => {
         freeDelivery: true,
         deliveryDiscount: 400,
         deliveryFee: 0,
-        total: 11800,
+        total: 13800,
       }),
     ).toEqual(["freeDelivery", "deliveryDiscount"]);
   });

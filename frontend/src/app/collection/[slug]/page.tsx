@@ -2,13 +2,17 @@ import { CATEGORY_LABELS, formatDeliveryDiscountTiers, formatPrice } from "@rass
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AddToCartForm } from "@/components/product/add-to-cart-form";
-import { ProductCard, productImageAlt } from "@/components/product/product-card";
-import { ProductGallery } from "@/components/product/product-gallery";
+import { OrderForm } from "@/components/product/order/order-form";
+import { ProductOptions } from "@/components/product/order/product-options";
+import { ProductOrderGallery } from "@/components/product/order/product-order-gallery";
+import { ProductOrderProvider } from "@/components/product/order/product-order-provider";
+import { StickyOrderButton } from "@/components/product/order/sticky-order-button";
+import { productImageAlt } from "@/components/product/product-card";
 import { Container } from "@/components/ui/container";
 import { BoxIcon, ExchangeIcon, TruckIcon } from "@/components/ui/icons";
 import { SectionLabel } from "@/components/ui/section-label";
-import { getProductBySlug, getProducts, getRelatedProducts } from "@/lib/data/products";
+import { getDeliveryFees } from "@/lib/data/delivery";
+import { getProductBySlug, getProducts } from "@/lib/data/products";
 import { routes } from "@/lib/routes";
 
 export async function generateStaticParams() {
@@ -49,16 +53,12 @@ export default async function ProductPage({ params }: PageProps<"/collection/[sl
   const product = await getProductBySlug((await params).slug);
   if (!product) notFound();
 
-  const related = await getRelatedProducts(product);
-  const views = ["face", "dos"] as const;
-  const images = product.images.map((src, i) => ({
-    src,
-    alt: productImageAlt(product, views[i] ?? "face"),
-  }));
+  const deliveryFees = await getDeliveryFees();
   const tiers = formatDeliveryDiscountTiers(product.deliveryDiscountTiers);
 
   return (
-    <Container size="narrow" className="pt-6 pb-16 lg:pt-8 lg:pb-24">
+    // Bottom padding on mobile leaves room for the sticky "Commander maintenant" button.
+    <Container size="narrow" className="pt-6 pb-28 lg:pt-8 lg:pb-24">
       <nav aria-label="Fil d'Ariane">
         <ol className="flex flex-wrap items-center gap-2 text-[11px] tracking-button text-stone uppercase">
           <li>
@@ -79,77 +79,52 @@ export default async function ProductPage({ params }: PageProps<"/collection/[sl
         </ol>
       </nav>
 
-      <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-14">
-        <ProductGallery images={images} />
+      <ProductOrderProvider product={product} deliveryFees={deliveryFees}>
+        <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-14">
+          <div className="lg:sticky lg:top-8 lg:self-start">
+            <ProductOrderGallery />
+          </div>
 
-        <div className="lg:sticky lg:top-8 lg:self-start">
-          <SectionLabel className="text-stone">{product.drop}</SectionLabel>
-          <h1 className="mt-3 font-display text-4xl leading-[0.95] font-medium uppercase md:text-5xl">
-            {product.name}
-          </h1>
-          <p className="mt-4 text-lg">{formatPrice(product.price)}</p>
+          <div>
+            <SectionLabel className="text-stone">{product.drop}</SectionLabel>
+            <h1 className="mt-3 font-display text-4xl leading-[0.95] font-medium uppercase md:text-5xl">
+              {product.name}
+            </h1>
+            <p className="mt-4 text-lg">{formatPrice(product.price)}</p>
 
-          <div className="mt-6 flex items-center gap-3">
-            <p className="flex items-baseline gap-3">
-              <span className="text-[11px] font-semibold tracking-label uppercase">Couleur</span>
-              <span className="text-sm">
-                {product.colors.map((color) => color.name).join(", ")}
-              </span>
-            </p>
-            <ul className="flex gap-2" aria-hidden="true">
-              {product.colors.map((color) => (
-                <li
-                  key={color.name}
-                  className="size-4 rounded-full border border-ink/25"
-                  // The swatch color comes from the product data.
-                  style={{ backgroundColor: color.hex }}
-                />
+            <ProductOptions />
+
+            {tiers && (
+              <div className="mt-6 flex gap-3 border border-line bg-paper px-4 py-3">
+                <TruckIcon width={22} height={22} className="mt-0.5 shrink-0" />
+                <div className="text-[13px]">
+                  <p className="font-semibold">Livraison réduite sur ce produit</p>
+                  <p className="mt-1 text-ash">{tiers}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-6">
+              <SectionLabel as="h2">Description</SectionLabel>
+              <p className="mt-3 text-[15px] leading-relaxed text-ash">{product.description}</p>
+            </div>
+
+            <ul className="mt-6 grid gap-3 border-y border-line py-5 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+              {REASSURANCE.map(({ title, Icon }) => (
+                <li key={title} className="flex items-center gap-3">
+                  <Icon width={22} height={22} className="shrink-0" />
+                  <span className="text-[11px] font-semibold tracking-button uppercase">
+                    {title}
+                  </span>
+                </li>
               ))}
             </ul>
-          </div>
 
-          <AddToCartForm product={product} />
-
-          {tiers && (
-            <div className="mt-6 flex gap-3 border border-line bg-paper px-4 py-3">
-              <TruckIcon width={22} height={22} className="mt-0.5 shrink-0" />
-              <div className="text-[13px]">
-                <p className="font-semibold">Livraison réduite sur ce produit</p>
-                <p className="mt-1 text-ash">{tiers}</p>
-              </div>
-            </div>
-          )}
-
-          <ul className="mt-6 grid gap-3 border-y border-line py-5 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
-            {REASSURANCE.map(({ title, Icon }) => (
-              <li key={title} className="flex items-center gap-3">
-                <Icon width={22} height={22} className="shrink-0" />
-                <span className="text-[11px] font-semibold tracking-button uppercase">{title}</span>
-              </li>
-            ))}
-          </ul>
-
-          <div className="mt-6">
-            <SectionLabel as="h2">Description</SectionLabel>
-            <p className="mt-3 text-[15px] leading-relaxed text-ash">{product.description}</p>
+            <OrderForm />
           </div>
         </div>
-      </div>
-
-      {related.length > 0 && (
-        <section aria-labelledby="related-title" className="mt-20">
-          <SectionLabel as="h2" id="related-title">
-            Vous aimerez aussi
-          </SectionLabel>
-          <ul className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            {related.map((item) => (
-              <li key={item.id}>
-                <ProductCard product={item} imageSizes="(min-width: 1024px) 22vw, 50vw" />
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+        <StickyOrderButton />
+      </ProductOrderProvider>
     </Container>
   );
 }

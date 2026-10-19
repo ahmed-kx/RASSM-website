@@ -86,11 +86,11 @@ export const deliveryDiscountTiersSchema = z
   })
   .default([]);
 
-/** The tier applied to one product of the cart (stored on the order for statistics). */
+/** The tier applied to one ordered product (stored on the order for statistics). */
 export const deliveryDiscountLineSchema = z.object({
   productId: idSchema,
   productName: z.string().min(1),
-  /** Units of this product in the cart, all sizes together. */
+  /** Units of this product in the order. */
   quantity: z.number().int().positive(),
   tier: deliveryDiscountTierSchema,
   /**

@@ -5,6 +5,7 @@ Oversized hoodies, sweatshirts and t-shirts with artistic sketch prints.
 
 - Prices in Algerian Dinar, integers only, always displayed as `7 900 DA` (narrow no-break space for thousands, `DA` after the number, discounts as `−100 DA`) (use `formatPrice` from `@rassm/shared`, never format by hand).
 - Cash on delivery only, to the **58 wilayas** of Algeria (home delivery or stop desk), shipped by our courier **Anderson** from Alger. Some wilayas have **no stop desk** (see Business rules).
+- **Sales flow (Meta Ads):** visitors land on a product page from an ad and order that product directly with the form on the page. There is **no cart and no checkout page**: one order = one product (one color, one size, a quantity). After the order, the customer lands on `/merci` and the team calls them to confirm.
 - Customer-facing language is **French** (see Language rule below).
 - The design references are `design/Homepage.png` and `design/Collection.png`. Read the relevant one before any UI work.
 
@@ -70,15 +71,23 @@ Do only the step you are asked to do. Do not start a later step early.
   4. Otherwise the amounts of all products **add up**.
   5. The total is capped at the base fee: the final fee **never goes below 0 DA**.
 - It returns `deliveryFeeBase`, `deliveryDiscount` (applied), `deliveryFee` (final), `freeDelivery`, `deliveryDiscountLines` (per product: product, quantity, tier, amount) and `nextDeliveryDiscountTiers` (per product: units missing to reach the next better tier, and that tier). The next tiers list is empty once delivery already costs 0.
-- The **backend always recalculates** from the products loaded from the database and the fee table. It never trusts tiers, discounts or delivery amounts sent by the client. Cart items carry no discount data.
-- Orders store `deliveryFeeBase`, `deliveryDiscount`, `deliveryFee`, `freeDelivery` and `deliveryDiscountLines`. Order checks: `deliveryFee = deliveryFeeBase − deliveryDiscount` (never negative), the discount matches the lines, `freeDelivery` is true exactly when a free tier applied, and `total = subtotal + deliveryFee`.
+- An order from the product page passes one line: `items: [{ productId, quantity }]`. The helper still accepts several lines (quantities of the same product add up).
+- The **backend always recalculates** from the products loaded from the database and the fee table. It never trusts tiers, discounts or delivery amounts sent by the client. The order payload (`productOrderSchema`) carries no price or discount data.
+- Orders (`orderSchema`) store one `item` (product id, name, slug, image, color, size, quantity, unit price) plus `deliveryFeeBase`, `deliveryDiscount`, `deliveryFee`, `freeDelivery` and `deliveryDiscountLines`. Order checks: `subtotal = unitPrice × quantity`, `deliveryFee = deliveryFeeBase − deliveryDiscount` (never negative), the discount matches the lines, `freeDelivery` is true exactly when a free tier applied, and `total = subtotal + deliveryFee`.
+
+### Order form (product page)
+
+- Schemas in `shared/src/schemas/product-order.ts`: `productOrderSchema` (the payload the API will validate) and `productOrderFormSchema` (same rules for the form, whose wilaya select and size start empty; its output is a `ProductOrder`). Customer fields and the "address required for home delivery" rule come from `customer.ts`.
+- Fields: Nom complet, Numéro de téléphone (05/06/07 + 8 digits, spaces allowed), Wilaya (58, `formatWilaya`, hint for the new wilayas, "Livraison estimée : N jours"), Commune, Mode de livraison ("À domicile" / "Au bureau" with the price of each; "Au bureau" hidden where `getAvailableDeliveryTypes` has no stop desk, and the choice falls back to home), Adresse (required for home delivery only). Color, size and quantity come from the selectors above the form and are part of the same form.
+- Color: required when the product has several colors, selected automatically when it has one. A color can have its own `images`; the gallery then shows them. **Stock is per size only** (not per color + size).
+- Quantity: 1 to `min(stock of the size, 10)` (`MAX_QUANTITY_PER_ORDER`).
+- Live summary above the button: price × quantity, delivery fee, discount line or "Livraison gratuite", total, and the next-tier hint (`formatNextTierMessage`: "Ajoutez 1 article pour la livraison gratuite"). Before the wilaya is chosen it uses `getDeliveryDiscountProgress`.
+- "Confirmer la commande" is disabled while sending and a second click is ignored (one order only). Invalid submit: French error under each field, then scroll to and focus the first invalid field (color and size first).
+
+The product page shows the product's tiers in French ("1 article : −100 DA · 2 articles : −200 DA · 3 articles : livraison gratuite").
 
 **UI for later steps (not built yet, build it when that step comes):**
 
-- **Product page:** show the product's tiers in French, e.g. "1 article : −100 DA · 2 articles : −200 DA · 3 articles : livraison gratuite".
-- **Checkout, wilaya select:** list the 58 wilayas as "16 - Alger" (`formatWilaya`). Under the select, show a French hint telling customers from the new wilayas to choose their former wilaya, e.g. "Vous habitez dans une nouvelle wilaya (Aflou, Barika, Bou Saâda…) ? Choisissez votre ancienne wilaya de rattachement." Show the estimated delivery time ("Livraison estimée : 1 jour").
-- **Checkout:** only offer the delivery types from `getAvailableDeliveryTypes`. For a wilaya without stop desk, hide or disable "Retrait au stop desk" and explain it in French.
-- **Cart and checkout:** show the base delivery fee, the discount line ("Réduction livraison −150 DA"), then the final fee or "Livraison gratuite". Show the next-tier message from `nextDeliveryDiscountTiers`, e.g. "Ajoutez 1 sweatshirt pour la livraison gratuite".
 - **Admin product form:** a tier editor "Réductions sur la livraison" to add, edit and remove rows (quantité minimum, type : montant ou livraison gratuite, montant en DA), with a live French preview of the rule.
 - **Dashboard statistics:** total delivery discounts given (sum of `deliveryDiscount`) and the number of free-delivery orders (`freeDelivery`).
 
@@ -112,7 +121,7 @@ Tokens are defined in `frontend/src/app/globals.css` (`@theme`). Use the token c
 ### Mood and layout
 
 - Minimal, editorial, brutalist concrete. Black & white photography (grayscale, warm-tinted).
-- **Sharp corners everywhere**: no `rounded-*` except circular icon buttons (the "+" add-to-cart).
+- **Sharp corners everywhere**: no `rounded-*` except circular icon buttons and color swatches.
 - Thin 1px lines and outlined buttons. Primary button = `paper` on dark / `ink` on light, secondary = 1px outline.
 - Lots of whitespace, a strong grid, generous section padding.
 - Arrows (→) after CTA labels.
@@ -122,17 +131,18 @@ Tokens are defined in `frontend/src/app/globals.css` (`@theme`). Use the token c
 - `app/`: routes. `layout.tsx` holds the header, footer, skip link and default French SEO metadata.
 - `components/ui/`: building blocks: `Button` (filled or outlined, `surface="dark" | "light"`), `SectionLabel`, `SectionTitle`, `ArrowLink`, `HandQuote`, `Container`, `Logo`, `icons.tsx` (thin line SVG icons). Reuse them; do not restyle buttons or labels by hand.
 - `components/layout/`: `SiteHeader` (transparent over the hero on `/`, dark band elsewhere, full-screen menu below `lg`), `SiteFooter`, `NewsletterForm` (TanStack Form + `newsletterFormSchema`, `revalidateLogic`).
-- `components/home/`, `components/collection/`, `components/product/`: page sections, `ProductCard` / `ProductListItem`, `QuickAdd` (the "+" size picker), product gallery, add-to-cart form, size guide dialog.
-- `components/cart/`: `CartProvider` (in the root layout: loads the saved cart after mount, syncs it with the catalog and other tabs, renders the drawer), `CartDrawer`, `DeliveryProgress`, `QuantityStepper`.
-- **Cart:** Zustand store in `lib/cart/cart-store.ts`, persisted in localStorage (`rassm-cart`) with `skipHydration` + rehydrate after mount, so there is no hydration mismatch. Items are the shared `CartItem` type and are re-validated with `cartItemSchema` when loaded. One line per product + size; quantity is capped at `getMaxQuantity` (stock, max 10). Read the count with `useCartCount()`.
-- **Delivery progress in the cart** uses `getDeliveryDiscountProgress` from `@rassm/shared` (same tier rules, no wilaya needed). French tier texts come from `formatDeliveryDiscountTiers` / `formatTierBenefit` / `formatDiscount`.
+- `components/home/`, `components/collection/`, `components/product/`: page sections, `ProductCard` / `ProductListItem` (the whole card links to the product page, no "+" button), product gallery, quantity stepper, size guide dialog.
+- `components/product/order/`: the product page order. `ProductOrderProvider` owns the TanStack Form (`productOrderFormSchema`, `revalidateLogic`) and shares it through context with `ProductOptions` (color, size, quantity), `ProductOrderGallery` (photos of the selected color), `OrderForm` + `OrderSummary`, and `StickyOrderButton` (mobile only: "Commander maintenant" fixed at the bottom, scrolls to the form, hidden once the form is on screen). The provider also sends ViewContent and InitiateCheckout.
+- `app/merci/` + `components/order/OrderConfirmation`: thank-you page (`/merci?commande=RSM-123456`, noindex): order number, summary, "Nous vous appellerons pour confirmer votre commande", link to the collection. Sends Purchase.
+- French tier texts come from `formatDeliveryDiscountTiers` / `formatTierBenefit` / `formatDiscount` / `formatNextTierMessage`.
 - **Collection filters live in the URL** (`?category=hoodie,tshirt&color=noir&size=M&min=5000&max=8000&sort=price-asc&view=list`). Pure logic in `lib/collection-filters.ts` (parse, serialize, facets, filter and sort, tested). The page updates the URL with `window.history.replaceState` (no server round trip) and reads it with `useSearchParams`; the page awaits `searchParams`, so a shared link is server-rendered already filtered.
 - `SiteHeader` floats over the photo on `/` and `/collection`, and uses the narrow width on `/collection/*`. `Container size="narrow"` is the shop page width (design/Collection.png).
 - `content/`: editorial content that is not API data: `hero-slides.ts` (add a slide = add one entry), `navigation.ts` (menu, footer columns, social links), `size-guide.ts` (placeholder measurements, see `docs/TODO.md`).
-- `lib/data/`: the data layer (mocks today, API later). `lib/routes.ts`: every internal URL. `lib/cn.ts`: class name helper.
+- `lib/data/`: the data layer (mocks today, API later). `orders.ts`: `placeProductOrder` validates with `productOrderSchema`, checks color and stock against the product, prices the order with the shared delivery helper, builds an `Order` (fake number `RSM-123456`) and keeps it in sessionStorage; `getOrder` reads it back for `/merci`. In the connect step both call the API instead. `lib/routes.ts`: every internal URL. `lib/cn.ts`: class name helper.
 - Images live in `frontend/public/images/<section>/`. Placeholders and the photos still needed are listed in `docs/PHOTOS-NEEDED.md`; other open items in `docs/TODO.md`.
 - Product packshots are square on cream and shown with `object-contain` in 5:4 tiles. After replacing an image with the same file name, delete `frontend/.next` if the dev server still shows the old one (image cache).
 - English phrases inside French pages (slogans, quotes) get `lang="en"` (`SectionTitle` has a `lang` prop, `HandQuote` sets it itself).
+- **Meta Pixel** (`lib/analytics/meta-pixel.ts`): loaded only when `NEXT_PUBLIC_META_PIXEL_ID` is set (otherwise no Meta script at all). Always go through `trackMetaEvent` / `trackPurchaseOnce`. Events: PageView on every page (`MetaPixelPageView` in the root layout), ViewContent on product pages (id, name, price), InitiateCheckout on the first focus in the order form, Purchase on `/merci` (value = order total, `eventID` = order number, once per order, remembered in localStorage). Currency `DZD` (`PIXEL_CURRENCY`). Duplicate calls caused by React Strict Mode in development are dropped.
 - Animations respect `prefers-reduced-motion` (`motion-safe:` / `motion-reduce:` classes; the hero slider does not auto-play).
 
 ## Code rules

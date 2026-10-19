@@ -10,8 +10,8 @@ export const routes = {
   about: "/a-propos",
   contact: "/contact",
   search: "/recherche",
-  cart: "/panier",
-  checkout: "/commande",
+  /** Thank-you page after an order, with the order number. */
+  orderConfirmation: (orderNumber: string) => `/merci?commande=${encodeURIComponent(orderNumber)}`,
   delivery: "/livraison",
   returns: "/retours-et-echanges",
   sizeGuide: "/guide-des-tailles",

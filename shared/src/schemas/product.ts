@@ -15,6 +15,11 @@ import { formatPrice } from "../utils/format-price";
 export const productColorSchema = z.object({
   name: z.string().trim().min(1, "Le nom de la couleur est obligatoire."),
   hex: hexColorSchema,
+  /**
+   * Photos of this color. When a product has photos per color, the gallery shows the
+   * selected color's photos; otherwise it shows the product `images`.
+   */
+  images: z.array(imageUrlSchema).optional(),
 });
 export type ProductColor = z.infer<typeof productColorSchema>;
 
@@ -45,7 +50,13 @@ export const productSchema = z.object({
   /** Price in DA (integer). */
   price: priceDaSchema.positive("Le prix doit être supérieur à 0."),
   images: z.array(imageUrlSchema).min(1, "Un produit doit avoir au moins une image."),
-  colors: z.array(productColorSchema).min(1, "Un produit doit avoir au moins une couleur."),
+  colors: z
+    .array(productColorSchema)
+    .min(1, "Un produit doit avoir au moins une couleur.")
+    .refine(
+      (colors) => new Set(colors.map((color) => color.name)).size === colors.length,
+      "Deux couleurs du même produit ne peuvent pas avoir le même nom.",
+    ),
   stock: stockBySizeSchema,
   featured: z.boolean(),
   isActive: z.boolean(),

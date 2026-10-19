@@ -3,10 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BagIcon, CloseIcon, MenuIcon, SearchIcon } from "@/components/ui/icons";
+import { CloseIcon, MenuIcon, SearchIcon } from "@/components/ui/icons";
 import { Logo } from "@/components/ui/logo";
 import { MAIN_NAV } from "@/content/navigation";
-import { useCartCount, useCartStore } from "@/lib/cart/cart-store";
 import { cn } from "@/lib/cn";
 import { routes } from "@/lib/routes";
 
@@ -29,8 +28,6 @@ export function SiteHeader() {
   const overHero = HEADER_OVER_HERO.includes(pathname);
   // Shop pages use the narrower page width (design/Collection.png): align the logo with the content.
   const narrow = pathname.startsWith(routes.collection);
-  const cartCount = useCartCount();
-  const openCart = useCartStore((state) => state.openCart);
   const [menuOpen, setMenuOpen] = useState(false);
   const closeMenu = useCallback(() => setMenuOpen(false), []);
 
@@ -75,20 +72,6 @@ export function SiteHeader() {
           <Link href={routes.search} aria-label="Rechercher" className={iconButton}>
             <SearchIcon />
           </Link>
-          <button
-            type="button"
-            onClick={openCart}
-            aria-haspopup="dialog"
-            className="flex h-10 items-center gap-1.5 px-1 text-xs transition-opacity hover:opacity-70 focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-current"
-          >
-            <BagIcon />
-            <span aria-hidden="true" className="tabular-nums">
-              ({cartCount})
-            </span>
-            <span className="sr-only">
-              Ouvrir le panier, {cartCount} article{cartCount > 1 ? "s" : ""}
-            </span>
-          </button>
           <button
             type="button"
             aria-label="Ouvrir le menu"

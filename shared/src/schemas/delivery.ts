@@ -11,14 +11,14 @@ export const wilayaCodeSchema = z
 
 export const DELIVERY_TYPES = ["home", "stopdesk"] as const;
 export const deliveryTypeSchema = z.enum(DELIVERY_TYPES, {
-  error: "Choisissez livraison à domicile ou stop desk.",
+  error: "Choisissez le mode de livraison : à domicile ou au bureau.",
 });
 export type DeliveryType = z.infer<typeof deliveryTypeSchema>;
 
-/** French labels for the checkout UI. */
+/** French labels for the order form ("Au bureau" = pickup at the courier's stop desk). */
 export const DELIVERY_TYPE_LABELS: Record<DeliveryType, string> = {
-  home: "Livraison à domicile",
-  stopdesk: "Retrait au stop desk",
+  home: "À domicile",
+  stopdesk: "Au bureau",
 };
 
 export const deliveryFeeSchema = z.object({
@@ -48,7 +48,7 @@ export class DeliveryTypeUnavailableError extends Error {
   ) {
     const wilaya = getWilaya(wilayaCode);
     super(
-      `Le retrait au stop desk n'est pas disponible dans la wilaya ${wilaya ? `de ${wilaya.name}` : wilayaCode}. Choisissez la livraison à domicile.`,
+      `La livraison au bureau (stop desk) n'est pas disponible dans la wilaya ${wilaya ? `de ${wilaya.name}` : wilayaCode}. Choisissez la livraison à domicile.`,
     );
     this.name = "DeliveryTypeUnavailableError";
   }
