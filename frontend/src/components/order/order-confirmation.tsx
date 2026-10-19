@@ -86,8 +86,8 @@ export function OrderReceived() {
           Commande reçue
         </h1>
         <p className="mt-5 text-[15px] leading-relaxed text-ash">
-          Nous ne retrouvons pas de commande récente sur cet appareil. Si vous venez de commander,
-          pas d&apos;inquiétude : nous vous appellerons très bientôt pour la confirmer.
+          Si vous venez de commander, pas d&apos;inquiétude : nous vous appellerons très bientôt
+          pour la confirmer.
         </p>
         <Button
           href={routes.collection}
