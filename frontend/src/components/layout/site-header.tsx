@@ -13,7 +13,7 @@ const iconButton =
   "grid size-10 place-items-center transition-opacity hover:opacity-70 focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-current";
 
 /** Pages that start with a full-bleed photo: the header floats over it. */
-const HEADER_OVER_HERO: readonly string[] = [routes.home, routes.collection];
+const HEADER_OVER_HERO: readonly string[] = [routes.home, routes.collection, routes.contact];
 
 function isActive(pathname: string, href: string) {
   return href === routes.home ? pathname === href : pathname.startsWith(href);

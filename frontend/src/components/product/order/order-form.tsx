@@ -10,57 +10,14 @@ import {
   type DeliveryType,
 } from "@rassm/shared";
 import { useStore } from "@tanstack/react-form";
-import type { ReactNode } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { FormField, describedBy, inputClasses } from "@/components/ui/form-field";
 import { ChevronDownIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
+import { routes } from "@/lib/routes";
 import { OrderSummary } from "./order-summary";
 import { ORDER_FORM_ID, useProductOrder } from "./product-order-provider";
-
-const inputClasses =
-  "h-12 w-full border bg-paper px-4 text-[15px] text-ink placeholder:text-stone/80 transition-colors focus:border-ink focus:outline-none aria-invalid:border-error";
-
-function Field({
-  id,
-  label,
-  hint,
-  error,
-  optional,
-  children,
-}: {
-  id: string;
-  label: string;
-  hint?: ReactNode;
-  error: string | undefined;
-  optional?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <div>
-      <label htmlFor={id} className="text-[11px] font-semibold tracking-button uppercase">
-        {label}
-        {optional && (
-          <span className="ml-2 font-normal tracking-normal normal-case">(facultatif)</span>
-        )}
-      </label>
-      <div className="mt-2">{children}</div>
-      {hint && <div className="mt-2 text-xs leading-relaxed text-ash">{hint}</div>}
-      {error && (
-        <p id={`${id}-error`} className="mt-2 text-sm text-error">
-          {error}
-        </p>
-      )}
-    </div>
-  );
-}
-
-/** aria props linking an input to its error message. */
-function describedBy(id: string, error: string | undefined) {
-  return {
-    "aria-invalid": error ? true : undefined,
-    "aria-describedby": error ? `${id}-error` : undefined,
-  } as const;
-}
 
 function deliveryPrice(fee: DeliveryFee | undefined, type: DeliveryType): number | null {
   if (!fee) return null;
@@ -107,7 +64,7 @@ export function OrderForm() {
           {(field) => {
             const error = field.state.meta.errors[0]?.message;
             return (
-              <Field id="order-fullName" label="Nom complet" error={error}>
+              <FormField id="order-fullName" label="Nom complet" error={error}>
                 <input
                   id="order-fullName"
                   name={field.name}
@@ -116,9 +73,9 @@ export function OrderForm() {
                   onChange={(event) => field.handleChange(event.target.value)}
                   onBlur={field.handleBlur}
                   {...describedBy("order-fullName", error)}
-                  className={cn(inputClasses, "border-ink/30")}
+                  className={inputClasses}
                 />
-              </Field>
+              </FormField>
             );
           }}
         </form.Field>
@@ -127,7 +84,7 @@ export function OrderForm() {
           {(field) => {
             const error = field.state.meta.errors[0]?.message;
             return (
-              <Field id="order-phone" label="Numéro de téléphone" error={error}>
+              <FormField id="order-phone" label="Numéro de téléphone" error={error}>
                 <input
                   id="order-phone"
                   name={field.name}
@@ -139,9 +96,9 @@ export function OrderForm() {
                   onChange={(event) => field.handleChange(event.target.value)}
                   onBlur={field.handleBlur}
                   {...describedBy("order-phone", error)}
-                  className={cn(inputClasses, "border-ink/30")}
+                  className={inputClasses}
                 />
-              </Field>
+              </FormField>
             );
           }}
         </form.Field>
@@ -165,7 +122,7 @@ export function OrderForm() {
           {(field) => {
             const error = field.state.meta.errors[0]?.message;
             return (
-              <Field
+              <FormField
                 id="order-wilayaCode"
                 label="Wilaya"
                 error={error}
@@ -192,7 +149,7 @@ export function OrderForm() {
                     onChange={(event) => field.handleChange(event.target.value)}
                     onBlur={field.handleBlur}
                     {...describedBy("order-wilayaCode", error)}
-                    className={cn(inputClasses, "appearance-none border-ink/30 pr-10")}
+                    className={cn(inputClasses, "appearance-none pr-10")}
                   >
                     <option value="">Choisissez votre wilaya</option>
                     {WILAYAS.map((wilaya) => (
@@ -206,7 +163,7 @@ export function OrderForm() {
                     className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2"
                   />
                 </div>
-              </Field>
+              </FormField>
             );
           }}
         </form.Field>
@@ -215,7 +172,7 @@ export function OrderForm() {
           {(field) => {
             const error = field.state.meta.errors[0]?.message;
             return (
-              <Field id="order-commune" label="Commune" error={error}>
+              <FormField id="order-commune" label="Commune" error={error}>
                 <input
                   id="order-commune"
                   name={field.name}
@@ -224,9 +181,9 @@ export function OrderForm() {
                   onChange={(event) => field.handleChange(event.target.value)}
                   onBlur={field.handleBlur}
                   {...describedBy("order-commune", error)}
-                  className={cn(inputClasses, "border-ink/30")}
+                  className={inputClasses}
                 />
-              </Field>
+              </FormField>
             );
           }}
         </form.Field>
@@ -301,7 +258,7 @@ export function OrderForm() {
           {(field) => {
             const error = field.state.meta.errors[0]?.message;
             return (
-              <Field
+              <FormField
                 id="order-address"
                 label="Adresse"
                 optional={values.deliveryType === "stopdesk"}
@@ -316,9 +273,9 @@ export function OrderForm() {
                   onChange={(event) => field.handleChange(event.target.value)}
                   onBlur={field.handleBlur}
                   {...describedBy("order-address", error)}
-                  className={cn(inputClasses, "border-ink/30")}
+                  className={inputClasses}
                 />
-              </Field>
+              </FormField>
             );
           }}
         </form.Field>
@@ -339,8 +296,15 @@ export function OrderForm() {
         >
           {busy ? "Envoi de la commande…" : "Confirmer la commande"}
         </Button>
-        <p className="text-center text-xs text-ash">
+        <p className="text-center text-xs leading-relaxed text-ash">
           Aucun paiement en ligne : vous payez à la réception de votre colis.
+          <br />
+          <Link
+            href={routes.exchanges}
+            className="text-ink underline underline-offset-4 hover:no-underline"
+          >
+            Échange possible le jour de la livraison
+          </Link>
         </p>
       </form>
     </section>

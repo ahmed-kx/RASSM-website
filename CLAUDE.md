@@ -7,14 +7,14 @@ Oversized hoodies, sweatshirts and t-shirts with artistic sketch prints.
 - Cash on delivery only, to the **58 wilayas** of Algeria (home delivery or stop desk), shipped by our courier **Anderson** from Alger. Some wilayas have **no stop desk** (see Business rules).
 - **Sales flow (Meta Ads):** visitors land on a product page from an ad and order that product directly with the form on the page. There is **no cart and no checkout page**: one order = one product (one color, one size, a quantity). After the order, the customer lands on `/merci` and the team calls them to confirm.
 - Customer-facing language is **French** (see Language rule below).
-- The design references are `design/Homepage.png` and `design/Collection.png`. Read the relevant one before any UI work.
+- The design references are `design/Homepage.png`, `design/Collection.png` and `design/Contact.png`. Read the relevant one before any UI work.
 
 ## Language rule
 
 - **All code is in English:** names, files, folders, comments, commit messages, schema fields, enum values.
 - **Everything customers see is in French:** navigation, buttons, labels, forms, error messages, empty states, page titles, SEO metadata (`<title>`, description, Open Graph), product content. The `<html>` tag uses `lang="fr"`. The **admin dashboard is in French too**.
 - **Exception:** brand slogans and artistic phrases stay in **English**: "Draw what you can't say.", "Wear your silence.", "Art lives in all of us.", "Real people. Bigger feelings.", and the handwritten quotes ("Some things live better in art.", "Different thoughts. Same human.", "Same people. Different stories."). Product names (e.g. "Signature Hoodie") are brand names and stay as they are.
-- `design/Homepage.png` shows English UI text (nav, buttons, section labels). Translate it to French when building, e.g. Accueil, Collection, Lookbook, À propos, Contact, "Découvrir la collection", "Voir tout", "Produits phares". Keep the slogans in English.
+- `design/Homepage.png` shows English UI text (nav, buttons, section labels). Translate it to French when building, e.g. Accueil, Collection, Lookbook, À propos, Contact, "Découvrir la collection", "Voir tout", "Produits phares". Keep the slogans in English. The same goes for the other designs; page titles that are slogans ("Let's talk.", "We're here for you.") stay in English with `lang="en"`.
 - **Every Zod error message in `shared/` is French.** `shared/src/schemas/common.ts` also sets Zod's French locale (`z.config(z.locales.fr())`), so built-in messages are French too. Never add an English error message.
 
 ## Stack
@@ -51,6 +51,20 @@ Oversized hoodies, sweatshirts and t-shirts with artistic sketch prints.
 Do only the step you are asked to do. Do not start a later step early.
 
 ## Business rules
+
+### Exchange policy (content of the future "Échanges" page, `/echanges`)
+
+- The exchange must be **requested on the day of delivery**.
+- The product must be **unworn and in its original condition**.
+- The **customer pays the delivery costs** of the exchange.
+- If the product does not come back in the same condition, there is **no exchange**: the same product is sent back to the customer.
+- Wherever the site mentions exchanges, say "Échange possible le jour de la livraison" and link to `/echanges` (`routes.exchanges`). Today: the product page reassurance line and the note under the order button.
+
+### Contact
+
+- WhatsApp and phone: **0780 29 49 10** (`https://wa.me/213780294910`, `tel:+213780294910`); Instagram **@rassm.wear**. These live in `frontend/src/content/contact.ts` (`CONTACT`): never hard-code the number or the links elsewhere. The footer, the contact page and `SOCIAL_LINKS` read it.
+- No public e-mail address and no opening hours are shown.
+- Contact form (`contactFormSchema` in `shared/src/schemas/forms.ts`): Prénom, Nom, Téléphone (required, Algerian format), E-mail (optional, empty = `undefined`), Sujet (`CONTACT_SUBJECTS`: Commande, Échange, Collaboration, Autre), Message (10 to 2 000 characters). Today `sendContactMessage` (`lib/data/contact.ts`) only validates and simulates the request; **in the backend step the API validates with the same schema and saves the message** (read in the admin dashboard).
 
 ### Delivery fees and stop desk
 
@@ -140,14 +154,15 @@ Tokens are defined in `frontend/src/app/globals.css` (`@theme`). Use the token c
 
 - `app/`: routes. `layout.tsx` holds the header, footer, skip link and default French SEO metadata.
 - `components/ui/`: building blocks: `Button` (filled or outlined, `surface="dark" | "light"`), `SectionLabel`, `SectionTitle`, `ArrowLink`, `HandQuote`, `Container`, `Logo`, `icons.tsx` (thin line SVG icons). Reuse them; do not restyle buttons or labels by hand.
+- `components/contact/`: the contact page sections (`ContactHero`, `ContactChannels`, `FaqBand`, `BrandLocation`) and `ContactForm`. `components/ui/form-field.tsx`: `FormField` (label, control, hint, French error; `labelStyle="caps" | "plain"`), `inputClasses` and `describedBy`, shared by the order and contact forms.
 - `components/layout/`: `SiteHeader` (transparent over the hero on `/`, dark band elsewhere, full-screen menu below `lg`), `SiteFooter`, `NewsletterForm` (TanStack Form + `newsletterFormSchema`, `revalidateLogic`).
 - `components/home/`, `components/collection/`, `components/product/`: page sections, `ProductCard` / `ProductListItem` (the whole card links to the product page, no "+" button), product gallery, quantity stepper, size guide dialog.
 - `components/product/order/`: the product page order. `ProductOrderProvider` owns the TanStack Form (`productOrderFormSchema`, `revalidateLogic`) and shares it through context with `ProductOptions` (color, size, quantity), `ProductOrderGallery` (photos of the selected color), `OrderForm` + `OrderSummary`, and `StickyOrderButton` (mobile only: "Commander maintenant" fixed at the bottom, scrolls to the form, hidden once the form is on screen). The provider also sends ViewContent and InitiateCheckout.
 - `app/merci/` + `components/order/OrderConfirmation`: thank-you page (`/merci?commande=RSM-123456`, noindex): order number, summary, "Nous vous appellerons pour confirmer votre commande", link to the collection. Sends Purchase.
 - French tier texts come from `formatDeliveryDiscountTiers` / `formatTierBenefit` / `formatDiscount` / `formatNextTierMessage`.
 - **Collection filters live in the URL** (`?category=hoodie,tshirt&color=noir&size=M&min=5000&max=8000&sort=price-asc&view=list`). Pure logic in `lib/collection-filters.ts` (parse, serialize, facets, filter and sort, tested). The page updates the URL with `window.history.replaceState` (no server round trip) and reads it with `useSearchParams`; the page awaits `searchParams`, so a shared link is server-rendered already filtered.
-- `SiteHeader` floats over the photo on `/` and `/collection`, and uses the narrow width on `/collection/*`. `Container size="narrow"` is the shop page width (design/Collection.png).
-- `content/`: editorial content that is not API data: `hero-slides.ts` (add a slide = add one entry), `navigation.ts` (menu, footer columns, social links), `size-guide.ts` (placeholder measurements, see `docs/TODO.md`).
+- `SiteHeader` floats over the photo on `/`, `/collection` and `/contact`, and uses the narrow width on `/collection/*`. `Container size="narrow"` is the shop page width (design/Collection.png).
+- `content/`: editorial content that is not API data: `hero-slides.ts` (add a slide = add one entry), `navigation.ts` (menu, footer columns, social links), `contact.ts` (WhatsApp, phone and social links, the single source for them), `size-guide.ts` (placeholder measurements, see `docs/TODO.md`).
 - `lib/data/`: the data layer (mocks today, API later). `orders.ts`: `placeProductOrder` validates with `createProductOrderSchema(product)` (color and stock per color + size), prices the order with the shared delivery helper, builds an `Order` (fake number `RSM-123456`) and keeps it in sessionStorage; `getOrder` reads it back for `/merci`. In the connect step both call the API instead. `lib/routes.ts`: every internal URL. `lib/cn.ts`: class name helper.
 - Images live in `frontend/public/images/<section>/`. Placeholders and the photos still needed are listed in `docs/PHOTOS-NEEDED.md`; other open items in `docs/TODO.md`.
 - Product packshots are square on cream and shown with `object-contain` in 5:4 tiles. After replacing an image with the same file name, delete `frontend/.next` if the dev server still shows the old one (image cache).

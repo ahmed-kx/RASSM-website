@@ -214,3 +214,33 @@ export function TikTokIcon(props: IconProps) {
     </FilledIcon>
   );
 }
+
+export function PhoneIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="M8.5 3.5H5.2a1.5 1.5 0 0 0-1.5 1.6c.6 8.1 7.1 14.6 15.2 15.2a1.5 1.5 0 0 0 1.6-1.5v-3.3l-4-1.6-2 2.3a12 12 0 0 1-5.7-5.7l2.3-2-1.6-4Z" />
+    </LineIcon>
+  );
+}
+
+/** WhatsApp, drawn as a thin line: round speech bubble with a handset inside. */
+export function WhatsAppIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="M7.5 19.8A8.8 8.8 0 1 0 4.2 16.5L3 21l4.5-1.2Z" strokeLinejoin="round" />
+      <path
+        d="M9.6 7.8h-1a.8.8 0 0 0-.8.9 7.6 7.6 0 0 0 7.5 7.5.8.8 0 0 0 .9-.8v-1l-2-.8-1 1.1a5.6 5.6 0 0 1-2.8-2.8l1.1-1-.9-2.1Z"
+        strokeLinejoin="round"
+      />
+    </LineIcon>
+  );
+}
+
+export function LinkIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="M10 14a4.2 4.2 0 0 0 6 0l3.2-3.2a4.2 4.2 0 0 0-6-6L11.8 6.2" />
+      <path d="M14 10a4.2 4.2 0 0 0-6 0l-3.2 3.2a4.2 4.2 0 0 0 6 6l1.4-1.4" />
+    </LineIcon>
+  );
+}

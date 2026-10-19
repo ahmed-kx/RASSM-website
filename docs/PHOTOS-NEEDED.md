@@ -1,6 +1,6 @@
 # Photos needed
 
-Every photo on the site except the hero is a **placeholder** for now: a grey or cream image with its file name printed on it. Replace each file in `frontend/public/` with the real photo, **keeping exactly the same name and format** (`.jpg`), and the site picks it up with no code change.
+Placeholders are dark or cream images with their file name printed on them. Replace each file in `frontend/public/` with the real photo, **keeping exactly the same name and format** (`.jpg`), and the site picks it up with no code change.
 
 ## Shared art direction
 
@@ -22,28 +22,24 @@ Already provided: `hero-1.jpg` and `hero-2.jpg` (1672 × 941).
 
 ## Collection page (`frontend/public/images/collection/`)
 
-| File                  | Used in                                               | Recommended size               | Description of the shot                                                                                                                                                                                            |
-| --------------------- | ----------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `collection-hero.jpg` | /collection, photo banner behind "Wear your silence." | **2400 × 900**, wide landscape | Model in a black RASSM hoodie, **on the right half**, looking down or away, brutalist concrete behind. Keep the **left half calm and dark** for the text. On mobile the photo is cropped around 70% from the left. |
-| `drop-banner.jpg`     | /collection, "New Drop 001" banner under the grid     | **1800 × 800**, landscape      | Model in a black hoodie **sitting on concrete steps**, head down, moody light. Keep the **top-left corner dark** for "RASSM / New Drop 001".                                                                       |
+Provided: `collection-hero.jpg`, `drop-banner.jpg` and the three category photos.
+
+## Contact page (`frontend/public/images/contact/`) — placeholders
+
+| File                         | Used in                                                      | Recommended size          | Description of the shot                                                                                                                                                                                                                                                                                                   |
+| ---------------------------- | ------------------------------------------------------------ | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `contact-hero.jpg`           | /contact, photo banner behind "Let's talk."                  | **2400 × 900**, landscape | Model in a black RASSM hoodie seen from below, **on the centre-right**, brutalist concrete behind (see design/Contact.png). Keep the **left third dark** for the text and the **far right calm** for the handwritten quote.                                                                                               |
+| `contact-side.jpg`           | /contact, tall photo next to "Autres moyens de nous joindre" | **900 × 1300**, portrait  | Model **from behind** climbing concrete stairs, the back print of the hoodie visible.                                                                                                                                                                                                                                     |
+| `algeria-map.jpg`            | /contact, "Une marque algérienne." (right half)              | **1600 × 800**, landscape | **Stylized map of Algeria** on a near-black background (thin grey lines or dotted texture, a few light points for cities), in the spirit of the world map in design/Contact.png. Keep the **right quarter empty** for "Art connects us everywhere." Use an accurate map source; it must not be drawn by hand from memory. |
+| `contact-faq.jpg` (optional) | /contact, "Besoin d'une réponse rapide ?" band               | **2400 × 500**, very wide | Dark raw concrete wall, no person. Today the band is a plain dark gradient; with this photo it can match the design (ask to wire it in).                                                                                                                                                                                  |
 
 ## Products (`frontend/public/images/products/`)
 
-Packshots, one front and one back view per product, **on a plain cream background** (close to `#E8E4DC`), garment flat or on an invisible mannequin, centred, same scale for every product.
+Packshots **on a plain cream background** (close to `#E8E4DC`), square (1200 × 1200 or larger), garment centred, same scale for every product, named `<product-slug>-front.jpg` and `<product-slug>-back.jpg`.
 
-| File                                                            | Product                                                | Recommended size    |
-| --------------------------------------------------------------- | ------------------------------------------------------ | ------------------- |
-| `signature-hoodie-front.jpg`, `signature-hoodie-back.jpg`       | Signature Hoodie (black, small chest logo)             | 1200 × 1200, square |
-| `sketch-hoodie-front.jpg`, `sketch-hoodie-back.jpg`             | Sketch Hoodie (cream, sketch on the back)              | 1200 × 1200, square |
-| `fragment-sweatshirt-front.jpg`, `fragment-sweatshirt-back.jpg` | Fragment Sweatshirt (black, fragmented portrait)       | 1200 × 1200, square |
-| `unspoken-tee-front.jpg`, `unspoken-tee-back.jpg`               | Unspoken Tee (cream, face sketch)                      | 1200 × 1200, square |
-| `classic-tee-front.jpg`, `classic-tee-back.jpg`                 | Classic Tee (black, RASSM wordmark)                    | 1200 × 1200, square |
-| `silence-hoodie-front.jpg`, `silence-hoodie-back.jpg`           | Silence Hoodie (black, back print)                     | 1200 × 1200, square |
-| `echo-sweatshirt-front.jpg`, `echo-sweatshirt-back.jpg`         | Echo Sweatshirt (cream, ink strokes)                   | 1200 × 1200, square |
-| `inner-voice-tee-front.jpg`, `inner-voice-tee-back.jpg`         | Inner Voice Tee (black, handwritten quote on the back) | 1200 × 1200, square |
-| `canvas-hoodie-front.jpg`, `canvas-hoodie-back.jpg`             | Canvas Hoodie (washed charcoal, layered sketches)      | 1200 × 1200, square |
-
-The home page shows the **front** view of the 5 featured products. The back views are for the product page (later step).
+- Provided: the front photo of every product except Canvas Hoodie, and `sketch-hoodie-back.jpg`.
+- Still needed: `canvas-hoodie-front.jpg` and `canvas-hoodie-back.jpg` (placeholders today), and the back photos of the other products (optional: add `"back"` to the product in `shared/src/mocks/products.ts` once the file exists).
+- A color with its own photos (e.g. Classic Tee Crème) can get its own `images` list on that color.
 
 ## Social sharing (`frontend/public/images/og/`)
 

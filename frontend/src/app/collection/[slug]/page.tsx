@@ -43,11 +43,11 @@ export async function generateMetadata({
   };
 }
 
-const REASSURANCE = [
+const REASSURANCE: readonly { title: string; Icon: typeof BoxIcon; href?: string }[] = [
   { title: "Paiement à la livraison", Icon: BoxIcon },
   { title: "Livraison dans les 58 wilayas", Icon: TruckIcon },
-  { title: "Échange possible", Icon: ExchangeIcon },
-] as const;
+  { title: "Échange possible le jour de la livraison", Icon: ExchangeIcon, href: routes.exchanges },
+];
 
 export default async function ProductPage({ params }: PageProps<"/collection/[slug]">) {
   const product = await getProductBySlug((await params).slug);
@@ -110,12 +110,21 @@ export default async function ProductPage({ params }: PageProps<"/collection/[sl
             </div>
 
             <ul className="mt-6 grid gap-3 border-y border-line py-5 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
-              {REASSURANCE.map(({ title, Icon }) => (
+              {REASSURANCE.map(({ title, Icon, href }) => (
                 <li key={title} className="flex items-center gap-3">
                   <Icon width={22} height={22} className="shrink-0" />
-                  <span className="text-[11px] font-semibold tracking-button uppercase">
-                    {title}
-                  </span>
+                  {href ? (
+                    <Link
+                      href={href}
+                      className="text-[11px] font-semibold tracking-button uppercase underline decoration-ink/30 underline-offset-4 hover:decoration-ink"
+                    >
+                      {title}
+                    </Link>
+                  ) : (
+                    <span className="text-[11px] font-semibold tracking-button uppercase">
+                      {title}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>

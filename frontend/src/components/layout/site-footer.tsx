@@ -1,12 +1,14 @@
 import Link from "next/link";
 import type { ComponentType, SVGProps } from "react";
 import { Container } from "@/components/ui/container";
-import { InstagramIcon, TikTokIcon } from "@/components/ui/icons";
+import { InstagramIcon, TikTokIcon, WhatsAppIcon } from "@/components/ui/icons";
 import { Logo } from "@/components/ui/logo";
+import { CONTACT } from "@/content/contact";
 import { FOOTER_COLUMNS, SOCIAL_LINKS, type SocialNetwork } from "@/content/navigation";
 import { NewsletterForm } from "./newsletter-form";
 
 const SOCIAL_ICONS: Record<SocialNetwork, ComponentType<SVGProps<SVGSVGElement>>> = {
+  whatsapp: WhatsAppIcon,
   instagram: InstagramIcon,
   tiktok: TikTokIcon,
 };
@@ -64,6 +66,17 @@ export function SiteFooter() {
               );
             })}
           </ul>
+          <p className="mt-4 text-[13px] text-ash">
+            Une question ? WhatsApp :{" "}
+            <a
+              href={CONTACT.whatsapp.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="whitespace-nowrap text-ink underline underline-offset-4 hover:no-underline"
+            >
+              {CONTACT.whatsapp.display}
+            </a>
+          </p>
           <p className="mt-6 text-[13px] text-ash">
             Nouveaux drops et coulisses, directement dans votre boîte mail.
           </p>

@@ -13,7 +13,8 @@ export const routes = {
   /** Thank-you page after an order, with the order number. */
   orderConfirmation: (orderNumber: string) => `/merci?commande=${encodeURIComponent(orderNumber)}`,
   delivery: "/livraison",
-  returns: "/retours-et-echanges",
+  /** Exchange policy (page built later). */
+  exchanges: "/echanges",
   sizeGuide: "/guide-des-tailles",
   faq: "/faq",
 } as const;

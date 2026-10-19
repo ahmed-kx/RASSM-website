@@ -1,3 +1,4 @@
+import { CONTACT } from "@/content/contact";
 import { routes } from "@/lib/routes";
 
 export interface NavLink {
@@ -36,20 +37,21 @@ export const FOOTER_COLUMNS: readonly { title: string; links: readonly NavLink[]
     title: "Service client",
     links: [
       { label: "Livraison", href: routes.delivery },
-      { label: "Retours & échanges", href: routes.returns },
+      { label: "Échanges", href: routes.exchanges },
       { label: "Guide des tailles", href: routes.sizeGuide },
       { label: "Nous contacter", href: routes.contact },
     ],
   },
 ];
 
-export type SocialNetwork = "instagram" | "tiktok";
+export type SocialNetwork = "whatsapp" | "instagram" | "tiktok";
 
 export const SOCIAL_LINKS: readonly { network: SocialNetwork; label: string; href: string }[] = [
   {
-    network: "instagram",
-    label: "RASSM sur Instagram",
-    href: "https://www.instagram.com/rassm.wear/",
+    network: "whatsapp",
+    label: `Écrire à RASSM sur WhatsApp (${CONTACT.whatsapp.display})`,
+    href: CONTACT.whatsapp.href,
   },
-  { network: "tiktok", label: "RASSM sur TikTok", href: "https://www.tiktok.com/@rassm.wear" },
+  { network: "instagram", label: "RASSM sur Instagram", href: CONTACT.instagram.href },
+  { network: "tiktok", label: "RASSM sur TikTok", href: CONTACT.tiktok.href },
 ];
