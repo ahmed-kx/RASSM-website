@@ -1,6 +1,15 @@
 "use client";
 
-import { MAX_QUANTITY_PER_ORDER, SIZES, sizeSchema, type Product, type Size } from "@rassm/shared";
+import {
+  MAX_QUANTITY_PER_ORDER,
+  SIZES,
+  getSizeStock,
+  getVariantStock,
+  isProductInStock,
+  sizeSchema,
+  type Product,
+  type Size,
+} from "@rassm/shared";
 import { useStore } from "@tanstack/react-form";
 import { cn } from "@/lib/cn";
 import { QuantityStepper } from "../quantity-stepper";
@@ -9,9 +18,27 @@ import { useProductOrder } from "./product-order-provider";
 
 const LOW_STOCK = 3;
 
-/** Most units orderable in a size: its stock, capped by the per-order limit. */
-export function getMaxQuantity(product: Pick<Product, "stock">, size: Size | null): number {
-  return size ? Math.min(product.stock[size], MAX_QUANTITY_PER_ORDER) : MAX_QUANTITY_PER_ORDER;
+/**
+ * Units in stock for a size: of the chosen color, or across all colors while no color
+ * is chosen (a size is then sold out only if it is sold out in every color).
+ */
+export function getDisplayedStock(
+  product: Pick<Product, "colors">,
+  color: string,
+  size: Size,
+): number {
+  return color ? getVariantStock(product, color, size) : getSizeStock(product, size);
+}
+
+/** Most units orderable of a variant: its stock, capped by the per-order limit. */
+export function getMaxQuantity(
+  product: Pick<Product, "colors">,
+  color: string,
+  size: Size | null,
+): number {
+  return color && size
+    ? Math.min(getVariantStock(product, color, size), MAX_QUANTITY_PER_ORDER)
+    : MAX_QUANTITY_PER_ORDER;
 }
 
 /** The size held by the form, or null while none is chosen. */
@@ -35,12 +62,33 @@ const optionLabel = "text-[11px] font-semibold tracking-label uppercase";
 export function ProductOptions() {
   const { form, product } = useProductOrder();
   const sizeValue = useStore(form.store, (state) => state.values.size);
+  const color = useStore(form.store, (state) => state.values.color);
   const size = toSize(sizeValue);
-  const soldOut = SIZES.every((candidate) => product.stock[candidate] === 0);
+  const soldOut = !isProductInStock(product);
+  const sizeStock = size ? getDisplayedStock(product, color, size) : null;
+
+  /** Keeps the quantity within the stock of the current variant. */
+  const clampQuantity = (nextColor: string, nextSize: Size | null) => {
+    const max = Math.max(1, getMaxQuantity(product, nextColor, nextSize));
+    if (form.getFieldValue("quantity") > max) form.setFieldValue("quantity", max);
+  };
 
   return (
     <div className="mt-6 space-y-6">
-      <form.Field name="color">
+      <form.Field
+        name="color"
+        listeners={{
+          // A size sold out in the new color is unselected; otherwise the quantity is capped.
+          onChange: ({ value }) => {
+            const current = toSize(form.getFieldValue("size"));
+            if (current && getVariantStock(product, value, current) === 0) {
+              form.setFieldValue("size", "");
+            } else {
+              clampQuantity(value, current);
+            }
+          },
+        }}
+      >
         {(field) => {
           const error = field.state.meta.errors[0]?.message;
           return (
@@ -90,11 +138,7 @@ export function ProductOptions() {
       <form.Field
         name="size"
         listeners={{
-          // Keep the quantity within the stock of the new size.
-          onChange: ({ value }) => {
-            const max = Math.max(1, getMaxQuantity(product, toSize(value)));
-            if (form.getFieldValue("quantity") > max) form.setFieldValue("quantity", max);
-          },
+          onChange: ({ value }) => clampQuantity(form.getFieldValue("color"), toSize(value)),
         }}
       >
         {(field) => {
@@ -115,7 +159,7 @@ export function ProductOptions() {
               </div>
               <div className="mt-3 grid grid-cols-5 gap-2">
                 {SIZES.map((candidate) => {
-                  const unavailable = product.stock[candidate] === 0;
+                  const unavailable = getDisplayedStock(product, color, candidate) === 0;
                   const id = `size-${candidate}`;
                   return (
                     <label
@@ -131,7 +175,11 @@ export function ProductOptions() {
                         checked={field.state.value === candidate}
                         disabled={unavailable}
                         onChange={() => field.handleChange(candidate)}
-                        aria-label={unavailable ? `${candidate}, épuisé` : candidate}
+                        aria-label={
+                          unavailable
+                            ? `${candidate}, épuisé${color ? ` en ${color}` : ""}`
+                            : candidate
+                        }
                         className="peer sr-only"
                       />
                       <span
@@ -151,8 +199,8 @@ export function ProductOptions() {
               </div>
               <FieldError id="order-size-error" message={error} />
               {soldOut && <p className="mt-2 text-sm text-ash">Ce produit est épuisé.</p>}
-              {size && product.stock[size] <= LOW_STOCK && (
-                <p className="mt-2 text-xs text-ash">Plus que {product.stock[size]} en stock</p>
+              {color && sizeStock !== null && sizeStock > 0 && sizeStock <= LOW_STOCK && (
+                <p className="mt-2 text-xs text-ash">Plus que {sizeStock} en stock</p>
               )}
             </fieldset>
           );
@@ -169,7 +217,7 @@ export function ProductOptions() {
               </p>
               <QuantityStepper
                 value={field.state.value}
-                max={Math.max(1, getMaxQuantity(product, size))}
+                max={Math.max(1, getMaxQuantity(product, color, size))}
                 onChange={field.handleChange}
                 label={product.name}
                 className="mt-3"

@@ -8,11 +8,6 @@ Things that are placeholders or decisions still to make. Remove an item once it 
 - [ ] **Exchange policy.** The product page says "Échange possible". Decide the conditions (delay, state of the item, who pays the return) and write the "Retours & échanges" page.
 - [ ] **Photos**: see `docs/PHOTOS-NEEDED.md`.
 
-## Decisions
-
-- [ ] **Stock per color + size.** Stock is per size only today. A product with several colors (Classic Tee: Noir and Crème) shares one stock per size across colors.
-- [ ] **Pixel currency.** Meta's Pixel script does not list DZD among its currencies and warns "Parameter 'currency' is invalid" on Purchase. Keep DZD, or send the value converted to EUR/USD for value-based ads optimisation.
-
 ## Setup
 
 - [ ] **Meta Pixel ID**: set `NEXT_PUBLIC_META_PIXEL_ID` in `frontend/.env.local` (and in the hosting environment). Without it, no Meta script is loaded.

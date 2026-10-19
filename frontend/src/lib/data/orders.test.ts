@@ -67,16 +67,27 @@ describe("placeProductOrder", () => {
     );
   });
 
-  it("checks color and stock against the product", async () => {
+  it("accepts an available variant of a multi-color product", async () => {
+    const order = await place({ productId: "prod_005", color: "Noir", size: "M", quantity: 3 });
+    expect(order.item).toMatchObject({ color: "Noir", size: "M", quantity: 3, unitPrice: 4900 });
+  });
+
+  it("checks color and stock per color + size against the product", async () => {
     await expect(place({ color: "Rose" })).rejects.toThrow(
       "Cette couleur n'est pas disponible pour ce produit.",
     );
-    // Canvas Hoodie: 2 left in S. Silence Hoodie: XXL sold out.
+    // Canvas Hoodie: 2 left in S. Silence Hoodie: XXL sold out. Classic Tee: Crème M sold out.
     await expect(
       place({ productId: "prod_009", color: "Anthracite", size: "S", quantity: 3 }),
-    ).rejects.toThrow("Il ne reste que 2 articles en taille S.");
+    ).rejects.toThrow("Il ne reste que 2 articles en taille S (Anthracite).");
     await expect(place({ productId: "prod_006", size: "XXL" })).rejects.toThrow(
-      "La taille XXL est épuisée.",
+      "La taille XXL est épuisée en Noir.",
     );
+    await expect(place({ productId: "prod_005", color: "Crème", size: "M" })).rejects.toThrow(
+      "La taille M est épuisée en Crème.",
+    );
+    await expect(
+      place({ productId: "prod_005", color: "Crème", size: "L", quantity: 4 }),
+    ).rejects.toThrow("Il ne reste que 3 articles en taille L (Crème).");
   });
 });

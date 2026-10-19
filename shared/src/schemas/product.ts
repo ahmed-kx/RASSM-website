@@ -6,12 +6,40 @@ import {
   imageUrlSchema,
   isoDateSchema,
   priceDaSchema,
-  sizeSchema,
+  SIZES,
   slugSchema,
+  type Size,
 } from "./common";
 import { deliveryDiscountTiersSchema } from "./delivery-discount";
 import { formatPrice } from "../utils/format-price";
 
+/** Units in stock for one size. */
+function sizeStockSchema(size: Size) {
+  return z
+    .number({
+      error: (issue) =>
+        issue.input === undefined
+          ? `Stock manquant pour la taille ${size} : indiquez 0 si elle n'est pas vendue ou épuisée.`
+          : `Le stock de la taille ${size} doit être un nombre.`,
+    })
+    .int(`Le stock de la taille ${size} doit être un nombre entier.`)
+    .nonnegative(`Le stock de la taille ${size} ne peut pas être négatif.`);
+}
+
+/**
+ * Units in stock for every size of one color. All five sizes must be present
+ * (0 = not sold or sold out).
+ */
+export const stockBySizeSchema = z.object(
+  Object.fromEntries(SIZES.map((size) => [size, sizeStockSchema(size)])) as Record<
+    Size,
+    ReturnType<typeof sizeStockSchema>
+  >,
+  { error: "Indiquez le stock de chaque taille pour cette couleur." },
+);
+export type StockBySize = z.infer<typeof stockBySizeSchema>;
+
+/** One color of a product. Stock is tracked per variant: this color × each size. */
 export const productColorSchema = z.object({
   name: z.string().trim().min(1, "Le nom de la couleur est obligatoire."),
   hex: hexColorSchema,
@@ -20,18 +48,10 @@ export const productColorSchema = z.object({
    * selected color's photos; otherwise it shows the product `images`.
    */
   images: z.array(imageUrlSchema).optional(),
+  /** Stock of this color for each size. */
+  stock: stockBySizeSchema,
 });
 export type ProductColor = z.infer<typeof productColorSchema>;
-
-/** Units in stock for every size. All five sizes must be present (0 = sold out). */
-export const stockBySizeSchema = z.record(
-  sizeSchema,
-  z
-    .number()
-    .int("Le stock doit être un nombre entier.")
-    .nonnegative("Le stock ne peut pas être négatif."),
-);
-export type StockBySize = z.infer<typeof stockBySizeSchema>;
 
 export const productSchema = z.object({
   id: idSchema,
@@ -57,7 +77,6 @@ export const productSchema = z.object({
       (colors) => new Set(colors.map((color) => color.name)).size === colors.length,
       "Deux couleurs du même produit ne peuvent pas avoir le même nom.",
     ),
-  stock: stockBySizeSchema,
   featured: z.boolean(),
   isActive: z.boolean(),
   /**
@@ -88,4 +107,23 @@ export function createProductSchema(maxHomeDeliveryPrice: number) {
       }
     });
   });
+}
+
+// Stock helpers: stock lives on each color (variant = color + size).
+
+type StockProduct = Pick<Product, "colors">;
+
+/** Stock of one variant; 0 for an unknown color. */
+export function getVariantStock(product: StockProduct, colorName: string, size: Size): number {
+  return product.colors.find((color) => color.name === colorName)?.stock[size] ?? 0;
+}
+
+/** Stock of a size across all colors. */
+export function getSizeStock(product: StockProduct, size: Size): number {
+  return product.colors.reduce((sum, color) => sum + color.stock[size], 0);
+}
+
+/** True when at least one variant is in stock. */
+export function isProductInStock(product: StockProduct): boolean {
+  return product.colors.some((color) => SIZES.some((size) => color.stock[size] > 0));
 }

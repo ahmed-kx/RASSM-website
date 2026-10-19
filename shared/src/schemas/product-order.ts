@@ -2,6 +2,7 @@ import { z } from "zod";
 import { idSchema, sizeSchema } from "./common";
 import { customerFieldsSchema, refineAddressForHomeDelivery } from "./customer";
 import { wilayaCodeSchema } from "./delivery";
+import { getVariantStock, type Product } from "./product";
 
 /** Most units of one product (one color, one size) in a single order. */
 export const MAX_QUANTITY_PER_ORDER = 10;
@@ -37,8 +38,8 @@ export const productOrderFieldsSchema = customerFieldsSchema.extend({
 /**
  * An order placed from a product page (one product, one color, one size): what the
  * frontend sends and what the backend validates. Cash on delivery only.
- * Stock, color and the delivery fee are checked against the product and the fee
- * table by whoever receives it, never trusted from the client.
+ * Use `createProductOrderSchema(product)` to also check the color and the variant stock;
+ * the delivery fee is computed from the fee table, never trusted from the client.
  */
 export const productOrderSchema = productOrderFieldsSchema.superRefine(
   refineAddressForHomeDelivery,
@@ -67,3 +68,49 @@ export const productOrderFormSchema = productOrderFieldsSchema
 
 /** Values the form holds before validation. */
 export type ProductOrderFormValues = z.input<typeof productOrderFormSchema>;
+
+/** "1 article", "3 articles" */
+const articles = (count: number) => `${count} article${count > 1 ? "s" : ""}`;
+
+/**
+ * Checks the chosen variant (color + size) against the product: the color exists, the
+ * variant is not sold out and the quantity does not exceed its stock.
+ */
+export function refineVariantStock(product: Pick<Product, "colors">) {
+  return (data: { color: string; size: string; quantity: number }, ctx: z.RefinementCtx) => {
+    const size = sizeSchema.safeParse(data.size);
+    if (!data.color || !size.success) return; // Reported by the field rules.
+    if (!product.colors.some((color) => color.name === data.color)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["color"],
+        message: "Cette couleur n'est pas disponible pour ce produit.",
+      });
+      return;
+    }
+    const stock = getVariantStock(product, data.color, size.data);
+    if (stock === 0) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["size"],
+        message: `La taille ${size.data} est épuisée en ${data.color}.`,
+      });
+    } else if (data.quantity > stock) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["quantity"],
+        message: `Il ne reste que ${articles(stock)} en taille ${size.data} (${data.color}).`,
+      });
+    }
+  };
+}
+
+/** `productOrderSchema` plus the color and variant stock of this product (API, mock submit). */
+export function createProductOrderSchema(product: Pick<Product, "colors">) {
+  return productOrderSchema.superRefine(refineVariantStock(product));
+}
+
+/** `productOrderFormSchema` plus the color and variant stock of this product (product page). */
+export function createProductOrderFormSchema(product: Pick<Product, "colors">) {
+  return productOrderFormSchema.superRefine(refineVariantStock(product));
+}

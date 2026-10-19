@@ -1,8 +1,8 @@
 import {
+  createProductOrderSchema,
   getDeliveryFeeWithDiscount,
   getOrderSubtotal,
   orderSchema,
-  productOrderSchema,
   type Order,
   type ProductOrder,
 } from "@rassm/shared";
@@ -32,23 +32,18 @@ export async function placeProductOrder(input: ProductOrder): Promise<Order> {
   // Simulated network delay.
   await new Promise((resolve) => setTimeout(resolve, 700));
 
-  const data = productOrderSchema.parse(input);
-  const product = mockProducts.find((candidate) => candidate.id === data.productId);
+  const product = mockProducts.find((candidate) => candidate.id === input.productId);
   if (!product || !product.isActive) {
     throw new OrderError("Ce produit n'est plus disponible.");
   }
-  if (!product.colors.some((color) => color.name === data.color)) {
-    throw new OrderError("Cette couleur n'est pas disponible pour ce produit.");
-  }
-  const stock = product.stock[data.size];
-  if (stock === 0) {
-    throw new OrderError(`La taille ${data.size} est épuisée.`);
-  }
-  if (data.quantity > stock) {
+  // Shared rules plus the color and the stock of the chosen color + size.
+  const parsed = createProductOrderSchema(product).safeParse(input);
+  if (!parsed.success) {
     throw new OrderError(
-      `Il ne reste que ${stock} article${stock > 1 ? "s" : ""} en taille ${data.size}.`,
+      parsed.error.issues[0]?.message ?? "Votre commande n'a pas pu être validée.",
     );
   }
+  const data = parsed.data;
 
   const { productId, color, size, quantity, ...customer } = data;
   const item = {

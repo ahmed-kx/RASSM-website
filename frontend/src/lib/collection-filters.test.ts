@@ -132,3 +132,14 @@ describe("facets", () => {
     expect(facets.price).toEqual({ min: 4900, max: 8900 });
   });
 });
+
+describe("stock per color and size", () => {
+  // Classic Tee: Noir M 20, Crème M 0; Noir XXL 6, Crème XXL 0.
+  it("a size counts only in the filtered colors", () => {
+    expect(slugs("size=M")).toContain("classic-tee");
+    expect(slugs("color=noir&size=M")).toContain("classic-tee");
+    expect(slugs("color=creme&size=M")).not.toContain("classic-tee");
+    expect(slugs("color=creme&size=L")).toContain("classic-tee");
+    expect(slugs("color=creme,noir&size=M")).toContain("classic-tee");
+  });
+});

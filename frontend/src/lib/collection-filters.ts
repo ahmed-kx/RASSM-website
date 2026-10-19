@@ -3,6 +3,7 @@ import {
   CATEGORY_LABELS,
   SIZES,
   categorySchema,
+  getSizeStock,
   sizeSchema,
   type Category,
   type Product,
@@ -30,7 +31,10 @@ export interface CollectionFilters {
   categories: Category[];
   /** Color keys, e.g. "noir" (see `colorKey`). Empty = all colors. */
   colors: string[];
-  /** Products with stock in at least one of these sizes. Empty = all sizes. */
+  /**
+   * Products with stock in at least one of these sizes (in one of the selected colors
+   * when colors are filtered too). Empty = all sizes.
+   */
   sizes: Size[];
   minPrice: number | null;
   maxPrice: number | null;
@@ -167,7 +171,7 @@ export function getCollectionFacets(products: readonly Product[]): CollectionFac
       count: products.filter((product) => product.category === category).length,
     })),
     colors: [...colors.values()].sort((a, b) => b.count - a.count),
-    sizes: SIZES.filter((size) => products.some((product) => product.stock[size] > 0)),
+    sizes: SIZES.filter((size) => products.some((product) => getSizeStock(product, size) > 0)),
     price: {
       min: prices.length ? Math.min(...prices) : 0,
       max: prices.length ? Math.max(...prices) : 0,
@@ -188,14 +192,20 @@ export function filterAndSortProducts(
   filters: CollectionFilters,
 ): Product[] {
   return products
-    .filter(
-      (product) =>
+    .filter((product) => {
+      // Stock is per color + size: a size counts only in the colors being filtered.
+      const colors =
+        filters.colors.length === 0
+          ? product.colors
+          : product.colors.filter((color) => filters.colors.includes(colorKey(color.name)));
+      return (
         (filters.categories.length === 0 || filters.categories.includes(product.category)) &&
-        (filters.colors.length === 0 ||
-          product.colors.some((color) => filters.colors.includes(colorKey(color.name)))) &&
-        (filters.sizes.length === 0 || filters.sizes.some((size) => product.stock[size] > 0)) &&
+        colors.length > 0 &&
+        (filters.sizes.length === 0 ||
+          colors.some((color) => filters.sizes.some((size) => color.stock[size] > 0))) &&
         (filters.minPrice === null || product.price >= filters.minPrice) &&
-        (filters.maxPrice === null || product.price <= filters.maxPrice),
-    )
+        (filters.maxPrice === null || product.price <= filters.maxPrice)
+      );
+    })
     .sort(compareBySort[filters.sort]);
 }

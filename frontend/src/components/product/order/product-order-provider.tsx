@@ -2,14 +2,14 @@
 
 import {
   DeliveryTypeUnavailableError,
-  productOrderFormSchema,
+  createProductOrderFormSchema,
   type DeliveryFee,
   type Product,
   type ProductOrderFormValues,
 } from "@rassm/shared";
 import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { useRouter } from "next/navigation";
-import { createContext, use, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, use, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { PIXEL_CURRENCY, trackMetaEvent } from "@/lib/analytics/meta-pixel";
 import { OrderError, placeProductOrder } from "@/lib/data/orders";
 import { routes } from "@/lib/routes";
@@ -32,6 +32,8 @@ function revealFirstError(root: HTMLElement | null) {
 function useProductOrderForm(product: Product, onSubmitted: (orderNumber: string) => void) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  // The shared rules plus this product's colors and stock per color + size.
+  const schema = useMemo(() => createProductOrderFormSchema(product), [product]);
 
   const defaultValues: ProductOrderFormValues = {
     productId: product.id,
@@ -50,11 +52,11 @@ function useProductOrderForm(product: Product, onSubmitted: (orderNumber: string
   const form = useForm({
     defaultValues,
     validationLogic: revalidateLogic(),
-    validators: { onDynamic: productOrderFormSchema },
+    validators: { onDynamic: schema },
     onSubmit: async ({ value }) => {
       setSubmitError(null);
       try {
-        const order = await placeProductOrder(productOrderFormSchema.parse(value));
+        const order = await placeProductOrder(schema.parse(value));
         onSubmitted(order.orderNumber);
       } catch (error) {
         setSubmitError(

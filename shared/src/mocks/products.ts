@@ -3,13 +3,17 @@ import {
   createProductSchema,
   type productSchema,
   type Product,
-  type ProductColor,
+  type StockBySize,
 } from "../schemas/product";
 import { getMaxHomeDeliveryPrice } from "../utils/delivery-fee";
 import { mockDeliveryFees } from "./delivery-fees";
 
-const BLACK: ProductColor = { name: "Noir", hex: "#111111" };
-const CREAM: ProductColor = { name: "Crème", hex: "#EDE8DF" };
+const BLACK = { name: "Noir", hex: "#111111" };
+const CREAM = { name: "Crème", hex: "#EDE8DF" };
+const ANTHRACITE = { name: "Anthracite", hex: "#3A3937" };
+
+/** A color with its stock per size (stock is tracked per color + size). */
+const color = (base: { name: string; hex: string }, stock: StockBySize) => ({ ...base, stock });
 
 /** Photos in frontend/public/images/products/. Add "back" when a back photo exists. */
 const images = (slug: string, views: ("front" | "back")[] = ["front"]) =>
@@ -26,8 +30,7 @@ const rawProducts = [
     category: "hoodie",
     price: 7900,
     images: images("signature-hoodie"),
-    colors: [BLACK],
-    stock: { S: 6, M: 12, L: 14, XL: 8, XXL: 4 },
+    colors: [color(BLACK, { S: 6, M: 12, L: 14, XL: 8, XXL: 4 })],
     featured: true,
     isActive: true,
     deliveryDiscountTiers: [{ type: "free", minQuantity: 2 }],
@@ -43,8 +46,7 @@ const rawProducts = [
     category: "hoodie",
     price: 7900,
     images: images("sketch-hoodie", ["front", "back"]),
-    colors: [CREAM],
-    stock: { S: 4, M: 9, L: 10, XL: 6, XXL: 2 },
+    colors: [color(CREAM, { S: 4, M: 9, L: 10, XL: 6, XXL: 2 })],
     featured: true,
     isActive: true,
     deliveryDiscountTiers: [],
@@ -60,8 +62,7 @@ const rawProducts = [
     category: "sweatshirt",
     price: 6900,
     images: images("fragment-sweatshirt"),
-    colors: [BLACK],
-    stock: { S: 5, M: 10, L: 10, XL: 5, XXL: 3 },
+    colors: [color(BLACK, { S: 5, M: 10, L: 10, XL: 5, XXL: 3 })],
     featured: true,
     isActive: true,
     deliveryDiscountTiers: [
@@ -81,8 +82,7 @@ const rawProducts = [
     category: "tshirt",
     price: 4900,
     images: images("unspoken-tee"),
-    colors: [CREAM],
-    stock: { S: 8, M: 15, L: 15, XL: 9, XXL: 4 },
+    colors: [color(CREAM, { S: 8, M: 15, L: 15, XL: 9, XXL: 4 })],
     featured: true,
     isActive: true,
     deliveryDiscountTiers: [{ type: "amount", minQuantity: 1, amount: 50 }],
@@ -98,8 +98,11 @@ const rawProducts = [
     category: "tshirt",
     price: 4900,
     images: images("classic-tee"),
-    colors: [BLACK, CREAM],
-    stock: { S: 10, M: 20, L: 20, XL: 12, XXL: 6 },
+    // Different stock per color; Crème M is sold out (Noir M is not).
+    colors: [
+      color(BLACK, { S: 10, M: 20, L: 20, XL: 12, XXL: 6 }),
+      color(CREAM, { S: 4, M: 0, L: 3, XL: 2, XXL: 0 }),
+    ],
     featured: true,
     isActive: true,
     deliveryDiscountTiers: [],
@@ -116,8 +119,7 @@ const rawProducts = [
     category: "hoodie",
     price: 8400,
     images: images("silence-hoodie"),
-    colors: [BLACK],
-    stock: { S: 3, M: 7, L: 8, XL: 5, XXL: 0 },
+    colors: [color(BLACK, { S: 3, M: 7, L: 8, XL: 5, XXL: 0 })],
     featured: false,
     isActive: true,
     deliveryDiscountTiers: [],
@@ -133,8 +135,7 @@ const rawProducts = [
     category: "sweatshirt",
     price: 6900,
     images: images("echo-sweatshirt"),
-    colors: [BLACK],
-    stock: { S: 4, M: 8, L: 8, XL: 4, XXL: 2 },
+    colors: [color(BLACK, { S: 4, M: 8, L: 8, XL: 4, XXL: 2 })],
     featured: false,
     isActive: true,
     deliveryDiscountTiers: [],
@@ -150,8 +151,7 @@ const rawProducts = [
     category: "tshirt",
     price: 4900,
     images: images("inner-voice-tee"),
-    colors: [CREAM],
-    stock: { S: 0, M: 6, L: 9, XL: 5, XXL: 2 },
+    colors: [color(CREAM, { S: 0, M: 6, L: 9, XL: 5, XXL: 2 })],
     featured: false,
     isActive: true,
     deliveryDiscountTiers: [],
@@ -167,8 +167,7 @@ const rawProducts = [
     category: "hoodie",
     price: 8900,
     images: images("canvas-hoodie", ["front", "back"]),
-    colors: [{ name: "Anthracite", hex: "#3A3937" }],
-    stock: { S: 2, M: 5, L: 6, XL: 4, XXL: 2 },
+    colors: [color(ANTHRACITE, { S: 2, M: 5, L: 6, XL: 4, XXL: 2 })],
     featured: false,
     isActive: true,
     deliveryDiscountTiers: [],
