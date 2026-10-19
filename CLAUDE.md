@@ -161,7 +161,7 @@ Tokens are defined in `frontend/src/app/globals.css` (`@theme`). Use the token c
 
 - `app/`: routes. `layout.tsx` holds the header, footer, skip link and default French SEO metadata.
 - `components/ui/`: building blocks: `Button` (filled or outlined, `surface="dark" | "light"`), `SectionLabel`, `SectionTitle`, `ArrowLink`, `HandQuote`, `Container`, `Logo`, `icons.tsx` (thin line SVG icons). Reuse them; do not restyle buttons or labels by hand.
-- `components/about/`: the About page sections (`AboutHero`, `AboutStory`, `AboutValues`, `AboutClosing`).
+- `components/about/`: the About page sections (`AboutHero`, `AboutStory`, `AboutValues`).
 - `components/contact/`: the contact page sections (`ContactHero`, `ContactChannels`, `FaqBand`, `BrandLocation`) and `ContactForm`. `components/ui/form-field.tsx`: `FormField` (label, control, hint, French error; `labelStyle="caps" | "plain"`), `inputClasses` and `describedBy`, shared by the order and contact forms.
 - `components/layout/`: `SiteHeader` (transparent over the hero on `/`, dark band elsewhere, full-screen menu below `lg`), `SiteFooter`, `NewsletterForm` (TanStack Form + `newsletterFormSchema`, `revalidateLogic`).
 - `components/home/`, `components/collection/`, `components/product/`: page sections, `ProductCard` / `ProductListItem` (the whole card links to the product page, no "+" button), product gallery, quantity stepper, size guide dialog.

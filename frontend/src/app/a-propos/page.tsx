@@ -1,10 +1,5 @@
 import type { Metadata } from "next";
-import {
-  AboutClosing,
-  AboutHero,
-  AboutStory,
-  AboutValues,
-} from "@/components/about/about-sections";
+import { AboutHero, AboutStory, AboutValues } from "@/components/about/about-sections";
 import { routes } from "@/lib/routes";
 
 const description =
@@ -34,7 +29,6 @@ export default function AboutPage() {
       <AboutHero />
       <AboutStory />
       <AboutValues />
-      <AboutClosing />
     </>
   );
 }
