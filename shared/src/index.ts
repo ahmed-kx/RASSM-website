@@ -9,4 +9,5 @@ export * from "./schemas/product";
 export * from "./schemas/product-order";
 export * from "./utils/delivery-discount-format";
 export * from "./utils/delivery-fee";
+export * from "./utils/format-delivery-delay";
 export * from "./utils/format-price";

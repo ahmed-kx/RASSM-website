@@ -21,3 +21,7 @@ export const SIZE_GUIDE_ROWS: readonly SizeGuideRow[] = [
   { size: "XL", chest: 69, length: 76, shoulders: 62, sleeve: 62 },
   { size: "XXL", chest: 72, length: 78, shoulders: 64, sleeve: 63 },
 ];
+
+/** Fit advice shown with the table (product page dialog and /guide-des-tailles). */
+export const SIZE_GUIDE_FIT =
+  "Coupe oversize : prenez votre taille habituelle pour un tombé ample, une taille en dessous pour une coupe plus ajustée. Mesures en centimètres, prises à plat.";

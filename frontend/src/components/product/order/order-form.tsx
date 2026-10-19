@@ -4,6 +4,7 @@ import {
   DELIVERY_TYPE_LABELS,
   WILAYAS,
   formatPrice,
+  formatDeliveryDelay,
   formatWilaya,
   getAvailableDeliveryTypes,
   type DeliveryFee,
@@ -130,8 +131,7 @@ export function OrderForm() {
                   <>
                     {fee && (
                       <p className="font-semibold text-ink">
-                        Livraison estimée : {fee.estimatedDays} jour
-                        {fee.estimatedDays > 1 ? "s" : ""}
+                        Livraison estimée : {formatDeliveryDelay(fee.estimatedDays)}
                       </p>
                     )}
                     <p>

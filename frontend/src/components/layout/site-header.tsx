@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CloseIcon, MenuIcon, SearchIcon } from "@/components/ui/icons";
+import { CloseIcon, MenuIcon } from "@/components/ui/icons";
 import { Logo } from "@/components/ui/logo";
 import { MAIN_NAV } from "@/content/navigation";
 import { cn } from "@/lib/cn";
@@ -18,6 +18,10 @@ const HEADER_OVER_HERO: readonly string[] = [
   routes.collection,
   routes.about,
   routes.contact,
+  routes.delivery,
+  routes.exchanges,
+  routes.sizeGuide,
+  routes.faq,
 ];
 
 function isActive(pathname: string, href: string) {
@@ -75,9 +79,6 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-1 sm:gap-2">
-          <Link href={routes.search} aria-label="Rechercher" className={iconButton}>
-            <SearchIcon />
-          </Link>
           <button
             type="button"
             aria-label="Ouvrir le menu"

@@ -23,3 +23,8 @@ export const CONTACT = {
     href: "https://www.tiktok.com/@rassm.wear",
   },
 } as const;
+
+/** WhatsApp link that opens the chat with a prefilled message. */
+export function whatsappLink(message: string): string {
+  return `${CONTACT.whatsapp.href}?text=${encodeURIComponent(message)}`;
+}

@@ -1,8 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useRef } from "react";
 import { CloseIcon } from "@/components/ui/icons";
-import { SIZE_GUIDE_ROWS } from "@/content/size-guide";
+import { SIZE_GUIDE_FIT } from "@/content/size-guide";
+import { routes } from "@/lib/routes";
+import { SizeGuideTable } from "./size-guide-table";
 
 /** "Guide des tailles" link opening a modal with the size table (native <dialog>). */
 export function SizeGuideDialog() {
@@ -41,46 +44,14 @@ export function SizeGuideDialog() {
               <CloseIcon />
             </button>
           </div>
-          <p className="mt-3 text-sm text-ash">
-            Coupe oversize : prenez votre taille habituelle pour un tombé ample, une taille en
-            dessous pour une coupe plus ajustée. Mesures en centimètres, prises à plat.
-          </p>
-          <div className="mt-6 overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-ink text-[10px] tracking-label uppercase">
-                  <th scope="col" className="py-2 pr-3 font-semibold">
-                    Taille
-                  </th>
-                  <th scope="col" className="py-2 pr-3 font-semibold">
-                    Largeur poitrine
-                  </th>
-                  <th scope="col" className="py-2 pr-3 font-semibold">
-                    Longueur
-                  </th>
-                  <th scope="col" className="py-2 pr-3 font-semibold">
-                    Épaules
-                  </th>
-                  <th scope="col" className="py-2 font-semibold">
-                    Manches
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="tabular-nums">
-                {SIZE_GUIDE_ROWS.map((row) => (
-                  <tr key={row.size} className="border-b border-line">
-                    <th scope="row" className="py-2.5 pr-3 font-semibold">
-                      {row.size}
-                    </th>
-                    <td className="py-2.5 pr-3">{row.chest}</td>
-                    <td className="py-2.5 pr-3">{row.length}</td>
-                    <td className="py-2.5 pr-3">{row.shoulders}</td>
-                    <td className="py-2.5">{row.sleeve}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <p className="mt-3 text-sm text-ash">{SIZE_GUIDE_FIT}</p>
+          <SizeGuideTable className="mt-6" />
+          <Link
+            href={routes.sizeGuide}
+            className="mt-5 inline-block text-xs text-ash underline underline-offset-4 hover:text-ink"
+          >
+            Comment prendre vos mesures
+          </Link>
         </div>
       </dialog>
     </>
