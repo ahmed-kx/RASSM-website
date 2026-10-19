@@ -6,7 +6,6 @@ export const routes = {
   collection: "/collection",
   category: (category: Category) => `/collection?category=${category}`,
   product: (slug: string) => `/collection/${slug}`,
-  lookbook: "/lookbook",
   about: "/a-propos",
   contact: "/contact",
   search: "/recherche",

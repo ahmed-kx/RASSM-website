@@ -17,11 +17,11 @@ Oversized hoodies, sweatshirts and t-shirts with artistic sketch prints.
   - the brand name **RASSM**;
   - **product names** (Signature Hoodie, Fragment Sweatshirt…);
   - the logo tagline **"Draw what you can't say."**, only next to the logo in the footer (with `lang="en"`). Everywhere else it is "Dessiner ce qu'on ne peut pas dire.";
-  - common fashion words used in French as-is: **Hoodies, Sweatshirts, T-shirts, Drop, Lookbook, Oversize**.
+  - common fashion words used in French as-is: **Hoodies, Sweatshirts, T-shirts, Drop, Oversize**.
 - Brand phrases in French (use exactly these): "Dessiner ce qu'on ne peut pas dire.", "Certaines choses vivent mieux dans l'art.", "Portez votre silence.", "L'art vit en chacun de nous.", "Pensées différentes, même humain.", "Pensées différentes. Même humain.", "Mêmes personnes, histoires différentes.", "Mêmes pensées. Histoires différentes.", "De vraies personnes. Des émotions plus grandes.", "Parlons-en.", "Nous sommes là pour vous.", "Plus que des vêtements.", "Ce que nous défendons.", "L'art nous relie partout.", "Nouveau Drop 001". Any new text: natural French in the same tone (short, poetic, "vous").
 - Avoid other English words in customer text ("streetwear" → "mode urbaine", "premium", "look"…). Tolerated because customers use them: brand names (WhatsApp, Instagram, TikTok), "e-mail", "newsletter" and "stop desk" (Anderson's term, always next to "au bureau").
 - French typography: accents on capitals (CSS `uppercase` keeps them: "À PROPOS"), a space before ":" "?" "!" (a no-break space `&nbsp;` in titles so the sign never starts a line), French quotes « … ».
-- The designs (`design/*.png`) show English text: translate all of it to French when building (Accueil, Collection, Lookbook, À propos, Contact, "Découvrir la collection", "Voir tout", "Produits phares", and the slogans above). French is often longer: check that titles, buttons and handwritten quotes still fit at 500 / 768 / 1440 px.
+- The designs (`design/*.png`) show English text: translate all of it to French when building (Accueil, Collection, À propos, Contact, "Découvrir la collection", "Voir tout", "Produits phares", and the slogans above). French is often longer: check that titles, buttons and handwritten quotes still fit at 500 / 768 / 1440 px.
 - **Every Zod error message in `shared/` is French.** `shared/src/schemas/common.ts` also sets Zod's French locale (`z.config(z.locales.fr())`), so built-in messages are French too. Never add an English error message.
 
 ## Stack

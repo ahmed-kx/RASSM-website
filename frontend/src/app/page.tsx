@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { CollectionSection } from "@/components/home/collection-section";
 import { FeaturedProducts } from "@/components/home/featured-products";
 import { HeroSlider } from "@/components/home/hero-slider";
-import { LookbookStrip } from "@/components/home/lookbook-strip";
 import { StorySection } from "@/components/home/story-section";
 import { TrustBar } from "@/components/home/trust-bar";
 import { HERO_SLIDES } from "@/content/hero-slides";
@@ -28,7 +27,6 @@ export default async function HomePage() {
       <FeaturedProducts products={featuredProducts} />
       <StorySection />
       <TrustBar />
-      <LookbookStrip />
     </>
   );
 }

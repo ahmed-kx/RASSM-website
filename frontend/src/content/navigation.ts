@@ -9,7 +9,6 @@ export interface NavLink {
 export const MAIN_NAV: readonly NavLink[] = [
   { label: "Accueil", href: routes.home },
   { label: "Collection", href: routes.collection },
-  { label: "Lookbook", href: routes.lookbook },
   { label: "À propos", href: routes.about },
   { label: "Contact", href: routes.contact },
 ];
@@ -28,7 +27,6 @@ export const FOOTER_COLUMNS: readonly { title: string; links: readonly NavLink[]
     title: "RASSM",
     links: [
       { label: "À propos", href: routes.about },
-      { label: "Lookbook", href: routes.lookbook },
       { label: "Contact", href: routes.contact },
       { label: "FAQ", href: routes.faq },
     ],
