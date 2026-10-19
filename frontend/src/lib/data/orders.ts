@@ -11,9 +11,11 @@ import { mockDeliveryFees, mockProducts } from "@rassm/shared/mocks";
 // Orders placed from the product page. No backend yet: the order is checked and priced
 // here as the API will do it (shared schemas and delivery helper, product and fee data
 // loaded on our side, nothing trusted from the form), then kept in sessionStorage so
-// the thank-you page can show it. In the "connect" step these functions call the API.
+// the thank-you page can show it. The order number is internal (admin dashboard, Meta
+// Pixel event id): customers never see it. In the "connect" step these functions call the API.
 
-const STORAGE_PREFIX = "rassm-order:";
+/** The last order placed on this device, read back by /merci. */
+const LAST_ORDER_KEY = "rassm-last-order";
 
 /** A French error the order form shows above the button. */
 export class OrderError extends Error {
@@ -81,17 +83,17 @@ export async function placeProductOrder(input: ProductOrder): Promise<Order> {
   });
 
   try {
-    sessionStorage.setItem(STORAGE_PREFIX + orderNumber, JSON.stringify(order));
+    sessionStorage.setItem(LAST_ORDER_KEY, JSON.stringify(order));
   } catch {
-    // Storage unavailable (private mode): the thank-you page shows the number only.
+    // Storage unavailable (private mode): the thank-you page shows a generic message.
   }
   return order;
 }
 
-/** The order with this number, or null when it is unknown. */
-export async function getOrder(orderNumber: string): Promise<Order | null> {
+/** The last order placed on this device, or null when there is none. */
+export async function getLastOrder(): Promise<Order | null> {
   try {
-    const saved = sessionStorage.getItem(STORAGE_PREFIX + orderNumber);
+    const saved = sessionStorage.getItem(LAST_ORDER_KEY);
     const parsed = saved ? orderSchema.safeParse(JSON.parse(saved)) : null;
     return parsed?.success ? parsed.data : null;
   } catch {

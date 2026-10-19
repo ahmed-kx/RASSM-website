@@ -29,7 +29,7 @@ const STEPS = [
   },
   {
     title: "Nous vous appelons",
-    text: "Avant chaque expédition, nous vous appelons pour confirmer votre commande, votre taille et votre adresse.",
+    text: "Votre commande est reçue, mais elle n'est confirmée qu'après notre appel : nous vérifions avec vous le produit, la taille et l'adresse avant l'expédition.",
   },
   {
     title: "Anderson vous livre",

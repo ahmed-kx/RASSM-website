@@ -37,7 +37,7 @@ export const FAQ_GROUPS: readonly FaqGroup[] = [
       {
         question: "Comment savoir si ma commande est confirmée ?",
         answer: [
-          "Après votre commande, vous recevez un numéro de commande à l'écran. Nous vous appelons ensuite pour confirmer la commande, la taille et l'adresse avant l'expédition. Gardez votre téléphone à portée de main.",
+          "Après votre commande, elle est « reçue » : nous vous appelons pour confirmer la commande, la taille et l'adresse avant l'expédition. La commande n'est confirmée qu'après cet appel, alors gardez votre téléphone à portée de main.",
         ],
       },
       {
@@ -45,7 +45,7 @@ export const FAQ_GROUPS: readonly FaqGroup[] = [
         answer: [
           "Oui, tant qu'elle n'est pas expédiée. Contactez-nous rapidement sur ",
           whatsapp,
-          " avec votre numéro de commande, ou dites-le-nous lors de l'appel de confirmation.",
+          " avec votre nom et le produit commandé, ou dites-le-nous lors de l'appel de confirmation.",
         ],
       },
       {

@@ -29,7 +29,7 @@ function revealFirstError(root: HTMLElement | null) {
   focusable?.focus({ preventScroll: true });
 }
 
-function useProductOrderForm(product: Product, onSubmitted: (orderNumber: string) => void) {
+function useProductOrderForm(product: Product, onSubmitted: () => void) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   // The shared rules plus this product's colors and stock per color + size.
@@ -56,8 +56,8 @@ function useProductOrderForm(product: Product, onSubmitted: (orderNumber: string
     onSubmit: async ({ value }) => {
       setSubmitError(null);
       try {
-        const order = await placeProductOrder(schema.parse(value));
-        onSubmitted(order.orderNumber);
+        await placeProductOrder(schema.parse(value));
+        onSubmitted();
       } catch (error) {
         setSubmitError(
           error instanceof OrderError || error instanceof DeliveryTypeUnavailableError
@@ -117,10 +117,10 @@ export function ProductOrderProvider({
   const sending = useRef(false);
   const placedRef = useRef(false);
   const checkoutStarted = useRef(false);
-  const { form, submitError, rootRef } = useProductOrderForm(product, (orderNumber) => {
+  const { form, submitError, rootRef } = useProductOrderForm(product, () => {
     placedRef.current = true;
     setPlaced(true);
-    router.push(routes.orderConfirmation(orderNumber));
+    router.push(routes.orderReceived);
   });
 
   useEffect(() => {

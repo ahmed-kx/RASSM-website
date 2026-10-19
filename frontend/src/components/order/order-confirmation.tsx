@@ -13,7 +13,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { SectionLabel } from "@/components/ui/section-label";
 import { PIXEL_CURRENCY, trackPurchaseOnce } from "@/lib/analytics/meta-pixel";
-import { getOrder } from "@/lib/data/orders";
+import { getLastOrder } from "@/lib/data/orders";
 import { routes } from "@/lib/routes";
 
 type State = { status: "loading" } | { status: "missing" } | { status: "found"; order: Order };
@@ -46,13 +46,17 @@ function Row({
   );
 }
 
-/** Thank-you content: loads the order, then sends the Purchase event once per order. */
-export function OrderConfirmation({ orderNumber }: { orderNumber: string | null }) {
+/**
+ * Thank-you content: the order is "reçue", confirmed only after our phone call. Loads the last
+ * order, then sends the Purchase event once per order. The order number is internal (it is
+ * the Pixel event id) and is never shown.
+ */
+export function OrderReceived() {
   const [state, setState] = useState<State>({ status: "loading" });
 
   useEffect(() => {
     let cancelled = false;
-    void (orderNumber ? getOrder(orderNumber) : Promise.resolve(null)).then((order) => {
+    void getLastOrder().then((order) => {
       if (cancelled) return;
       setState(order ? { status: "found", order } : { status: "missing" });
       if (order) {
@@ -69,7 +73,7 @@ export function OrderConfirmation({ orderNumber }: { orderNumber: string | null 
     return () => {
       cancelled = true;
     };
-  }, [orderNumber]);
+  }, []);
 
   if (state.status === "loading") {
     return <p className="min-h-[50vh] text-sm text-ash">Chargement de votre commande…</p>;
@@ -79,17 +83,11 @@ export function OrderConfirmation({ orderNumber }: { orderNumber: string | null 
     return (
       <div className="mx-auto max-w-xl text-center">
         <h1 className="font-display text-4xl leading-none font-medium uppercase md:text-5xl">
-          Merci pour votre commande
+          Commande reçue
         </h1>
         <p className="mt-5 text-[15px] leading-relaxed text-ash">
-          {orderNumber ? (
-            <>
-              Commande n° <strong className="text-ink">{orderNumber}</strong>. Nous vous appellerons
-              pour confirmer votre commande.
-            </>
-          ) : (
-            "Nous ne retrouvons pas de commande récente sur cet appareil."
-          )}
+          Nous ne retrouvons pas de commande récente sur cet appareil. Si vous venez de commander,
+          pas d&apos;inquiétude : nous vous appellerons très bientôt pour la confirmer.
         </p>
         <Button
           href={routes.collection}
@@ -110,18 +108,18 @@ export function OrderConfirmation({ orderNumber }: { orderNumber: string | null 
 
   return (
     <div className="mx-auto max-w-2xl">
-      <SectionLabel className="text-stone">Commande enregistrée</SectionLabel>
+      <SectionLabel className="text-stone">Commande reçue</SectionLabel>
       <h1 className="mt-3 font-display text-4xl leading-none font-medium uppercase md:text-6xl">
-        Merci pour votre commande
+        Merci, votre commande est bien reçue.
       </h1>
       <p className="mt-5 text-[15px] leading-relaxed text-ash">
-        Votre commande n° <strong className="text-ink">{order.orderNumber}</strong> est bien
-        enregistrée.
+        Nous vous appellerons très bientôt pour la confirmer. Gardez votre téléphone à portée de
+        main.
       </p>
       <p className="mt-4 border-l-2 border-ink pl-4 text-[15px] leading-relaxed">
-        Nous vous appellerons pour confirmer votre commande au{" "}
-        <strong className="whitespace-nowrap">{formatPhone(order.phone)}</strong>. Gardez votre
-        téléphone à portée de main.
+        Votre commande ne sera confirmée qu&apos;après cet appel, au{" "}
+        <strong className="whitespace-nowrap">{formatPhone(order.phone)}</strong>. Nous y vérifions
+        avec vous le produit, la taille et l&apos;adresse avant l&apos;expédition.
       </p>
 
       <section

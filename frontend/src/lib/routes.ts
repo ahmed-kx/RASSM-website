@@ -8,8 +8,8 @@ export const routes = {
   product: (slug: string) => `/collection/${slug}`,
   about: "/a-propos",
   contact: "/contact",
-  /** Thank-you page after an order, with the order number. */
-  orderConfirmation: (orderNumber: string) => `/merci?commande=${encodeURIComponent(orderNumber)}`,
+  /** Thank-you page after an order ("commande reçue"). It carries no order number. */
+  orderReceived: "/merci",
   delivery: "/livraison",
   exchanges: "/echanges",
   sizeGuide: "/guide-des-tailles",

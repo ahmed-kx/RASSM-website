@@ -5,7 +5,7 @@ Oversized hoodies, sweatshirts and t-shirts with artistic sketch prints.
 
 - Prices in Algerian Dinar, integers only, always displayed as `7 900 DA` (narrow no-break space for thousands, `DA` after the number, discounts as `−100 DA`) (use `formatPrice` from `@rassm/shared`, never format by hand).
 - Cash on delivery only, to the **58 wilayas** of Algeria (home delivery or stop desk), shipped by our courier **Anderson** from Alger. Some wilayas have **no stop desk** (see Business rules).
-- **Sales flow (Meta Ads):** visitors land on a product page from an ad and order that product directly with the form on the page. There is **no cart and no checkout page**: one order = one product (one color, one size, a quantity). After the order, the customer lands on `/merci` and the team calls them to confirm.
+- **Sales flow (Meta Ads):** visitors land on a product page from an ad and order that product directly with the form on the page. There is **no cart and no checkout page**: one order = one product (one color, one size, a quantity). After the order, the customer lands on `/merci` ("commande reçue") and the team calls them: **the order is confirmed only after this phone call**.
 - Customer-facing language is **French** (see Language rule below).
 - The design references are `design/Homepage.png`, `design/Collection.png`, `design/Contact.png` and `design/About.png` (ignore the cart icon in the designs: there is no cart). Read the relevant one before any UI work.
 
@@ -96,6 +96,12 @@ Do only the step you are asked to do. Do not start a later step early.
 - The **backend always recalculates** from the products loaded from the database and the fee table. It never trusts tiers, discounts or delivery amounts sent by the client. The order payload (`productOrderSchema`) carries no price or discount data.
 - Orders (`orderSchema`) store one `item` (product id, name, slug, image, color, size, quantity, unit price) plus `deliveryFeeBase`, `deliveryDiscount`, `deliveryFee`, `freeDelivery` and `deliveryDiscountLines`. Order checks: `subtotal = unitPrice × quantity`, `deliveryFee = deliveryFeeBase − deliveryDiscount` (never negative), the discount matches the lines, `freeDelivery` is true exactly when a free tier applied, and `total = subtotal + deliveryFee`.
 
+### Order confirmation (phone call first, no order number for customers)
+
+- A new order has the status `pending` and is **"reçue" (received)**, never "confirmée". It is **confirmed only after our phone call** (we check the product, the size and the address, then the status becomes `confirmed`). Customer texts must never say the order is confirmed before that call.
+- **The customer never sees an order number**: not on `/merci` (the URL has no query string), not in the FAQ, the delivery steps, the form notes or the metadata. `orderNumber` (`RSM-000123`) still exists **internally**: for the admin dashboard and as the Meta Pixel `eventID` of Purchase.
+- `/merci` says "Merci, votre commande est bien reçue. Nous vous appellerons très bientôt pour la confirmer. Gardez votre téléphone à portée de main.", keeps the order summary (product, color, size, quantity, delivery, total) and reads the last order saved on the device (`getLastOrder`). A customer who needs to change an order contacts us by WhatsApp with their name and product.
+
 ### Order form (product page)
 
 - Schemas in `shared/src/schemas/product-order.ts`: `productOrderSchema` (the payload the API will validate) and `productOrderFormSchema` (same rules for the form, whose wilaya select and size start empty; its output is a `ProductOrder`). Customer fields and the "address required for home delivery" rule come from `customer.ts`.
@@ -167,7 +173,7 @@ Tokens are defined in `frontend/src/app/globals.css` (`@theme`). Use the token c
 - `components/layout/`: `SiteHeader` (transparent over the hero on `/`, dark band elsewhere, full-screen menu below `lg`), `SiteFooter`, `NewsletterForm` (TanStack Form + `newsletterFormSchema`, `revalidateLogic`).
 - `components/home/`, `components/collection/`, `components/product/`: page sections, `ProductCard` / `ProductListItem` (the whole card links to the product page, no "+" button), product gallery, quantity stepper, size guide dialog.
 - `components/product/order/`: the product page order. `ProductOrderProvider` owns the TanStack Form (`productOrderFormSchema`, `revalidateLogic`) and shares it through context with `ProductOptions` (color, size, quantity), `ProductOrderGallery` (photos of the selected color), `OrderForm` + `OrderSummary`, and `StickyOrderButton` (mobile only: "Commander maintenant" fixed at the bottom, scrolls to the form, hidden once the form is on screen). The provider also sends ViewContent and InitiateCheckout.
-- `app/merci/` + `components/order/OrderConfirmation`: thank-you page (`/merci?commande=RSM-123456`, noindex): order number, summary, "Nous vous appellerons pour confirmer votre commande", link to the collection. Sends Purchase.
+- `app/merci/` + `components/order/OrderReceived`: thank-you page (`/merci`, no query string, noindex): "Merci, votre commande est bien reçue. Nous vous appellerons très bientôt pour la confirmer.", the order summary, link to the collection. It reads the last order saved on the device (`getLastOrder`). Sends Purchase.
 - French tier texts come from `formatDeliveryDiscountTiers` / `formatTierBenefit` / `formatDiscount` / `formatNextTierMessage`.
 - **Collection filters live in the URL** (`?category=hoodie,tshirt&color=noir&size=M&min=5000&max=8000&sort=price-asc&view=list`). Pure logic in `lib/collection-filters.ts` (parse, serialize, facets, filter and sort, tested). The page updates the URL with `window.history.replaceState` (no server round trip) and reads it with `useSearchParams`; the page awaits `searchParams`, so a shared link is server-rendered already filtered.
 - `SiteHeader` floats over the photo on `/`, `/collection`, `/a-propos`, `/contact` and the info pages (`HEADER_OVER_HERO`). It has no search icon for now (see `docs/TODO.md`), and uses the narrow width on `/collection/*`. `Container size="narrow"` is the shop page width (design/Collection.png).
