@@ -8,6 +8,7 @@ import {
   type DeliveryDiscountLine,
   type MetaTracking,
   type Order,
+  type OrderStatus,
   type OrderSummary,
 } from "@rassm/shared";
 import { Schema, model, type Types } from "mongoose";
@@ -29,6 +30,27 @@ export interface OrderDoc extends Omit<Order, "id" | "createdAt"> {
   suspiciousReason: string | null;
   /** Server-side Purchase event (Conversions API). */
   metaPurchase: { status: MetaEventStatus; sentAt?: Date; error?: string };
+  /** New order e-mail to the team (Brevo). */
+  emailNotification: { status: MetaEventStatus; sentAt?: Date; error?: string };
+  /**
+   * True while the ordered units are taken from the stock. Cancelled / returned orders
+   * give them back exactly once (the flag flips first, atomically).
+   */
+  stockReserved: boolean;
+  /** Null until an admin opens the order (the "Nouveau" badge). */
+  openedAt: Date | null;
+  /** Internal note of the team (e.g. "client rappelle ce soir"). */
+  adminNote: string;
+  /** Every change: creation, status, edits, blacklist. */
+  history: OrderHistoryDoc[];
+}
+
+export interface OrderHistoryDoc {
+  at: Date;
+  by: string | null;
+  type: "created" | "status" | "edit" | "blacklist";
+  status?: OrderStatus;
+  message: string;
 }
 
 const itemSchema = new Schema(
@@ -98,6 +120,33 @@ const orderMongooseSchema = new Schema<OrderDoc>(
       sentAt: Date,
       error: String,
     },
+    emailNotification: {
+      status: { type: String, enum: ["pending", "sent", "failed", "skipped"], default: "pending" },
+      sentAt: Date,
+      error: String,
+    },
+    stockReserved: { type: Boolean, default: true },
+    openedAt: { type: Date, default: null },
+    adminNote: { type: String, default: "" },
+    history: {
+      type: [
+        new Schema<OrderHistoryDoc>(
+          {
+            at: { type: Date, required: true },
+            by: { type: String, default: null },
+            type: {
+              type: String,
+              enum: ["created", "status", "edit", "blacklist"],
+              required: true,
+            },
+            status: { type: String, enum: ORDER_STATUSES },
+            message: { type: String, required: true },
+          },
+          { _id: false },
+        ),
+      ],
+      default: [],
+    },
   },
   { timestamps: true, versionKey: false },
 );
@@ -109,6 +158,8 @@ orderMongooseSchema.index({ phone: 1, createdAt: -1 });
 orderMongooseSchema.index({ phone: 1, "item.productId": 1, createdAt: -1 });
 orderMongooseSchema.index({ "client.ip": 1, createdAt: -1 });
 orderMongooseSchema.index({ suspicious: 1, createdAt: -1 });
+orderMongooseSchema.index({ wilayaCode: 1, createdAt: -1 });
+orderMongooseSchema.index({ openedAt: 1, status: 1 });
 
 export const OrderModel = model<OrderDoc>("Order", orderMongooseSchema);
 

@@ -4,6 +4,7 @@ import { getClientInfo } from "../lib/client-info";
 import { parseOrThrow } from "../lib/http-error";
 import { logger } from "../lib/logger";
 import type { MetaEvents } from "../meta/conversions-api";
+import type { OrderNotifier } from "../notifications/new-order-email";
 import { ContactMessageModel } from "../models/contact-message";
 import { NewsletterSubscriberModel } from "../models/newsletter-subscriber";
 import { placeOrder } from "../services/orders";
@@ -15,11 +16,14 @@ export interface FormLimiters {
 }
 
 /** Orders, contact messages and newsletter sign-ups (rate limited per IP). */
-export function formsRouter(limiters: FormLimiters, metaEvents: MetaEvents): Router {
+export function formsRouter(
+  limiters: FormLimiters,
+  services: { metaEvents: MetaEvents; notifier: OrderNotifier },
+): Router {
   const router = Router();
 
   router.post("/orders", limiters.orders, async (req, res) => {
-    const placed = await placeOrder(req.body, { client: getClientInfo(req), metaEvents });
+    const placed = await placeOrder(req.body, { client: getClientInfo(req), ...services });
     res.status(201).json(placed);
   });
 

@@ -56,6 +56,17 @@ const envSchema = z.object({
     .string()
     .regex(/^v\d+\.\d+$/, 'META_GRAPH_API_VERSION must look like "v23.0".')
     .default("v23.0"),
+  /** Brevo transactional e-mail API key (new order e-mails). Secret. Empty = no e-mail. */
+  BREVO_API_KEY: optional(z.string().min(20, "BREVO_API_KEY looks too short.")),
+  /** Who receives the new order e-mails. */
+  NOTIFY_EMAIL: z.email("NOTIFY_EMAIL must be an e-mail address.").default("rassmwear@gmail.com"),
+  /** Sender of the e-mails (must be a sender or domain validated in Brevo). */
+  EMAIL_FROM: z.email("EMAIL_FROM must be an e-mail address.").default("rassmwear@gmail.com"),
+  /** Dashboard URL, for the "open the order" links in e-mails. */
+  ADMIN_URL: z
+    .url("ADMIN_URL must be a full URL, e.g. https://rassm.dz/admin.")
+    .transform((url) => url.replace(/\/+$/, ""))
+    .default("http://localhost:3000/admin"),
 });
 
 export type Env = z.infer<typeof envSchema>;

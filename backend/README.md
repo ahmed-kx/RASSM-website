@@ -33,6 +33,10 @@ Validated at startup (`src/env.ts`): the API refuses to start and lists what is 
 | `META_CAPI_ACCESS_TOKEN` | no       | Events Manager > Pixel > Settings > Conversions API                                     |
 | `META_TEST_EVENT_CODE`   | no       | Events Manager "Test events" code                                                       |
 | `META_GRAPH_API_VERSION` | no       | `v23.0`                                                                                 |
+| `BREVO_API_KEY`          | no       | Brevo > SMTP & API > API keys (empty = no e-mail)                                       |
+| `NOTIFY_EMAIL`           | no       | `rassmwear@gmail.com`                                                                   |
+| `EMAIL_FROM`             | no       | `rassmwear@gmail.com` (validated sender in Brevo)                                       |
+| `ADMIN_URL`              | no       | `http://localhost:3000/admin`                                                           |
 
 Never commit `.env`. On MongoDB Atlas, allow the IP address of the server (or of your
 computer in development) in **Network Access**.
@@ -55,6 +59,7 @@ products are left as they are (real stock is kept), delivery fees are updated.
 | `POST /api/contact-messages` | Saves a contact message (body: `contactRequestSchema`)                                                                        |
 | `POST /api/newsletter`       | Signs up an email (one entry per email)                                                                                       |
 | `GET /health`                | `{ ok: true }`                                                                                                                |
+| `/api/admin/*`               | Dashboard API (session cookie required except login), see below                                                               |
 
 Errors: `{ "error": { "message": "…", "fields": { "size": "…" } } }`, French.
 
@@ -79,6 +84,40 @@ With `META_PIXEL_ID` and `META_CAPI_ACCESS_TOKEN` set, each new order sends a se
 Purchase (same event id as the browser Pixel, hashed phone / name / city, country, IP, user
 agent, fbp/fbc cookies, value in DZD) in the background. A Meta failure is logged and
 stored on the order (`metaPurchase.status`), never blocking the order.
+
+## Dashboard (admin)
+
+Create the first admin (asks the e-mail and the password in the terminal, nothing is stored in code):
+
+```bash
+pnpm create-admin
+```
+
+Run it again with the same e-mail to set a new password (the open sessions are closed). Log in at
+`/admin/connexion` on the website. The dashboard calls `/api/admin/*` on the website's domain
+(Next.js rewrites it to the API), with an httpOnly SameSite=Strict session cookie (Secure in production).
+Five wrong passwords in a row lock the account for 15 minutes.
+
+| Route                                                                 | What it does                                              |
+| --------------------------------------------------------------------- | --------------------------------------------------------- |
+| `POST /api/admin/auth/login` / `logout`                               | Session cookie in / out                                   |
+| `GET /api/admin/auth/me`                                              | The logged-in admin                                       |
+| `GET /api/admin/orders`                                               | List: `status` tab, `q`, `wilaya`, `from`, `to`, `cursor` |
+| `GET /api/admin/orders/updates?since=`                                | New orders since the last poll (live dashboard)           |
+| `GET /api/admin/orders/:id`                                           | One order (marks it opened) and its product               |
+| `PATCH /api/admin/orders/:id`                                         | Edit before shipping (totals and stock recomputed)        |
+| `POST /api/admin/orders/:id/status`                                   | Allowed status changes only; stock given back once        |
+| `PUT /api/admin/orders/:id/note`                                      | Internal note                                             |
+| `POST /api/admin/orders/:id/blacklist`                                | Blacklist the order's phone                               |
+| `POST /api/admin/orders/export`                                       | Anderson CSV of confirmed orders (`ids` or `all`)         |
+| `POST /api/admin/orders/ship`                                         | Mark exported orders as shipped                           |
+| `GET/POST /api/admin/blacklist`, `DELETE /api/admin/blacklist/:phone` | Blacklist                                                 |
+
+### New order e-mails
+
+With `BREVO_API_KEY` set, each real new order (not a honeypot or a duplicate) sends a French e-mail to
+`NOTIFY_EMAIL` from `EMAIL_FROM` (a sender validated in Brevo), with a link to the order (`ADMIN_URL`).
+Sent in the background: a Brevo failure is logged and never blocks the order.
 
 ## Tests
 

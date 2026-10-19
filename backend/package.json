@@ -9,7 +9,8 @@
     "seed": "tsx src/seed-cli.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "create-admin": "tsx src/create-admin-cli.ts"
   },
   "dependencies": {
     "@rassm/shared": "workspace:*",

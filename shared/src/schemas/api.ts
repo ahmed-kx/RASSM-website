@@ -15,6 +15,29 @@ export const API_PATHS = {
 } as const;
 
 /**
+ * Admin API paths. The dashboard calls them on the site's own domain: Next.js rewrites
+ * /api/admin/* to the API, so the session cookie is a first-party cookie of the site.
+ */
+export const ADMIN_API_PATHS = {
+  login: "/api/admin/auth/login",
+  logout: "/api/admin/auth/logout",
+  me: "/api/admin/auth/me",
+  orders: "/api/admin/orders",
+  orderUpdates: "/api/admin/orders/updates",
+  order: (id: string) => `/api/admin/orders/${encodeURIComponent(id)}`,
+  orderStatus: (id: string) => `/api/admin/orders/${encodeURIComponent(id)}/status`,
+  orderNote: (id: string) => `/api/admin/orders/${encodeURIComponent(id)}/note`,
+  orderBlacklist: (id: string) => `/api/admin/orders/${encodeURIComponent(id)}/blacklist`,
+  andersonExport: "/api/admin/orders/export",
+  bulkShip: "/api/admin/orders/ship",
+  blacklist: "/api/admin/blacklist",
+  blacklistEntry: (phone: string) => `/api/admin/blacklist/${encodeURIComponent(phone)}`,
+} as const;
+
+/** Name of the admin session cookie (httpOnly, set by the API). */
+export const ADMIN_SESSION_COOKIE = "rassm_admin";
+
+/**
  * Hidden anti-spam field ("honeypot") of the order and contact forms. People never see it
  * and leave it empty; bots fill every field. When it is filled, the API answers as if it
  * worked and saves nothing.

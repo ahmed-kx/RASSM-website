@@ -1,8 +1,5 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { MetaPixelPageView } from "@/components/analytics/meta-pixel-page-view";
-import { SiteFooter } from "@/components/layout/site-footer";
-import { SiteHeader } from "@/components/layout/site-header";
 import { bodyFont, displayFont, handFont } from "@/lib/fonts";
 import "./globals.css";
 
@@ -34,21 +31,14 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image" },
 };
 
+/**
+ * Root layout: fonts and default SEO only. The public site (header, footer, Meta Pixel)
+ * lives in app/(site)/layout.tsx; the dashboard in app/admin/ has its own layout.
+ */
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="fr" className={`${displayFont.variable} ${bodyFont.variable} ${handFont.variable}`}>
-      <body>
-        <a
-          href="#contenu"
-          className="sr-only z-50 bg-paper px-4 py-2 text-sm text-ink focus:not-sr-only focus:fixed focus:top-4 focus:left-4"
-        >
-          Aller au contenu
-        </a>
-        <SiteHeader />
-        <main id="contenu">{children}</main>
-        <SiteFooter />
-        <MetaPixelPageView />
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

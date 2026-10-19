@@ -1,4 +1,5 @@
 export * from "./constants/wilayas";
+export * from "./schemas/admin";
 export * from "./schemas/api";
 export * from "./schemas/common";
 export * from "./schemas/customer";

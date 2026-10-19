@@ -3,6 +3,7 @@ import { connectDatabase, disconnectDatabase } from "./db";
 import { loadEnv } from "./env";
 import { describeError, logger } from "./lib/logger";
 import { createMetaEvents } from "./meta/conversions-api";
+import { createOrderNotifier } from "./notifications/new-order-email";
 
 const env = loadEnv();
 
@@ -30,12 +31,26 @@ const app = createApp({
   frontendOrigins: env.FRONTEND_ORIGIN,
   trustProxy: env.TRUST_PROXY,
   metaEvents: createMetaEvents(metaConfig),
+  notifier: createOrderNotifier(
+    env.BREVO_API_KEY
+      ? {
+          brevoApiKey: env.BREVO_API_KEY,
+          notifyEmail: env.NOTIFY_EMAIL,
+          from: env.EMAIL_FROM,
+          adminUrl: env.ADMIN_URL,
+        }
+      : null,
+  ),
+  secureCookies: env.NODE_ENV === "production",
 });
 
 const server = app.listen(env.PORT, () => {
   logger.info(`API listening on http://localhost:${env.PORT}`, {
     allowedOrigins: env.FRONTEND_ORIGIN,
     metaConversionsApi: metaConfig ? "on" : "off (META_PIXEL_ID or META_CAPI_ACCESS_TOKEN not set)",
+    newOrderEmails: env.BREVO_API_KEY
+      ? `on (to ${env.NOTIFY_EMAIL})`
+      : "off (BREVO_API_KEY not set)",
   });
 });
 

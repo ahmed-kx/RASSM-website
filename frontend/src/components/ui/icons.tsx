@@ -277,3 +277,118 @@ export function GlobeIcon(props: IconProps) {
     </LineIcon>
   );
 }
+
+// Dashboard icons (admin).
+
+export function DashboardIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="M3.5 3.5h7v7h-7zM13.5 3.5h7v4h-7zM13.5 10.5h7v10h-7zM3.5 13.5h7v7h-7z" />
+    </LineIcon>
+  );
+}
+
+export function OrdersIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5z" />
+      <path d="M4 7.5 12 12l8-4.5M12 12v9" />
+    </LineIcon>
+  );
+}
+
+export function ShirtIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="M8.5 3.5 3 6.5l2 4 2-1v11h10v-11l2 1 2-4-5.5-3c-.5 1.6-2 2.5-3.5 2.5S9 5.1 8.5 3.5Z" />
+    </LineIcon>
+  );
+}
+
+export function MailIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="M3 5.5h18v13H3z" />
+      <path d="m3 6 9 7 9-7" />
+    </LineIcon>
+  );
+}
+
+export function UsersIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <circle cx="9" cy="8.5" r="3.5" />
+      <path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5" />
+      <path d="M15.5 5.2a3.5 3.5 0 0 1 0 6.6M18 14.8c2 .7 3.2 2.4 3.5 5.2" />
+    </LineIcon>
+  );
+}
+
+export function BanIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="m6 6 12 12" />
+    </LineIcon>
+  );
+}
+
+export function LogoutIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="M14 4H5v16h9M10 12h11M17 8l4 4-4 4" />
+    </LineIcon>
+  );
+}
+
+export function BellIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z" />
+      <path d="M10 21h4" />
+    </LineIcon>
+  );
+}
+
+export function SoundOnIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" />
+      <path d="M15.5 9a4.5 4.5 0 0 1 0 6M18 6.5a8 8 0 0 1 0 11" />
+    </LineIcon>
+  );
+}
+
+export function SoundOffIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" />
+      <path d="m16 9.5 5 5M21 9.5l-5 5" />
+    </LineIcon>
+  );
+}
+
+export function MoreIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="M5 12h.01M12 12h.01M19 12h.01" strokeWidth={2.5} strokeLinecap="round" />
+    </LineIcon>
+  );
+}
+
+export function DownloadIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="M12 3.5v12M7 11l5 5 5-5M4 20.5h16" />
+    </LineIcon>
+  );
+}
+
+export function EditIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="m15 4.5 4.5 4.5L8.5 20H4v-4.5z" />
+      <path d="m12.5 7 4.5 4.5" />
+    </LineIcon>
+  );
+}

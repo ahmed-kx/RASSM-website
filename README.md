@@ -13,8 +13,11 @@ pnpm install
 cp backend/.env.example backend/.env    # fill in MONGODB_URI (MongoDB Atlas)
 cp frontend/.env.example frontend/.env.local
 pnpm seed                               # products + delivery fees into MongoDB
+pnpm create-admin                       # your dashboard account (asks e-mail + password)
 pnpm dev                                # http://localhost:3000 (site) + http://localhost:4000 (API)
 ```
+
+Dashboard: http://localhost:3000/admin (log in with the account created by `pnpm create-admin`).
 
 Other commands (from the root): `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm format`.
 Project rules and architecture: [`CLAUDE.md`](CLAUDE.md).

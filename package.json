@@ -13,7 +13,8 @@
     "test": "pnpm -r --if-present test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "seed": "pnpm --filter @rassm/backend seed"
+    "seed": "pnpm --filter @rassm/backend seed",
+    "create-admin": "pnpm --filter @rassm/backend create-admin"
   },
   "devDependencies": {
     "prettier": "^3.9.10",

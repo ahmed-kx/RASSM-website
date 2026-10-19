@@ -14,11 +14,13 @@ Things that are placeholders or decisions still to make. Remove an item once it 
 - [ ] **Meta Conversions API**: set `META_PIXEL_ID` and `META_CAPI_ACCESS_TOKEN` in `backend/.env` (and on the API host). Check the events in Events Manager > Test events (`META_TEST_EVENT_CODE`).
 - [ ] **Hosting the API**: set `FRONTEND_ORIGIN` to the real domain(s), `TRUST_PROXY` to the number of proxies of the host, `NEXT_PUBLIC_API_URL` in the frontend, and allow the server IP in MongoDB Atlas Network Access.
 
-## Dashboard step
+- [ ] **Brevo**: paste `BREVO_API_KEY` in `backend/.env` (and on the API host). Later, send from your own domain: validate it in Brevo (Senders, domains) and change `EMAIL_FROM`.
+- [ ] **Dashboard in production**: set `ADMIN_URL` (e-mail links) to the real `https://…/admin`.
 
-- [ ] Restore the stock when an order is cancelled or returned.
-- [ ] Send `sendOrderConfirmed` (Meta, `backend/src/meta/conversions-api.ts`) when an order is confirmed by phone.
-- [ ] Show `suspicious` / `suspiciousReason` and `metaPurchase.status` on the orders list.
+## Dashboard, next step
+
+- [ ] Tableau de bord (statistics, including delivery discounts given and free-delivery orders), Produits (with the tier editor), Livraison (fees), Messages (contact), Abonnés (newsletter): today "Bientôt disponible".
+- [ ] Phone notifications when the dashboard is closed: needs the dashboard as an installable app (PWA + Web Push). Today: live toast and sound while it is open, browser notifications on computers.
 
 ## Later
 

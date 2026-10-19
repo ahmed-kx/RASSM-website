@@ -13,6 +13,7 @@
   --color-stone: #74706d; /* muted text on light (footer links, meta) */
   --color-line: #d6d2ca; /* hairline borders on light */
   --color-error: #9b2c1f; /* form errors (muted brick, readable on bone) */
+  --color-warning: #8a5d14; /* admin: "Suspecte" badge (muted ochre, readable on bone) */
 
   --animate-slide-in-up: slide-in-up 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
   --animate-fade-in: fade-in 200ms ease-out;

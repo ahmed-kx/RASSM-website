@@ -39,22 +39,23 @@ Oversized hoodies, sweatshirts and t-shirts with artistic sketch prints.
 
 ### Commands (run from the root)
 
-| Command          | What it does                                                                          |
-| ---------------- | ------------------------------------------------------------------------------------- |
-| `pnpm dev`       | Starts the web app (http://localhost:3000) and the API (http://localhost:4000)        |
-| `pnpm seed`      | Loads the products and the Anderson fees into MongoDB (`--reset` overwrites products) |
-| `pnpm build`     | Builds every workspace                                                                |
-| `pnpm typecheck` | Type-checks every workspace                                                           |
-| `pnpm lint`      | Lints every workspace                                                                 |
-| `pnpm test`      | Runs the tests (Vitest: `shared/`, `frontend/`, `backend/` with an in-memory MongoDB) |
-| `pnpm format`    | Formats everything with Prettier                                                      |
+| Command             | What it does                                                                                     |
+| ------------------- | ------------------------------------------------------------------------------------------------ |
+| `pnpm dev`          | Starts the web app (http://localhost:3000) and the API (http://localhost:4000)                   |
+| `pnpm seed`         | Loads the products and the Anderson fees into MongoDB (`--reset` overwrites products)            |
+| `pnpm create-admin` | Creates a dashboard admin, or resets its password (asks the e-mail and password in the terminal) |
+| `pnpm build`        | Builds every workspace                                                                           |
+| `pnpm typecheck`    | Type-checks every workspace                                                                      |
+| `pnpm lint`         | Lints every workspace                                                                            |
+| `pnpm test`         | Runs the tests (Vitest: `shared/`, `frontend/`, `backend/` with an in-memory MongoDB)            |
+| `pnpm format`       | Formats everything with Prettier                                                                 |
 
 ## Build order
 
 1. **Frontend first**, using mock data from `@rassm/shared/mocks`. Done.
 2. **Backend:** Express API + MongoDB. Done (step 3A).
 3. **Connect** the frontend to the API, replacing mocks. Done (step 3A): server components fetch with a short revalidation, forms post with `fetch`. TanStack Query is not needed yet; add it when the dashboard needs client-side caching.
-4. **Admin dashboard.**
+4. **Admin dashboard.** Step 3B done: auth, orders (list, detail, statuses, edits, blacklist, Anderson export), live notifications, new order e-mail. Next: Tableau de bord, Produits, Livraison, Messages, Abonnés (today "Bientôt disponible").
 
 Do only the step you are asked to do. Do not start a later step early.
 
@@ -124,6 +125,17 @@ Do only the step you are asked to do. Do not start a later step early.
 
 The product page shows the product's tiers in French ("1 article : −100 DA · 2 articles : −200 DA · 3 articles : livraison gratuite").
 
+### Order statuses, stock and blacklist (dashboard)
+
+- Statuses: `pending` (Reçue, "Nouvelles" tab) → `confirmed` → `shipped` → `delivered`; `cancelled` and `returned` close it. Allowed changes only (`ORDER_STATUS_TRANSITIONS` in `shared/src/schemas/admin.ts`): pending → confirmed / cancelled; confirmed → shipped / cancelled; shipped → delivered / returned; delivered → returned; cancelled → pending (reopen). Never "livrée" before "expédiée".
+- **Stock:** the units are taken when the order is placed (`stockReserved: true`; orders saved before the dashboard have no flag and count as holding their units). Cancelled or returned → given back **exactly once** (the flag flips atomically first, so double clicks or repeated changes never give them back twice). Reopening a cancelled order takes them again if they are still in stock (otherwise a French 409).
+- **Edits** are allowed while `pending` or `confirmed` (after the call: other size, color, quantity, wilaya, commune, address, delivery type, name, phone). Every amount is recomputed with the shared helpers (unit price kept as agreed, tiers and fees from the database), and the stock moves atomically: the new variant is taken first, the old one given back once the order is saved. Each edit is written in the history ("Taille M → L, Total 7 200 DA → 14 000 DA").
+- Every change (creation, status, edit, blacklist) is in `history` with date, time and admin e-mail. `adminNote` is a free internal note. `openedAt` (null = "Nouveau" badge) is set when an admin opens the order.
+- Confirming an order sends the Meta event `sendOrderConfirmed` in the background (only with the Meta env variables).
+- **Blacklist** (`Blacklist` model, phone + French reason): new orders from these numbers are still saved, but flagged "Liste noire" (red) in the dashboard and the e-mail. Checked when orders are read, so removing a number removes the flag.
+- **Anderson export:** confirmed orders (chosen, or all) as a CSV for Excel (UTF-8 BOM, `;`): Référence, Nom, Téléphone (with spaces so Excel keeps the 0), Wilaya, Commune, Adresse ("Stop desk (bureau Anderson)" for stop desk), Type de livraison (Domicile / Stop desk), Produit, Montant à encaisser (DA). Then "Marquer expédiées" ships the exported orders in one action.
+- **New order e-mail** (Brevo, `backend/src/notifications/new-order-email.ts`): sent in the background for each real new order (never for a honeypot or a duplicate) to `NOTIFY_EMAIL`, in French (customer, phone, wilaya, commune, product, color, size, quantity, total, flags, button to the order). A Brevo failure is logged and stored on the order (`emailNotification.status`), never failing the order.
+
 **UI for later steps (not built yet, build it when that step comes):**
 
 - **Admin product form:** a tier editor "Réductions sur la livraison" to add, edit and remove rows (quantité minimum, type : montant ou livraison gratuite, montant en DA), with a live French preview of the rule.
@@ -147,7 +159,8 @@ Tokens are defined in `frontend/src/app/globals.css` (`@theme`). Use the token c
 | `ash`      | `#403E3C` | Product names, secondary text on light                       |
 | `stone`    | `#74706D` | Muted text on light (footer links, meta)                     |
 | `line`     | `#D6D2CA` | Hairline borders on light                                    |
-| `error`    | `#9B2C1F` | Form error messages (muted brick)                            |
+| `error`    | `#9B2C1F` | Form error messages (muted brick); "Liste noire" badge       |
+| `warning`  | `#8A5D14` | Admin only: "Suspecte" badge (muted ochre)                   |
 
 ### Typography (Google Fonts via `next/font`, see `frontend/src/lib/fonts.ts`)
 
@@ -176,9 +189,17 @@ Tokens are defined in `frontend/src/app/globals.css` (`@theme`). Use the token c
 - **Seed:** creates missing products and upserts the delivery fees; existing products are never overwritten (real stock is kept) unless `pnpm seed --reset`.
 - **Tests** (`backend/test/`): Vitest + Supertest + mongodb-memory-server (one in-memory MongoDB, cleaned and re-seeded before each test, Meta mocked). Cover server-side pricing and discount tiers, ignored client prices, atomic stock, stop desk refused in Tindouf, honeypot, duplicates, fraud flags, rate limits, French validation errors, NoSQL injection, CORS, the Conversions API payload.
 
+### Admin API (`/api/admin`, `backend/src/routes/admin.ts`)
+
+- `POST /auth/login` (shared `adminLoginSchema`; 5 failures in a row lock the account 15 min, plus 10 attempts per IP per 15 min), `POST /auth/logout`, `GET /auth/me`. Passwords hashed with scrypt (`lib/password.ts`). Sessions (`AdminSession`): random token in the `rassm_admin` cookie (httpOnly, SameSite=Strict, Secure in production), only its SHA-256 stored, 14 days, extended while used, TTL index.
+- Everything else requires a session (`requireAdmin`, 401 "Veuillez vous connecter."), changes must come from `FRONTEND_ORIGIN` (`requireSameOrigin`, CSRF), answers are `Cache-Control: no-store`: `GET /orders` (tabs, counts, search, wilaya, dates, cursor pages), `GET /orders/updates?since=` (live polling), `GET /orders/:id` (marks it opened, returns the product for edits), `PATCH /orders/:id` (edit), `POST /orders/:id/status`, `PUT /orders/:id/note`, `POST /orders/:id/blacklist`, `POST /orders/export` (CSV), `POST /orders/ship`, `GET|POST /blacklist`, `DELETE /blacklist/:phone`.
+- `pnpm create-admin` (`src/create-admin-cli.ts`) asks the e-mail and the password (hidden, 10 characters minimum, `adminPasswordSchema`) in the terminal; an existing e-mail can get a new password (its sessions are closed). Never put credentials in code.
+- Express trusts `X-Forwarded-For` from the configured proxies (`TRUST_PROXY`) and from the local Next.js server (loopback), which forwards the dashboard requests with the visitor's IP.
+
 ## Frontend structure (`frontend/src/`)
 
-- `app/`: routes. `layout.tsx` holds the header, footer, skip link and default French SEO metadata.
+- `app/`: routes. `layout.tsx` (root): fonts and default French SEO metadata only. `app/(site)/`: the public site (route group, URLs unchanged); its layout holds the skip link, header, footer and Meta Pixel. `app/not-found.tsx` brings its own header and footer. `app/admin/`: the dashboard (own layout, see below).
+- **Dashboard** (`app/admin/`, components in `components/admin/`, French, mobile first): `/admin/connexion` (login, TanStack Form + `adminLoginSchema`), and in `app/admin/(espace)/` (layout checks the session with the API via `getAdminSession`, else redirect): `/admin` (Tableau de bord), `/admin/commandes` (+ `/[id]`), `/admin/liste-noire`, and "Bientôt disponible" pages (produits, livraison, messages, abonnes). `src/proxy.ts` redirects `/admin/*` to the login page when there is no session cookie (optimistic check). Admin pages are noindex (metadata + `X-Robots-Tag` in `next.config.ts`) and never linked from the public site. `next.config.ts` rewrites `/api/admin/*` to the API, so the dashboard calls it on the site's own domain (first-party cookie). Data: `lib/data/admin.ts` (browser, `ApiError` in French, 401 → back to login) with TanStack Query (`AdminProviders`). `AdminShell`: dark sidebar on computers, top bar + bottom navigation (Accueil, Commandes with the "Nouveau" counter, Produits, Plus) on phones. `LiveOrdersProvider` polls `/orders/updates` every 5 s: toast, short sound (mute button, remembered), counter, browser notification when allowed and the tab is hidden. `AdminDialog` is a bottom sheet on phones. Admin URLs: `lib/admin/routes.ts`; formatting (relative dates, Algeria time, WhatsApp confirmation message): `lib/admin/format.ts`.
 - `components/ui/`: building blocks: `Button` (filled or outlined, `surface="dark" | "light"`), `SectionLabel`, `SectionTitle`, `ArrowLink`, `HandQuote`, `Container`, `Logo`, `icons.tsx` (thin line SVG icons). Reuse them; do not restyle buttons or labels by hand.
 - `components/about/`: the About page sections (`AboutHero`, `AboutStory`, `AboutValues`).
 - `components/info/`: the customer info pages (`/livraison`, `/echanges`, `/guide-des-tailles`, `/faq`). `InfoPage` is their shared layout (dark band over concrete with label, title and intro, then the content on bone at reading width), with `InfoSection`, `Prose`, `NumberedSteps`, `InfoNote` and `proseLink`. `DeliveryRates` is the searchable table of the 58 wilayas (data from `getDeliveryRates()` in `lib/data/delivery.ts`, never hard-coded; accent-insensitive search with `matchesSearch` from `lib/search-text.ts`; stacked cards below `md`; delays with `formatDeliveryDelay` from `@rassm/shared`). `FaqAccordion` renders `content/faq.ts` with native `<details>`; `/faq` also outputs FAQPage JSON-LD built from the same content.
