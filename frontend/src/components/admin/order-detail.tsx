@@ -15,13 +15,24 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
-import { BanIcon, EditIcon, PhoneIcon, WhatsAppIcon } from "@/components/ui/icons";
+import { useState } from "react";
+import {
+  BanIcon,
+  CopyIcon,
+  DownloadIcon,
+  EditIcon,
+  MapPinIcon,
+  MoreIcon,
+  PhoneIcon,
+  WhatsAppIcon,
+} from "@/components/ui/icons";
 import {
   customerWhatsAppLink,
   deliveryLabel,
+  describeUserAgent,
   formatDateTime,
   formatPhone,
+  formatReceivedAt,
   telLink,
 } from "@/lib/admin/format";
 import { adminRoutes } from "@/lib/admin/routes";
@@ -30,10 +41,22 @@ import { cn } from "@/lib/cn";
 import {
   blacklistOrderPhone,
   changeOrderStatus,
+  exportForAnderson,
   fetchAdminOrder,
   saveOrderNote,
 } from "@/lib/data/admin";
 import { AdminDialog } from "./admin-dialog";
+import { AdminMenu } from "./admin-top-bar";
+import {
+  AdminCard,
+  AdminEmpty,
+  InfoRow,
+  InitialAvatar,
+  adminField,
+  adminInput,
+  adminLabel,
+  buttonClass,
+} from "./admin-ui";
 import { OrderFlags, StatusBadge } from "./badges";
 import { OrderEditDialog } from "./order-edit-dialog";
 import { useToast } from "./toasts";
@@ -41,7 +64,7 @@ import { useSingleFlight } from "./use-single-flight";
 
 /** What the confirmation dialog says before each status change. */
 const STATUS_CONFIRM: Record<OrderStatus, string> = {
-  pending: "La commande repasse en « Reçue » et les articles sont repris dans le stock.",
+  pending: "La commande repasse en « Nouvelle » et les articles sont repris dans le stock.",
   confirmed: "Le client a confirmé par téléphone : la commande pourra être exportée pour Anderson.",
   shipped: "Le colis a été remis à Anderson.",
   delivered: "Le client a reçu et payé son colis.",
@@ -53,50 +76,32 @@ const DANGER: readonly OrderStatus[] = ["cancelled", "returned"];
 
 const BLACKLIST_REASONS = ["Colis refusé", "Injoignable", "Fausse commande"];
 
-function Section({
-  title,
-  children,
-  action,
-}: {
-  title: string;
-  children: ReactNode;
-  action?: ReactNode;
-}) {
-  return (
-    <section className="border border-line bg-paper p-4 sm:p-5">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-[11px] font-semibold tracking-label text-stone uppercase">{title}</h2>
-        {action}
-      </div>
-      <div className="mt-3">{children}</div>
-    </section>
-  );
+/** Title of a history line (its message gives the details). */
+const STATUS_HISTORY_TITLE: Record<OrderStatus, string> = {
+  pending: "Commande réactivée",
+  confirmed: "Commande confirmée",
+  shipped: "Commande expédiée",
+  delivered: "Commande livrée",
+  cancelled: "Commande annulée",
+  returned: "Commande retournée",
+};
+
+function historyTitle(entry: AdminOrder["history"][number]): string {
+  if (entry.type === "created") return "Commande reçue";
+  if (entry.type === "edit") return "Commande modifiée";
+  if (entry.type === "blacklist") return "Liste noire";
+  return entry.status ? STATUS_HISTORY_TITLE[entry.status] : "Statut modifié";
 }
 
-function Row({
-  label,
-  children,
-  strong,
-}: {
-  label: string;
-  children: ReactNode;
-  strong?: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        "flex justify-between gap-4 py-1.5",
-        strong && "mt-1 border-t border-line pt-3 text-base font-semibold",
-      )}
-    >
-      <dt className={strong ? undefined : "text-ash"}>{label}</dt>
-      <dd className="text-right tabular-nums">{children}</dd>
-    </div>
-  );
-}
+const META_STATUS = {
+  sent: "Envoyé",
+  failed: "Échec",
+  skipped: "Désactivé",
+  pending: "En attente",
+} as const;
 
-const bigButton =
-  "flex h-14 items-center justify-center gap-2.5 text-[12px] font-semibold tracking-button uppercase";
+const menuItem =
+  "flex min-h-12 w-full items-center gap-3 px-4 text-left text-sm hover:bg-cream/60 disabled:opacity-50";
 
 export function OrderDetail({ id }: { id: string }) {
   const queryClient = useQueryClient();
@@ -163,19 +168,28 @@ export function OrderDetail({ id }: { id: string }) {
     onError: onError("Ajout impossible"),
   });
 
-  if (query.isPending)
-    return <p className="py-10 text-center text-sm text-stone">Chargement de la commande…</p>;
+  const exportMutation = useMutation({
+    mutationFn: () => exportForAnderson({ ids: [id] }),
+    onSuccess: () =>
+      showToast({
+        title: "Fichier Anderson téléchargé",
+        message: "Marquez la commande expédiée une fois le colis remis.",
+      }),
+    onError: onError("Export impossible"),
+  });
+
+  if (query.isPending) return <AdminEmpty>Chargement de la commande…</AdminEmpty>;
   if (query.isError) {
     return (
-      <div className="py-10 text-center">
-        <p role="alert" className="text-sm text-error">
+      <div className="space-y-4 text-center">
+        <AdminEmpty tone="error">
           {query.error instanceof ApiError
             ? query.error.message
             : "Impossible de charger la commande."}
-        </p>
+        </AdminEmpty>
         <Link
           href={adminRoutes.orders}
-          className="mt-4 inline-block text-sm underline underline-offset-4"
+          className="inline-block text-sm underline underline-offset-4"
         >
           Retour aux commandes
         </Link>
@@ -185,69 +199,146 @@ export function OrderDetail({ id }: { id: string }) {
 
   const { order, product } = query.data;
   const wilaya = getWilaya(order.wilayaCode);
+  const wilayaLabel = wilaya ? formatWilaya(wilaya) : String(order.wilayaCode);
   const transitions = ORDER_STATUS_TRANSITIONS[order.status];
-  const editable = EDITABLE_STATUSES.includes(order.status);
+  const editable = EDITABLE_STATUSES.includes(order.status) && product !== null;
   const noteValue = note ?? order.adminNote;
+  const noteChanged = note !== null && note !== order.adminNote;
+
+  const copyNumber = async () => {
+    try {
+      await navigator.clipboard.writeText(order.orderNumber);
+      showToast({ title: "Numéro copié", message: order.orderNumber });
+    } catch {
+      showToast({ title: "Copie impossible", message: order.orderNumber, tone: "error" });
+    }
+  };
 
   return (
-    <div className="pb-20 lg:pb-0">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="font-display text-[2rem] leading-none font-medium uppercase lg:text-[2.4rem]">
-            {order.fullName}
+    <div>
+      {/* Header: number, date, status and the "⋯" menu */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className={adminLabel}>Commande</p>
+          <h1 className="mt-1.5 font-display text-[2.3rem] leading-none font-medium lining-nums sm:text-[2.8rem]">
+            {order.orderNumber}
           </h1>
-          <p className="mt-2 text-sm text-ash">
-            {order.orderNumber} · reçue le {formatDateTime(order.createdAt)}
-          </p>
+          <p className="mt-2 text-sm text-ash">{formatReceivedAt(order.createdAt)}</p>
         </div>
-        <StatusBadge status={order.status} />
+        <div className="flex shrink-0 items-center gap-1.5 pt-1">
+          <StatusBadge status={order.status} size="lg" />
+          <AdminMenu
+            label="Plus d'actions"
+            placement="anchored"
+            triggerClassName="grid size-10 place-items-center rounded-sm text-ash hover:bg-cream hover:text-ink"
+            trigger={<MoreIcon />}
+          >
+            {(close) => (
+              <ul className="py-1">
+                {editable && (
+                  <li>
+                    <button
+                      type="button"
+                      className={menuItem}
+                      onClick={() => {
+                        close();
+                        setEditOpen(true);
+                      }}
+                    >
+                      <EditIcon width={18} height={18} /> Modifier la commande
+                    </button>
+                  </li>
+                )}
+                {order.status === "confirmed" && (
+                  <li>
+                    <button
+                      type="button"
+                      className={menuItem}
+                      disabled={exportMutation.isPending}
+                      onClick={() => {
+                        close();
+                        void once(() => exportMutation.mutateAsync());
+                      }}
+                    >
+                      <DownloadIcon width={18} height={18} /> Exporter pour Anderson
+                    </button>
+                  </li>
+                )}
+                <li>
+                  <button
+                    type="button"
+                    className={menuItem}
+                    onClick={() => {
+                      close();
+                      void copyNumber();
+                    }}
+                  >
+                    <CopyIcon width={18} height={18} /> Copier le numéro de commande
+                  </button>
+                </li>
+                {!order.blacklist && (
+                  <li className="border-t border-line">
+                    <button
+                      type="button"
+                      className={cn(menuItem, "text-error")}
+                      onClick={() => {
+                        close();
+                        setBlacklistOpen(true);
+                      }}
+                    >
+                      <BanIcon width={18} height={18} /> Ajouter à la liste noire
+                    </button>
+                  </li>
+                )}
+              </ul>
+            )}
+          </AdminMenu>
+        </div>
       </div>
-      <div className="mt-3">
-        <OrderFlags order={order} withReasons />
+      <div className="mt-3 empty:hidden">
+        <OrderFlags order={order} withReasons showNew={false} />
       </div>
 
-      {/* Call / WhatsApp: fixed above the bottom navigation on a phone. */}
-      <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 grid grid-cols-2 gap-px border-t border-line bg-line lg:static lg:mt-6 lg:max-w-md lg:gap-2 lg:border-0 lg:bg-transparent">
-        <a href={telLink(order.phone)} className={cn(bigButton, "bg-ink text-paper")}>
-          <PhoneIcon width={20} height={20} /> Appeler
+      {/* Actions: call, WhatsApp, then the allowed status changes */}
+      <div
+        className={cn(
+          "mt-6 grid grid-cols-2 gap-2",
+          transitions.length === 1 ? "lg:grid-cols-3" : transitions.length > 1 && "lg:grid-cols-4",
+          transitions.length === 0 && "lg:max-w-md",
+        )}
+      >
+        <a href={telLink(order.phone)} className={buttonClass("primary", "h-12")}>
+          <PhoneIcon width={19} height={19} /> Appeler
         </a>
         <a
           href={customerWhatsAppLink(order)}
           target="_blank"
           rel="noopener noreferrer"
-          className={cn(bigButton, "bg-paper text-ink lg:border lg:border-ink")}
+          className={buttonClass("outline", "h-12")}
         >
-          <WhatsAppIcon width={20} height={20} /> WhatsApp
+          <WhatsAppIcon width={19} height={19} /> WhatsApp
         </a>
+        {transitions.map((status) => (
+          <button
+            key={status}
+            type="button"
+            onClick={() => setPendingStatus(status)}
+            className={buttonClass(
+              DANGER.includes(status) ? "danger" : "primary",
+              cn("h-12", transitions.length === 1 && "col-span-2 lg:col-span-1"),
+            )}
+          >
+            {ORDER_STATUS_ACTION_LABELS[status]}
+          </button>
+        ))}
       </div>
 
-      {/* Status actions */}
-      {transitions.length > 0 && (
-        <div className="mt-6 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-          {transitions.map((status) => (
-            <button
-              key={status}
-              type="button"
-              onClick={() => setPendingStatus(status)}
-              className={cn(
-                "flex h-12 items-center justify-center px-5 text-[11px] font-semibold tracking-button uppercase",
-                DANGER.includes(status)
-                  ? "border border-error text-error hover:bg-error hover:text-paper"
-                  : "bg-ink text-paper hover:bg-graphite",
-                transitions.length === 1 && "col-span-2",
-              )}
-            >
-              {ORDER_STATUS_ACTION_LABELS[status]}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
-        <Section
+      <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
+        {/* Product and price */}
+        <AdminCard
           title="Produit et prix"
           action={
-            editable && product ? (
+            editable ? (
               <button
                 type="button"
                 onClick={() => setEditOpen(true)}
@@ -258,125 +349,168 @@ export function OrderDetail({ id }: { id: string }) {
             ) : undefined
           }
         >
-          <div className="flex gap-4">
-            <div className="relative size-20 shrink-0 bg-cream">
-              <Image src={order.item.image} alt="" fill sizes="80px" className="object-contain" />
+          <div className="flex items-center gap-4">
+            <div className="relative size-24 shrink-0 overflow-hidden rounded-sm bg-cream">
+              <Image src={order.item.image} alt="" fill sizes="96px" className="object-contain" />
             </div>
-            <div className="text-sm">
-              <p className="font-semibold tracking-[0.06em] uppercase">{order.item.name}</p>
-              <p className="mt-1 text-ash">
+            <div className="min-w-0">
+              <p className="text-[17px] leading-tight font-semibold">{order.item.name}</p>
+              <p className="mt-1 text-sm text-ash">
                 {order.item.color} · Taille {order.item.size} · Quantité {order.item.quantity}
               </p>
             </div>
           </div>
-          <dl className="mt-4 text-sm">
-            <Row label={`Articles (${order.item.quantity} × ${formatPrice(order.item.unitPrice)})`}>
+          <dl className="mt-5 border-t border-line pt-3">
+            <InfoRow
+              label={`Articles (${order.item.quantity} × ${formatPrice(order.item.unitPrice)})`}
+            >
               {formatPrice(order.subtotal)}
-            </Row>
-            <Row label={`Livraison ${deliveryLabel(order).toLowerCase()}`}>
+            </InfoRow>
+            <InfoRow label={`Livraison ${deliveryLabel(order).toLowerCase()}`}>
               {formatPrice(order.deliveryFeeBase)}
-            </Row>
+            </InfoRow>
             {order.deliveryDiscount > 0 && (
-              <Row label={order.freeDelivery ? "Livraison gratuite" : "Réduction livraison"}>
+              <InfoRow label={order.freeDelivery ? "Livraison gratuite" : "Réduction livraison"}>
                 {formatDiscount(order.deliveryDiscount)}
-              </Row>
+              </InfoRow>
             )}
-            <Row label="Total à encaisser" strong>
+            <InfoRow label="Total à encaisser" strong>
               {formatPrice(order.total)}
-            </Row>
+            </InfoRow>
           </dl>
-        </Section>
+        </AdminCard>
 
-        <Section title="Client et livraison">
-          <dl className="text-sm">
-            <Row label="Nom">{order.fullName}</Row>
-            <Row label="Téléphone">
-              <a href={telLink(order.phone)} className="underline underline-offset-4">
-                {formatPhone(order.phone)}
-              </a>
-            </Row>
-            <Row label="Wilaya">{wilaya ? formatWilaya(wilaya) : order.wilayaCode}</Row>
-            <Row label="Commune">{order.commune}</Row>
-            <Row label="Mode">{deliveryLabel(order)}</Row>
-            {order.deliveryType === "home" && <Row label="Adresse">{order.address}</Row>}
-          </dl>
-        </Section>
+        <div className="grid content-start gap-4">
+          {/* Customer */}
+          <AdminCard title="Client">
+            <div className="flex items-center gap-3">
+              <InitialAvatar name={order.fullName} size="lg" />
+              <div className="min-w-0">
+                <p className="truncate font-semibold">{order.fullName}</p>
+                <a
+                  href={telLink(order.phone)}
+                  className="text-sm text-ash tabular-nums underline-offset-4 hover:underline"
+                >
+                  {formatPhone(order.phone)}
+                </a>
+              </div>
+            </div>
+            <dl className="mt-4 border-t border-line pt-2">
+              <InfoRow label="Wilaya">{wilayaLabel}</InfoRow>
+              <InfoRow label="Commune">{order.commune}</InfoRow>
+              <InfoRow label="Mode de livraison">{deliveryLabel(order)}</InfoRow>
+            </dl>
+          </AdminCard>
 
-        <Section title="Note interne">
+          {/* Delivery address */}
+          <AdminCard title="Adresse de livraison">
+            <div className="flex gap-3 text-sm">
+              <MapPinIcon width={20} height={20} className="mt-0.5 shrink-0 text-ash" />
+              <address className="not-italic">
+                <p className="font-semibold">{order.fullName}</p>
+                <p className="text-ash">
+                  {order.deliveryType === "home" ? order.address : "Au bureau Anderson (stop desk)"}
+                </p>
+                <p className="text-ash">
+                  {order.commune}, {wilaya?.name ?? wilayaLabel}
+                </p>
+                <p className="text-ash">Algérie</p>
+              </address>
+            </div>
+          </AdminCard>
+        </div>
+
+        {/* Internal note */}
+        <AdminCard title="Note interne">
           <label htmlFor="order-note" className="sr-only">
             Note interne
           </label>
           <textarea
             id="order-note"
-            rows={3}
+            rows={4}
             value={noteValue}
             onChange={(event) => setNote(event.target.value)}
-            placeholder="Ex. : client rappelle ce soir"
+            placeholder="Ex. : client rappelle ce soir…"
             maxLength={2000}
-            className="w-full border border-ink/25 bg-bone/60 p-3 text-[15px] focus:border-ink focus:outline-none"
+            className={cn(adminField, "bg-bone/60 py-3")}
           />
-          {note !== null && note !== order.adminNote && (
-            <button
-              type="button"
-              disabled={noteMutation.isPending}
-              onClick={() => noteMutation.mutate(note)}
-              className="mt-2 h-11 w-full bg-ink text-[11px] font-semibold tracking-button text-paper uppercase disabled:opacity-60 sm:w-auto sm:px-5"
-            >
-              {noteMutation.isPending ? "Enregistrement…" : "Enregistrer la note"}
-            </button>
-          )}
-        </Section>
+          <button
+            type="button"
+            disabled={!noteChanged || noteMutation.isPending}
+            onClick={() => note !== null && noteMutation.mutate(note)}
+            className={buttonClass("primary", "mt-3", "plain")}
+          >
+            {noteMutation.isPending ? "Enregistrement…" : "Enregistrer"}
+          </button>
+        </AdminCard>
 
-        <Section title="Informations internes">
-          <dl className="text-sm">
-            <Row label="N° de commande">{order.orderNumber}</Row>
-            <Row label="Adresse IP">{order.ip ?? "—"}</Row>
-            <Row label="Stock">
+        {/* Internal information */}
+        <AdminCard title="Informations internes">
+          <dl>
+            <InfoRow label="N° de commande">{order.orderNumber}</InfoRow>
+            <InfoRow label="Stock">
               {order.stockReserved ? "Articles réservés" : "Articles remis en stock"}
-            </Row>
-            <Row label="Meta (serveur)">
-              {
-                { sent: "Envoyé", failed: "Échec", skipped: "Désactivé", pending: "En attente" }[
-                  order.metaPurchaseStatus
-                ]
-              }
-            </Row>
+            </InfoRow>
+            <InfoRow label="Source">Site web</InfoRow>
+            <InfoRow label="Navigateur / User Agent">
+              <span title={order.userAgent ?? undefined}>{describeUserAgent(order.userAgent)}</span>
+            </InfoRow>
+            <InfoRow label="Adresse IP">{order.ip ?? "—"}</InfoRow>
+            <InfoRow label="Meta (serveur)">{META_STATUS[order.metaPurchaseStatus]}</InfoRow>
+            {order.suspicious && (
+              <InfoRow label="Suspecte">
+                <span className="text-warning">{order.suspiciousReason ?? "Oui"}</span>
+              </InfoRow>
+            )}
           </dl>
-          {order.userAgent && (
-            <p className="mt-2 text-xs wrap-break-word text-stone">{order.userAgent}</p>
-          )}
-          {!order.blacklist && (
+          {order.blacklist ? (
+            <p className="mt-4 flex items-center gap-2 text-sm text-error">
+              <BanIcon width={18} height={18} /> Liste noire : {order.blacklist.reason}
+            </p>
+          ) : (
             <button
               type="button"
               onClick={() => setBlacklistOpen(true)}
-              className="mt-4 flex min-h-11 items-center gap-2 text-sm text-error underline underline-offset-4"
+              className="mt-3 flex min-h-11 items-center gap-2 text-sm text-error underline underline-offset-4"
             >
               <BanIcon width={18} height={18} /> Ajouter à la liste noire
             </button>
           )}
-        </Section>
+        </AdminCard>
       </div>
 
-      <section className="mt-4 border border-line bg-paper p-4 sm:p-5">
-        <h2 className="text-[11px] font-semibold tracking-label text-stone uppercase">
-          Historique
-        </h2>
-        <ol className="mt-3 space-y-3 border-l border-line pl-4">
-          {[...order.history].reverse().map((entry, index) => (
-            <li key={`${entry.at}-${index}`} className="relative text-sm">
-              <span
-                className="absolute top-1.5 -left-5.25 size-2.5 rounded-full border border-ink bg-paper"
-                aria-hidden="true"
-              />
-              <p>{entry.message}</p>
-              <p className="mt-0.5 text-xs text-stone">
-                {formatDateTime(entry.at)}
-                {entry.by ? ` · ${entry.by}` : " · client"}
-              </p>
-            </li>
-          ))}
+      {/* History */}
+      <AdminCard title="Historique" className="mt-4">
+        <ol>
+          {order.history.map((entry, index) => {
+            const last = index === order.history.length - 1;
+            return (
+              <li
+                key={`${entry.at}-${index}`}
+                className="relative grid grid-cols-[1.25rem_1fr] gap-3"
+              >
+                <span aria-hidden="true" className="relative flex justify-center">
+                  <span
+                    className={cn(
+                      "relative z-10 mt-1.5 size-2.5 rounded-full",
+                      last ? "bg-ink" : "border border-ink bg-paper",
+                    )}
+                  />
+                  {!last && <span className="absolute top-3 bottom-0 w-px bg-line" />}
+                </span>
+                <div className="grid gap-x-6 gap-y-0.5 pb-4 text-sm sm:grid-cols-[11rem_9rem_1fr]">
+                  <p className="font-semibold">{historyTitle(entry)}</p>
+                  <p className="text-stone tabular-nums">{formatDateTime(entry.at)}</p>
+                  <p className="text-ash">
+                    {entry.message}
+                    <span className="text-stone"> · {entry.by ?? "client"}</span>
+                  </p>
+                </div>
+              </li>
+            );
+          })}
         </ol>
-      </section>
+      </AdminCard>
 
       <AdminDialog
         open={pendingStatus !== null}
@@ -395,9 +529,9 @@ export function OrderDetail({ id }: { id: string }) {
                 type="button"
                 disabled={statusMutation.isPending}
                 onClick={() => once(() => statusMutation.mutateAsync(pendingStatus))}
-                className={cn(
-                  "h-12 text-[11px] font-semibold tracking-button text-paper uppercase disabled:opacity-60",
-                  DANGER.includes(pendingStatus) ? "bg-error" : "bg-ink",
+                className={buttonClass(
+                  DANGER.includes(pendingStatus) ? "dangerSolid" : "primary",
+                  "h-12",
                 )}
               >
                 {statusMutation.isPending ? "En cours…" : ORDER_STATUS_ACTION_LABELS[pendingStatus]}
@@ -405,7 +539,7 @@ export function OrderDetail({ id }: { id: string }) {
               <button
                 type="button"
                 onClick={() => setPendingStatus(null)}
-                className="h-12 border border-ink text-[11px] font-semibold tracking-button uppercase"
+                className={buttonClass("outline", "h-12")}
               >
                 Retour
               </button>
@@ -426,7 +560,7 @@ export function OrderDetail({ id }: { id: string }) {
               type="button"
               onClick={() => setReason(suggestion)}
               className={cn(
-                "h-10 border px-3 text-[13px]",
+                "h-10 rounded-sm border px-3 text-[13px]",
                 reason === suggestion ? "border-ink bg-ink text-paper" : "border-line bg-paper",
               )}
             >
@@ -434,7 +568,7 @@ export function OrderDetail({ id }: { id: string }) {
             </button>
           ))}
         </div>
-        <label htmlFor="blacklist-reason" className="mt-4 block text-xs text-ash">
+        <label htmlFor="blacklist-reason" className={cn(adminLabel, "mt-4 block")}>
           Raison
         </label>
         <input
@@ -442,13 +576,13 @@ export function OrderDetail({ id }: { id: string }) {
           value={reason}
           onChange={(event) => setReason(event.target.value)}
           maxLength={200}
-          className="mt-1 h-11 w-full border border-ink/25 bg-paper px-3 text-[15px] focus:border-ink focus:outline-none"
+          className={cn(adminInput, "mt-1.5")}
         />
         <button
           type="button"
           disabled={reason.trim().length < 3 || blacklistMutation.isPending}
           onClick={() => blacklistMutation.mutate(reason.trim())}
-          className="mt-5 h-12 w-full bg-error text-[11px] font-semibold tracking-button text-paper uppercase disabled:opacity-50"
+          className={buttonClass("dangerSolid", "mt-5 h-12 w-full")}
         >
           Ajouter à la liste noire
         </button>

@@ -105,20 +105,21 @@ Run it again with the same e-mail to set a new password (the open sessions are c
 (Next.js rewrites it to the API), with an httpOnly SameSite=Strict session cookie (Secure in production).
 Five wrong passwords in a row lock the account for 15 minutes.
 
-| Route                                                                 | What it does                                              |
-| --------------------------------------------------------------------- | --------------------------------------------------------- |
-| `POST /api/admin/auth/login` / `logout`                               | Session cookie in / out                                   |
-| `GET /api/admin/auth/me`                                              | The logged-in admin                                       |
-| `GET /api/admin/orders`                                               | List: `status` tab, `q`, `wilaya`, `from`, `to`, `cursor` |
-| `GET /api/admin/orders/updates?since=`                                | New orders since the last poll (live dashboard)           |
-| `GET /api/admin/orders/:id`                                           | One order (marks it opened) and its product               |
-| `PATCH /api/admin/orders/:id`                                         | Edit before shipping (totals and stock recomputed)        |
-| `POST /api/admin/orders/:id/status`                                   | Allowed status changes only; stock given back once        |
-| `PUT /api/admin/orders/:id/note`                                      | Internal note                                             |
-| `POST /api/admin/orders/:id/blacklist`                                | Blacklist the order's phone                               |
-| `POST /api/admin/orders/export`                                       | Anderson CSV of confirmed orders (`ids` or `all`)         |
-| `POST /api/admin/orders/ship`                                         | Mark exported orders as shipped                           |
-| `GET/POST /api/admin/blacklist`, `DELETE /api/admin/blacklist/:phone` | Blacklist                                                 |
+| Route                                                                 | What it does                                                                                                 |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `POST /api/admin/auth/login` / `logout`                               | Session cookie in / out                                                                                      |
+| `GET /api/admin/auth/me`                                              | The logged-in admin                                                                                          |
+| `GET /api/admin/search?q=`                                            | Top bar search: orders (name, phone, order number) and products                                              |
+| `GET /api/admin/orders`                                               | List: `status` tab, `q` (name, phone or "RSM-000123"), `wilaya`, `from`, `to`, `page` (or `cursor`), `limit` |
+| `GET /api/admin/orders/updates?since=`                                | New orders since the last poll (live dashboard)                                                              |
+| `GET /api/admin/orders/:id`                                           | One order (marks it opened) and its product                                                                  |
+| `PATCH /api/admin/orders/:id`                                         | Edit before shipping (totals and stock recomputed)                                                           |
+| `POST /api/admin/orders/:id/status`                                   | Allowed status changes only; stock given back once                                                           |
+| `PUT /api/admin/orders/:id/note`                                      | Internal note                                                                                                |
+| `POST /api/admin/orders/:id/blacklist`                                | Blacklist the order's phone                                                                                  |
+| `POST /api/admin/orders/export`                                       | Anderson CSV of confirmed orders (`ids` or `all`)                                                            |
+| `POST /api/admin/orders/ship`                                         | Mark exported orders as shipped                                                                              |
+| `GET/POST /api/admin/blacklist`, `DELETE /api/admin/blacklist/:phone` | Blacklist                                                                                                    |
 
 ### New order e-mails
 

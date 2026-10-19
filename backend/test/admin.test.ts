@@ -149,6 +149,7 @@ describe("admin login", () => {
     const routes: [keyof typeof call, string][] = [
       ["get", "/api/admin/auth/me"],
       ["get", "/api/admin/orders"],
+      ["get", "/api/admin/search?q=yacine"],
       ["get", "/api/admin/orders/updates"],
       ["get", "/api/admin/orders/6710f0c2a1b2c3d4e5f60718"],
       ["patch", "/api/admin/orders/6710f0c2a1b2c3d4e5f60718"],
@@ -216,6 +217,61 @@ describe("admin orders", () => {
     expect(detail.body.product.id).toBe("prod_003");
     const updates = await agent.get("/api/admin/orders/updates").expect(200);
     expect(updates.body.unopened).toBe(1);
+  });
+
+  it("finds orders by internal order number and pages them by number", async () => {
+    const { app, api } = testApp();
+    const agent = await adminAgent(app);
+    await placeOrder(api);
+    await placeOrder(api, { phone: "0661 00 00 02", fullName: "Amina Kaci" });
+    await placeOrder(api, { phone: "0661 00 00 03", fullName: "Sofiane Haddad" });
+
+    const names = (res: { body: { orders: { fullName: string }[] } }) =>
+      res.body.orders.map((order) => order.fullName);
+    for (const q of ["RSM-000002", "rsm2", "rsm-000002", "2"]) {
+      const res = await agent.get(`/api/admin/orders?status=all&q=${q}`).expect(200);
+      expect(names(res), q).toEqual(["Amina Kaci"]);
+    }
+    // Digits also match phones (3 digits or more).
+    const byDigits = await agent.get("/api/admin/orders?status=all&q=0661").expect(200);
+    expect(names(byDigits)).toEqual(["Sofiane Haddad", "Amina Kaci"]);
+
+    const page1 = await agent.get("/api/admin/orders?status=all&limit=2&page=1").expect(200);
+    const page2 = await agent.get("/api/admin/orders?status=all&limit=2&page=2").expect(200);
+    expect(names(page1)).toEqual(["Sofiane Haddad", "Amina Kaci"]);
+    expect(names(page2)).toEqual(["Yacine Benali"]);
+    expect(page2.body.counts.all).toBe(3);
+  });
+
+  it("searches orders and products from the top bar", async () => {
+    const { app, api } = testApp();
+    const agent = await adminAgent(app);
+    await placeOrder(api);
+
+    const byName = await agent.get("/api/admin/search?q=yaci").expect(200);
+    expect(byName.body.orders).toEqual([
+      expect.objectContaining({
+        orderNumber: "RSM-000001",
+        fullName: "Yacine Benali",
+        status: "pending",
+        productName: "Fragment Sweatshirt",
+      }),
+    ]);
+    expect(byName.body.products).toEqual([]);
+
+    const byNumber = await agent.get("/api/admin/search?q=RSM-000001").expect(200);
+    expect(byNumber.body.orders).toHaveLength(1);
+
+    const product = await agent.get("/api/admin/search?q=fragment").expect(200);
+    expect(product.body.orders).toEqual([]);
+    expect(product.body.products).toEqual([
+      expect.objectContaining({ id: "prod_003", name: "Fragment Sweatshirt", isActive: true }),
+    ]);
+    expect(product.body.products[0].stock).toBeGreaterThan(0);
+
+    // One letter: nothing (too short to be useful).
+    const short = await agent.get("/api/admin/search?q=a").expect(200);
+    expect(short.body).toEqual({ orders: [], products: [] });
   });
 
   it("returns the orders created since the last poll", async () => {

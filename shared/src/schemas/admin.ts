@@ -115,7 +115,7 @@ export type AdminOrder = z.infer<typeof adminOrderSchema>;
 /** Filters of the orders list (query string). Invalid values are ignored. */
 export const adminOrderQuerySchema = z.object({
   status: z.enum(ORDER_TABS).catch("pending"),
-  /** Name or phone (spaces allowed). */
+  /** Name, phone (spaces allowed) or internal order number ("RSM-000123", "123"). */
   q: z.string().trim().max(80).optional().catch(undefined),
   wilaya: z.coerce.number().int().min(1).max(58).optional().catch(undefined),
   /** Algiers dates, YYYY-MM-DD, inclusive. */
@@ -124,6 +124,8 @@ export const adminOrderQuerySchema = z.object({
   /** Page size and cursor (createdAt ISO of the last order of the previous page + id). */
   limit: z.coerce.number().int().min(1).max(100).catch(30),
   cursor: z.string().max(100).optional().catch(undefined),
+  /** Numbered pages (1 = newest), used instead of the cursor by the dashboard table. */
+  page: z.coerce.number().int().min(1).max(100_000).optional().catch(undefined),
 });
 /** Query of the orders list, as the dashboard sends it. */
 export interface AdminOrderQuery {
@@ -134,6 +136,7 @@ export interface AdminOrderQuery {
   to?: string;
   limit?: number;
   cursor?: string;
+  page?: number;
 }
 
 export const adminOrderListSchema = z.object({
@@ -143,6 +146,39 @@ export const adminOrderListSchema = z.object({
   counts: z.record(z.enum(ORDER_TABS), z.number().int().nonnegative()),
 });
 export type AdminOrderList = z.infer<typeof adminOrderListSchema>;
+
+/** Global search of the dashboard top bar (orders and products). */
+export const adminSearchQuerySchema = z.object({
+  q: z.string().trim().min(2).max(80).catch(""),
+});
+
+export const adminSearchResultSchema = z.object({
+  orders: z.array(
+    z.object({
+      id: z.string(),
+      orderNumber: z.string(),
+      fullName: z.string(),
+      phone: z.string(),
+      status: orderStatusSchema,
+      total: z.number().int().nonnegative(),
+      createdAt: isoDateSchema,
+      productName: z.string(),
+    }),
+  ),
+  products: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      slug: z.string(),
+      image: z.string(),
+      price: z.number().int().nonnegative(),
+      /** Units left, all colors and sizes. */
+      stock: z.number().int().nonnegative(),
+      isActive: z.boolean(),
+    }),
+  ),
+});
+export type AdminSearchResult = z.infer<typeof adminSearchResultSchema>;
 
 /** Polling answer: orders created after `since`, and the "Nouveau" counter. */
 export const adminOrderUpdatesSchema = z.object({

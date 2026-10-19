@@ -401,3 +401,30 @@ export function HomeIcon(props: IconProps) {
     </LineIcon>
   );
 }
+
+export function MapPinIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0 1 13 0c0 4.8-6.5 11-6.5 11z" />
+      <circle cx="12" cy="10" r="2.25" />
+    </LineIcon>
+  );
+}
+
+export function SlidersIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />
+      <path d="M13 4.5v5M7 14.5v5" />
+    </LineIcon>
+  );
+}
+
+export function CopyIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="M8.5 8.5h11v11h-11z" />
+      <path d="M15.5 8.5v-4h-11v11h4" />
+    </LineIcon>
+  );
+}

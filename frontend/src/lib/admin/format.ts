@@ -80,3 +80,58 @@ export function customerWhatsAppLink(order: AdminOrder): string {
 export function deliveryLabel(order: Pick<AdminOrder, "deliveryType">): string {
   return DELIVERY_TYPE_LABELS[order.deliveryType];
 }
+
+const time = new Intl.DateTimeFormat("fr-FR", {
+  timeZone: TIME_ZONE,
+  hour: "2-digit",
+  minute: "2-digit",
+});
+const dayDate = new Intl.DateTimeFormat("fr-FR", {
+  timeZone: TIME_ZONE,
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+});
+
+/** Date column of the orders table: { day: "19 oct.", time: "21:26" } (Algeria time). */
+export function formatTableDate(iso: string): { day: string; time: string } {
+  const date = new Date(iso);
+  return { day: shortDate.format(date), time: time.format(date) };
+}
+
+/** "Reçue le 19/10/2026 à 21:26" (Algeria time). */
+export function formatReceivedAt(iso: string): string {
+  const date = new Date(iso);
+  return `Reçue le ${dayDate.format(date)} à ${time.format(date)}`;
+}
+
+/** First letter of a name, for the round avatars ("Karim" → "K"). */
+export function initialOf(name: string): string {
+  return name.trim().charAt(0).toLocaleUpperCase("fr") || "?";
+}
+
+const BROWSERS: [RegExp, string][] = [
+  [/Edg(?:A|iOS)?\/([\d.]+)/, "Edge"],
+  [/OPR\/([\d.]+)/, "Opera"],
+  [/SamsungBrowser\/([\d.]+)/, "Samsung Internet"],
+  [/(?:Chrome|CriOS)\/([\d.]+)/, "Chrome"],
+  [/(?:Firefox|FxiOS)\/([\d.]+)/, "Firefox"],
+  [/Version\/([\d.]+).*Safari/, "Safari"],
+];
+const SYSTEMS: [RegExp, string][] = [
+  [/Android/, "Android"],
+  [/iPhone|iPad|iPod/, "iOS"],
+  [/Windows/, "Windows"],
+  [/Mac OS X|Macintosh/, "Mac"],
+  [/Linux/, "Linux"],
+];
+
+/** "Mozilla/5.0 (Windows NT 10.0…) … Chrome/120.0.6099.71 …" → "Chrome 120.0 (Windows)". */
+export function describeUserAgent(userAgent: string | null): string {
+  if (!userAgent) return "—";
+  const browser = BROWSERS.find(([pattern]) => pattern.test(userAgent));
+  const system = SYSTEMS.find(([pattern]) => pattern.test(userAgent))?.[1];
+  if (!browser) return system ?? "Autre navigateur";
+  const version = browser[0].exec(userAgent)?.[1]?.split(".").slice(0, 2).join(".");
+  return `${browser[1]}${version ? ` ${version}` : ""}${system ? ` (${system})` : ""}`;
+}

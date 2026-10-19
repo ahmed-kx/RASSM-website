@@ -4,6 +4,7 @@ import {
   adminOrderSchema,
   adminOrderUpdatesSchema,
   adminSchema,
+  adminSearchResultSchema,
   apiErrorSchema,
   blacklistEntrySchema,
   bulkShipResultSchema,
@@ -83,6 +84,15 @@ export function fetchAdminOrders(query: AdminOrderQuery) {
     if (value !== undefined && value !== "") params.set(key, String(value));
   }
   return requestJson(`${ADMIN_API_PATHS.orders}?${params}`, adminOrderListSchema);
+}
+
+/** Global search of the top bar: orders (name, phone, order number) and products. */
+export function searchDashboard(q: string, signal?: AbortSignal) {
+  return requestJson(
+    `${ADMIN_API_PATHS.search}?${new URLSearchParams({ q })}`,
+    adminSearchResultSchema,
+    { signal },
+  );
 }
 
 export function fetchOrderUpdates(since: string | null) {

@@ -2,15 +2,13 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { BanIcon } from "@/components/ui/icons";
 import { formatDateTime, formatPhone } from "@/lib/admin/format";
 import { ApiError } from "@/lib/api";
 import { addToBlacklist, fetchBlacklist, removeFromBlacklist } from "@/lib/data/admin";
 import { AdminDialog } from "./admin-dialog";
-import { AdminPageTitle } from "./admin-shell";
+import { AdminEmpty, AdminPageHeader, adminInput, adminLabel, buttonClass } from "./admin-ui";
 import { useToast } from "./toasts";
-
-const input =
-  "h-11 w-full border border-ink/25 bg-paper px-3 text-[15px] focus:border-ink focus:outline-none";
 
 /** Blacklisted phone numbers: their new orders are saved but flagged "Liste noire". */
 export function BlacklistPage() {
@@ -56,8 +54,14 @@ export function BlacklistPage() {
 
   return (
     <>
-      <AdminPageTitle title="Liste noire" />
-      <p className="mt-3 max-w-xl text-sm leading-relaxed text-ash">
+      <AdminPageHeader
+        title="Liste noire"
+        count={
+          query.data ? `${query.data.length} numéro${query.data.length > 1 ? "s" : ""}` : undefined
+        }
+        subtitle="Numéros signalés dans les commandes"
+      />
+      <p className="mt-4 max-w-xl text-sm leading-relaxed text-ash">
         Les commandes de ces numéros sont toujours enregistrées, mais signalées «&nbsp;Liste
         noire&nbsp;» en rouge dans les commandes et dans l&apos;e-mail.
       </p>
@@ -67,33 +71,33 @@ export function BlacklistPage() {
           event.preventDefault();
           add.mutate();
         }}
-        className="mt-5 grid gap-3 border border-line bg-paper p-4 sm:grid-cols-[1fr_1.4fr_auto] sm:items-end"
+        className="mt-6 grid gap-3 rounded-md border border-line bg-paper p-4 sm:grid-cols-[1fr_1.4fr_auto] sm:items-end sm:p-5"
       >
-        <label className="block text-xs text-ash">
-          Téléphone
+        <label className="block">
+          <span className={adminLabel}>Téléphone</span>
           <input
             value={phone}
             onChange={(event) => setPhone(event.target.value)}
             type="tel"
             inputMode="tel"
             placeholder="0555 12 34 56"
-            className={`${input} mt-1`}
+            className={`${adminInput} mt-1.5`}
           />
         </label>
-        <label className="block text-xs text-ash">
-          Raison
+        <label className="block">
+          <span className={adminLabel}>Raison</span>
           <input
             value={reason}
             onChange={(event) => setReason(event.target.value)}
             placeholder="Colis refusé"
             maxLength={200}
-            className={`${input} mt-1`}
+            className={`${adminInput} mt-1.5`}
           />
         </label>
         <button
           type="submit"
           disabled={add.isPending || !phone.trim() || reason.trim().length < 3}
-          className="h-11 bg-ink px-5 text-[11px] font-semibold tracking-button text-paper uppercase disabled:opacity-50"
+          className={buttonClass("primary")}
         >
           Ajouter
         </button>
@@ -101,19 +105,21 @@ export function BlacklistPage() {
 
       <div className="mt-5">
         {query.isPending ? (
-          <p className="py-8 text-center text-sm text-stone">Chargement…</p>
+          <AdminEmpty>Chargement…</AdminEmpty>
         ) : query.isError ? (
-          <p role="alert" className="py-8 text-center text-sm text-error">
-            Impossible de charger la liste noire.
-          </p>
+          <AdminEmpty tone="error">Impossible de charger la liste noire.</AdminEmpty>
         ) : query.data.length === 0 ? (
-          <p className="border border-dashed border-line py-10 text-center text-sm text-stone">
-            Aucun numéro sur la liste noire.
-          </p>
+          <AdminEmpty>Aucun numéro sur la liste noire.</AdminEmpty>
         ) : (
-          <ul className="divide-y divide-line border border-line bg-paper">
+          <ul className="divide-y divide-line overflow-hidden rounded-md border border-line bg-paper">
             {query.data.map((entry) => (
-              <li key={entry.phone} className="flex items-center gap-3 p-4">
+              <li key={entry.phone} className="flex items-center gap-3 p-4 sm:px-5">
+                <span
+                  aria-hidden="true"
+                  className="grid size-9 shrink-0 place-items-center rounded-full bg-error/10 text-error"
+                >
+                  <BanIcon width={18} height={18} />
+                </span>
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold tabular-nums">{formatPhone(entry.phone)}</p>
                   <p className="text-sm text-error">{entry.reason}</p>
@@ -126,7 +132,7 @@ export function BlacklistPage() {
                 <button
                   type="button"
                   onClick={() => setToRemove(entry.phone)}
-                  className="h-11 shrink-0 border border-ink px-3 text-[11px] font-semibold tracking-button uppercase"
+                  className={buttonClass("outline", "shrink-0")}
                 >
                   Retirer
                 </button>
@@ -150,14 +156,14 @@ export function BlacklistPage() {
             type="button"
             disabled={remove.isPending}
             onClick={() => toRemove && remove.mutate(toRemove)}
-            className="h-12 bg-ink text-[11px] font-semibold tracking-button text-paper uppercase disabled:opacity-60"
+            className={buttonClass("primary", "h-12")}
           >
             Retirer
           </button>
           <button
             type="button"
             onClick={() => setToRemove(null)}
-            className="h-12 border border-ink text-[11px] font-semibold tracking-button uppercase"
+            className={buttonClass("outline", "h-12")}
           >
             Annuler
           </button>

@@ -4,6 +4,7 @@ import {
   adminNoteSchema,
   adminOrderEditSchema,
   adminOrderQuerySchema,
+  adminSearchQuerySchema,
   adminStatusChangeSchema,
   andersonExportSchema,
   blacklistAddSchema,
@@ -36,6 +37,7 @@ import {
   shipOrders,
 } from "../services/admin-orders";
 import { login, logout } from "../services/admin-auth";
+import { searchDashboard } from "../services/admin-search";
 import { andersonFileName, buildAndersonCsv } from "../services/anderson-export";
 
 export interface AdminRouterOptions {
@@ -80,6 +82,10 @@ export function adminRouter(options: AdminRouterOptions): Router {
 
   router.get("/auth/me", (_req, res) => {
     res.json({ admin: currentAdmin(res) });
+  });
+
+  router.get("/search", async (req, res) => {
+    res.json(await searchDashboard(adminSearchQuerySchema.parse(req.query).q));
   });
 
   router.get("/orders", async (req, res) => {

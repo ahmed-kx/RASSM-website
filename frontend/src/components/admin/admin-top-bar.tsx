@@ -25,20 +25,23 @@ const iconButton = (surface: Surface) =>
   );
 
 /**
- * A button and its panel. Under the top bar across the screen on phones, a dropdown on larger
- * screens. Closes on Escape (focus back on the button), a click outside or a page change.
+ * A button and its panel. Top bar menus run under the top bar across the screen on phones and
+ * drop down on larger screens; "anchored" menus always drop down under their button. Closes on
+ * Escape (focus back on the button), a click outside or a page change.
  */
-function TopBarMenu({
+export function AdminMenu({
   label,
   trigger,
   triggerClassName,
   onOpen,
+  placement = "topbar",
   children,
 }: {
   label: string;
   trigger: ReactNode;
   triggerClassName: string;
   onOpen?: () => void;
+  placement?: "topbar" | "anchored";
   children: (close: () => void) => ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -68,7 +71,7 @@ function TopBarMenu({
   }, [open]);
 
   return (
-    <div ref={root} className="sm:relative">
+    <div ref={root} className={placement === "anchored" ? "relative" : "sm:relative"}>
       <button
         ref={button}
         type="button"
@@ -88,7 +91,12 @@ function TopBarMenu({
           id={panelId}
           role="region"
           aria-label={label}
-          className="fixed inset-x-3 top-15 z-40 border border-line bg-paper text-ink shadow-[0_18px_40px_-18px_rgb(17_17_17/0.45)] motion-safe:animate-fade-in sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:mt-2 sm:w-96"
+          className={cn(
+            "z-40 overflow-hidden rounded-md border border-line bg-paper text-ink shadow-[0_18px_40px_-18px_rgb(17_17_17/0.45)] motion-safe:animate-fade-in",
+            placement === "anchored"
+              ? "absolute top-full right-0 mt-2 w-64"
+              : "fixed inset-x-3 top-15 sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:mt-2 sm:w-96",
+          )}
         >
           {children(() => setOpen(false))}
         </div>
@@ -184,7 +192,7 @@ export function NotificationBell({ surface }: { surface: Surface }) {
       ? `Notifications : ${unopened} nouvelle${unopened > 1 ? "s" : ""} commande${unopened > 1 ? "s" : ""}`
       : "Notifications";
   return (
-    <TopBarMenu
+    <AdminMenu
       label={label}
       triggerClassName={iconButton(surface)}
       onOpen={dismissAll}
@@ -222,7 +230,7 @@ export function NotificationBell({ surface }: { surface: Surface }) {
           <BrowserNotificationsButton />
         </>
       )}
-    </TopBarMenu>
+    </AdminMenu>
   );
 }
 
@@ -234,7 +242,7 @@ export function AccountMenu({ admin, surface }: { admin: Admin; surface: Surface
     router.refresh();
   };
   return (
-    <TopBarMenu
+    <AdminMenu
       label="Mon compte"
       triggerClassName="grid size-11 place-items-center"
       trigger={
@@ -267,6 +275,6 @@ export function AccountMenu({ admin, surface }: { admin: Admin; surface: Surface
           </button>
         </>
       )}
-    </TopBarMenu>
+    </AdminMenu>
   );
 }

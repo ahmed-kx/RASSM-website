@@ -35,7 +35,7 @@ export function AdminDialog({
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
-      className="mx-0 mt-auto mb-0 max-h-[90svh] w-full max-w-none overflow-y-auto bg-bone p-0 text-ink backdrop:bg-ink/60 motion-safe:animate-slide-in-up sm:m-auto sm:max-w-lg sm:motion-safe:animate-fade-in"
+      className="mx-0 mt-auto mb-0 max-h-[90svh] w-full max-w-none overflow-y-auto bg-bone p-0 text-ink backdrop:bg-ink/60 motion-safe:animate-slide-in-up sm:m-auto sm:max-w-lg sm:rounded-md sm:motion-safe:animate-fade-in"
     >
       {open && (
         <div className="p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:p-6">

@@ -32,6 +32,7 @@ export const ADMIN_API_PATHS = {
   bulkShip: "/api/admin/orders/ship",
   blacklist: "/api/admin/blacklist",
   blacklistEntry: (phone: string) => `/api/admin/blacklist/${encodeURIComponent(phone)}`,
+  search: "/api/admin/search",
 } as const;
 
 /** Name of the admin session cookie (httpOnly, set by the API). */

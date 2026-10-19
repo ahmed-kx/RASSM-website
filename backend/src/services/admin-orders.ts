@@ -118,16 +118,36 @@ function decodeCursor(cursor: string): QueryFilter<OrderDoc> | null {
   };
 }
 
-/** Search (name or phone), wilaya and dates: the filters shared by the list and its tab counts. */
-function baseFilter(query: OrderQuery): QueryFilter<OrderDoc> {
-  const filter: QueryFilter<OrderDoc> = {};
-  const q = query.q?.trim();
-  if (q) {
-    const digits = q.replace(/[\s.-]/g, "");
-    filter.$or = /^\+?\d{3,}$/.test(digits)
-      ? [{ phone: { $regex: escapeRegex(digits.replace(/^\+?213/, "0")) } }]
-      : [{ fullName: { $regex: escapeRegex(q), $options: "i" } }];
+/** Matches "RSM-000123" for "RSM-000123", "rsm123" or "123". */
+const orderNumberPattern = (digits: string) => `^RSM-0*${digits.replace(/^0+(?=\d)/, "")}$`;
+
+/**
+ * Text search of the orders: a name (part of it, any case), a phone (part of it, spaces and
+ * +213 allowed) or an internal order number ("RSM-000123", "rsm-123", "123").
+ */
+export function orderSearchFilter(text: string): QueryFilter<OrderDoc> {
+  const q = text.trim();
+  const compact = q.replace(/[\s.-]/g, "");
+  const number = /^rsm(\d+)$/i.exec(compact);
+  if (number?.[1]) return { orderNumber: { $regex: orderNumberPattern(number[1]) } };
+  if (/^\+?\d+$/.test(compact)) {
+    const digits = compact.replace(/^\+/, "");
+    return {
+      $or: [
+        { orderNumber: { $regex: orderNumberPattern(digits) } },
+        ...(digits.length >= 3
+          ? [{ phone: { $regex: escapeRegex(digits.replace(/^213/, "0")) } }]
+          : []),
+      ],
+    };
   }
+  return { fullName: { $regex: escapeRegex(q), $options: "i" } };
+}
+
+/** Search, wilaya and dates: the filters shared by the list and its tab counts. */
+function baseFilter(query: OrderQuery): QueryFilter<OrderDoc> {
+  const q = query.q?.trim();
+  const filter: QueryFilter<OrderDoc> = q ? orderSearchFilter(q) : {};
   if (query.wilaya) filter.wilayaCode = query.wilaya;
   if (query.from || query.to) {
     filter.createdAt = {
@@ -144,10 +164,12 @@ export async function listOrders(query: OrderQuery): Promise<AdminOrderList> {
     ...base,
     ...(query.status !== "all" && { status: query.status }),
   };
-  const cursorFilter = query.cursor ? decodeCursor(query.cursor) : null;
+  // Numbered pages (dashboard table) or a cursor ("load more").
+  const cursorFilter = !query.page && query.cursor ? decodeCursor(query.cursor) : null;
   const [docs, grouped] = await Promise.all([
     OrderModel.find(cursorFilter ? { $and: [filter, cursorFilter] } : filter)
       .sort({ createdAt: -1, _id: -1 })
+      .skip(query.page ? (query.page - 1) * query.limit : 0)
       .limit(query.limit + 1)
       .lean<OrderDoc[]>(),
     OrderModel.aggregate<{ _id: OrderStatus; count: number }>([
