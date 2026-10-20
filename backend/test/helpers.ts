@@ -6,6 +6,36 @@ import { hashPassword } from "../src/lib/password";
 import type { MetaEvents } from "../src/meta/conversions-api";
 import { AdminModel } from "../src/models/admin";
 import type { OrderNotifier } from "../src/notifications/new-order-email";
+import type { Revalidator } from "../src/lib/revalidate";
+import type { ImageStorage } from "../src/services/image-storage";
+
+export const FAKE_STORAGE_BASE =
+  "https://res.cloudinary.com/test-cloud/image/upload/v1/rassm/products/";
+
+/** A Cloudinary stand-in: keeps the uploaded photos in memory. */
+export function fakeImageStorage() {
+  const stored = new Set<string>();
+  let next = 0;
+  const storage = {
+    stored,
+    upload: vi.fn<ImageStorage["upload"]>(async () => {
+      next += 1;
+      const url = `${FAKE_STORAGE_BASE}photo-${next}.webp`;
+      stored.add(url);
+      return { url, width: 1200, height: 1200 };
+    }),
+    owns: (url: string) => url.startsWith(FAKE_STORAGE_BASE),
+    remove: vi.fn<ImageStorage["remove"]>(async (url) => {
+      stored.delete(url);
+    }),
+  };
+  return storage satisfies ImageStorage;
+}
+
+/** Records the pages the API asks the website to refresh. */
+export function fakeRevalidator() {
+  return { revalidate: vi.fn<Revalidator["revalidate"]>() } satisfies Revalidator;
+}
 
 /** A Meta sender that records calls instead of calling Meta. */
 export function fakeMetaEvents() {
@@ -26,6 +56,8 @@ export function fakeNotifier() {
 export function testApp(options: Partial<AppOptions> = {}) {
   const metaEvents = fakeMetaEvents();
   const notifier = fakeNotifier();
+  const imageStorage = fakeImageStorage();
+  const revalidator = fakeRevalidator();
   const high = { windowMs: 60_000, limit: 1000 };
   const app = createApp({
     frontendOrigins: ["http://localhost:3000"],
@@ -33,6 +65,8 @@ export function testApp(options: Partial<AppOptions> = {}) {
     metaEvents,
     notifier,
     secureCookies: false,
+    imageStorage,
+    revalidator,
     ...options,
     rateLimits: {
       orders: high,
@@ -43,7 +77,7 @@ export function testApp(options: Partial<AppOptions> = {}) {
       ...options.rateLimits,
     },
   });
-  return { app, metaEvents, notifier, api: request(app) };
+  return { app, metaEvents, notifier, imageStorage, revalidator, api: request(app) };
 }
 
 export const ADMIN_EMAIL = "admin@rassm.test";

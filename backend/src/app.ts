@@ -1,7 +1,9 @@
 import cors from "cors";
 import express, { type Express } from "express";
 import helmet from "helmet";
+import type { Revalidator } from "./lib/revalidate";
 import type { MetaEvents } from "./meta/conversions-api";
+import type { ImageStorage } from "./services/image-storage";
 import type { OrderNotifier } from "./notifications/new-order-email";
 import { errorHandler, notFound } from "./middleware/error-handler";
 import { limitRequests, rejectUnsafeKeys, type RateLimitOptions } from "./middleware/security";
@@ -31,6 +33,10 @@ export interface AppOptions {
   notifier: OrderNotifier;
   /** Admin session cookie only over HTTPS (production). */
   secureCookies: boolean;
+  /** Refreshes the website's pages after a dashboard change. */
+  revalidator: Revalidator;
+  /** Product photos (Cloudinary); null = uploads disabled. */
+  imageStorage: ImageStorage | null;
   rateLimits?: Partial<typeof DEFAULT_RATE_LIMITS>;
 }
 
@@ -56,6 +62,8 @@ export function createApp(options: AppOptions): Express {
       maxAge: 600,
     }),
   );
+  // The dashboard sends whole products (many photo URLs); public forms stay small.
+  app.use("/api/admin", express.json({ limit: "200kb" }));
   app.use(express.json({ limit: "20kb" }));
   app.use(rejectUnsafeKeys);
 
@@ -72,6 +80,8 @@ export function createApp(options: AppOptions): Express {
       loginLimiter: limitRequests(limits.login),
       adminLimiter: limitRequests(limits.admin),
       metaEvents: options.metaEvents,
+      revalidator: options.revalidator,
+      imageStorage: options.imageStorage,
     }),
   );
   app.use("/api", catalogRouter());

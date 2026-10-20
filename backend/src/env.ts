@@ -82,6 +82,24 @@ const envSchema = z.object({
   NOTIFY_EMAIL: z.email("NOTIFY_EMAIL must be an e-mail address.").default("rassmwear@gmail.com"),
   /** Sender of the e-mails (must be a sender or domain validated in Brevo). */
   EMAIL_FROM: z.email("EMAIL_FROM must be an e-mail address.").default("rassmwear@gmail.com"),
+  /** Cloudinary (product photos). All three are needed to upload; empty = uploads disabled. */
+  CLOUDINARY_CLOUD_NAME: optional(
+    z.string().regex(/^[A-Za-z0-9_-]+$/, "CLOUDINARY_CLOUD_NAME looks wrong."),
+  ),
+  CLOUDINARY_API_KEY: optional(z.string().regex(/^\d+$/, "CLOUDINARY_API_KEY must be digits.")),
+  /** Secret: only the API uses it (signed uploads), never the browser. */
+  CLOUDINARY_API_SECRET: optional(z.string().min(10, "CLOUDINARY_API_SECRET looks too short.")),
+  /** Cloudinary folder of the product photos. */
+  CLOUDINARY_FOLDER: z
+    .string()
+    .regex(/^[a-z0-9_-]+(\/[a-z0-9_-]+)*$/, "CLOUDINARY_FOLDER must look like rassm/products.")
+    .default("rassm/products"),
+  /**
+   * Website route that refreshes its cached pages after a dashboard change (same secret as
+   * the frontend REVALIDATE_SECRET). Default: the first FRONTEND_ORIGIN + /api/revalidate.
+   */
+  REVALIDATE_URL: optional(z.url("REVALIDATE_URL must be a full URL.")),
+  REVALIDATE_SECRET: optional(z.string().min(24, "REVALIDATE_SECRET must have 24+ characters.")),
   /** Dashboard URL, for the "open the order" links in e-mails. */
   ADMIN_URL: z
     .url("ADMIN_URL must be a full URL, e.g. https://rassm.dz/admin.")

@@ -168,6 +168,7 @@ export const adminSearchResultSchema = z.object({
   products: z.array(
     z.object({
       id: z.string(),
+      sku: z.string(),
       name: z.string(),
       slug: z.string(),
       image: z.string(),

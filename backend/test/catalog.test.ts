@@ -50,6 +50,7 @@ describe("catalog", () => {
       homePrice: 400,
       stopDeskPrice: 250,
       estimatedDays: 1,
+      suspended: false,
     });
     expect(res.body.deliveryFees[36].stopDeskPrice).toBeNull();
   });

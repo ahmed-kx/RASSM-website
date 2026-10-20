@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import type { Kpi } from "@rassm/shared";
+import type { ComponentType, ReactNode, SVGProps } from "react";
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
 import { initialOf } from "@/lib/admin/format";
 import { cn } from "@/lib/cn";
@@ -293,5 +294,157 @@ export function Pagination({
         </ul>
       )}
     </nav>
+  );
+}
+
+/** A thin line of the last days' values (real data only). */
+function Sparkline({ values }: { values: readonly number[] }) {
+  if (values.length < 2) return null;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const points = values
+    .map((value, index) => {
+      const x = (index / (values.length - 1)) * 100;
+      const y = 26 - ((value - min) / range) * 22;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+  return (
+    <svg viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true" className="h-7 w-24">
+      <polyline
+        points={points}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
+  );
+}
+
+/**
+ * KPI card (icon, value, label). The trend (percentage and sparkline) only appears when the
+ * API computed it from real data (now against 30 days ago).
+ */
+export function KpiCard({
+  icon: Icon,
+  label,
+  value,
+  trend = null,
+}: {
+  icon: ComponentType<SVGProps<SVGSVGElement>>;
+  label: string;
+  value: string;
+  trend?: Kpi["trend"];
+}) {
+  const direction = !trend ? null : trend.percent > 0 ? "up" : trend.percent < 0 ? "down" : "flat";
+  return (
+    <div className="flex items-center gap-4 rounded-md border border-line bg-paper p-4 sm:p-5">
+      <Icon width={30} height={30} className="shrink-0 text-ink" />
+      <div className="min-w-0 flex-1">
+        <p className="font-display text-[1.9rem] leading-none font-medium lining-nums">{value}</p>
+        <p className="mt-1.5 text-sm text-stone">{label}</p>
+      </div>
+      {trend && (
+        <div
+          className={cn(
+            "flex shrink-0 flex-col items-end gap-1 text-xs tabular-nums",
+            direction === "up" && "text-success",
+            direction === "down" && "text-error",
+            direction === "flat" && "text-stone",
+          )}
+          title="Par rapport à il y a 30 jours"
+        >
+          <span>
+            {direction === "up" ? "↗" : direction === "down" ? "↘" : "→"}{" "}
+            {trend.percent > 0 ? "+" : ""}
+            {trend.percent.toLocaleString("fr-FR")}%
+          </span>
+          <Sparkline values={trend.series} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** On / off switch (role="switch"), with its label on the left. */
+export function Switch({
+  checked,
+  onChange,
+  label,
+  description,
+  disabled,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  label: string;
+  description?: string;
+  disabled?: boolean;
+}) {
+  return (
+    <label className="flex cursor-pointer items-center justify-between gap-4 py-2">
+      <span className="min-w-0">
+        <span className="block text-[15px]">{label}</span>
+        {description && <span className="block text-xs text-stone">{description}</span>}
+      </span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+        className={cn(
+          "relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-50",
+          checked ? "bg-ink" : "bg-line",
+        )}
+      >
+        <span
+          aria-hidden="true"
+          className={cn(
+            "absolute top-1 left-1 size-5 rounded-full bg-paper shadow transition-transform",
+            checked && "translate-x-5",
+          )}
+        />
+        <span className="sr-only">{label}</span>
+      </button>
+    </label>
+  );
+}
+
+/** Native select with the admin look and a chevron. */
+export function AdminSelect({
+  label,
+  value,
+  onChange,
+  options,
+  className,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: readonly { value: string; label: string }[];
+  className?: string;
+}) {
+  return (
+    <label className={cn("relative block", className)}>
+      <span className="sr-only">{label}</span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-11 w-full appearance-none rounded-sm border border-line bg-paper pr-9 pl-3 text-sm"
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      <ChevronDownIcon
+        width={16}
+        height={16}
+        className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2"
+      />
+    </label>
   );
 }

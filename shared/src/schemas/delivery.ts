@@ -32,8 +32,82 @@ export const deliveryFeeSchema = z.object({
     .number({ error: "Le délai de livraison doit être un nombre." })
     .int("Le délai de livraison doit être un nombre entier de jours.")
     .min(1, "Le délai de livraison doit être d'au moins 1 jour."),
+  /**
+   * Delivery paused in this wilaya (set in the dashboard): customers cannot choose it and the
+   * API refuses its orders. Missing = active.
+   */
+  suspended: z.boolean().default(false),
 });
 export type DeliveryFee = z.infer<typeof deliveryFeeSchema>;
+
+/** Shown next to a suspended wilaya and returned by the API for its orders. */
+export const WILAYA_SUSPENDED_MESSAGE = "Livraison temporairement indisponible dans cette wilaya.";
+
+/** Short label in the wilaya select of the order form. */
+export const WILAYA_SUSPENDED_LABEL = "Livraison temporairement indisponible";
+
+// ---------- Dashboard: delivery prices ----------
+
+const positivePriceSchema = (label: string) =>
+  z
+    .number({ error: `Le prix ${label} doit être un nombre.` })
+    .int(`Le prix ${label} doit être un nombre entier de dinars.`)
+    .positive(`Le prix ${label} doit être supérieur à 0 DA.`)
+    .max(50_000, `Le prix ${label} semble trop élevé.`);
+
+/** Changes of one wilaya in the dashboard (prices, delay, stop desk, suspension). */
+export const deliveryFeeUpdateSchema = z.object({
+  homePrice: positivePriceSchema("à domicile"),
+  /** Null = no stop desk in this wilaya (home delivery only). */
+  stopDeskPrice: positivePriceSchema("au bureau").nullable(),
+  estimatedDays: z
+    .number({ error: "Le délai doit être un nombre de jours." })
+    .int("Le délai doit être un nombre entier de jours.")
+    .min(1, "Le délai doit être d'au moins 1 jour.")
+    .max(30, "Le délai ne doit pas dépasser 30 jours."),
+  suspended: z.boolean(),
+});
+export type DeliveryFeeUpdate = z.infer<typeof deliveryFeeUpdateSchema>;
+
+const wilayaCodesSchema = z
+  .array(wilayaCodeSchema)
+  .min(1, "Sélectionnez au moins une wilaya.")
+  .max(WILAYA_COUNT);
+
+/** Bulk action on selected wilayas: change every price by ± amount, suspend or reactivate. */
+export const deliveryBulkSchema = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("adjust"),
+    codes: wilayaCodesSchema,
+    amount: z
+      .number({ error: "Indiquez un montant en DA." })
+      .int("Le montant doit être un nombre entier de dinars.")
+      .refine((amount) => amount !== 0, "Le montant ne peut pas être 0 DA.")
+      .refine((amount) => Math.abs(amount) <= 10_000, "Le montant semble trop élevé."),
+  }),
+  z.object({ action: z.literal("suspend"), codes: wilayaCodesSchema }),
+  z.object({ action: z.literal("reactivate"), codes: wilayaCodesSchema }),
+]);
+export type DeliveryBulk = z.infer<typeof deliveryBulkSchema>;
+
+/**
+ * A product discount tier that a price change would make invalid (its amount must stay lower
+ * than the highest home delivery price).
+ */
+export const tierWarningSchema = z.object({
+  productId: z.string(),
+  productName: z.string(),
+  amount: z.number().int(),
+  maxHomePrice: z.number().int(),
+});
+export type TierWarning = z.infer<typeof tierWarningSchema>;
+
+export const adminDeliveryFeesSchema = z.object({
+  deliveryFees: z.array(deliveryFeeSchema),
+  /** Tiers that are (or would be, for a preview) no longer valid. */
+  warnings: z.array(tierWarningSchema),
+});
+export type AdminDeliveryFees = z.infer<typeof adminDeliveryFeesSchema>;
 
 /** Delivery types offered in a wilaya (home is always available). */
 export function getAvailableDeliveryTypes(fee: DeliveryFee): DeliveryType[] {

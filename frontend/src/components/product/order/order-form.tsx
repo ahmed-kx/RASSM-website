@@ -3,6 +3,7 @@
 import {
   DELIVERY_TYPE_LABELS,
   WILAYAS,
+  WILAYA_SUSPENDED_LABEL,
   formatPrice,
   formatDeliveryDelay,
   formatWilaya,
@@ -153,11 +154,18 @@ export function OrderForm() {
                     className={cn(inputClasses, "appearance-none pr-10")}
                   >
                     <option value="">Choisissez votre wilaya</option>
-                    {WILAYAS.map((wilaya) => (
-                      <option key={wilaya.code} value={wilaya.code}>
-                        {formatWilaya(wilaya)}
-                      </option>
-                    ))}
+                    {WILAYAS.map((wilaya) => {
+                      // Paused in the dashboard: shown, but it cannot be chosen.
+                      const suspended = deliveryFees.some(
+                        (entry) => entry.wilayaCode === wilaya.code && entry.suspended,
+                      );
+                      return (
+                        <option key={wilaya.code} value={wilaya.code} disabled={suspended}>
+                          {formatWilaya(wilaya)}
+                          {suspended ? ` (${WILAYA_SUSPENDED_LABEL.toLowerCase()})` : ""}
+                        </option>
+                      );
+                    })}
                   </select>
                   <ChevronDownIcon
                     aria-hidden="true"

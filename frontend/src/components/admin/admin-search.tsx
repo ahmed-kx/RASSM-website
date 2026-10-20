@@ -10,7 +10,6 @@ import { formatPhone } from "@/lib/admin/format";
 import { adminRoutes } from "@/lib/admin/routes";
 import { cn } from "@/lib/cn";
 import { searchDashboard } from "@/lib/data/admin";
-import { routes } from "@/lib/routes";
 import { InitialAvatar, adminLabel } from "./admin-ui";
 import { StatusBadge } from "./badges";
 
@@ -22,8 +21,6 @@ const PLACEHOLDER = "Rechercher une commande, un client, un produit…";
 interface Hit {
   key: string;
   href: string;
-  /** Products open the public page in a new tab (the admin product page comes later). */
-  external?: boolean;
 }
 
 function hitsOf(data: AdminSearchResult | undefined, q: string): Hit[] {
@@ -32,8 +29,7 @@ function hitsOf(data: AdminSearchResult | undefined, q: string): Hit[] {
     ...data.orders.map((order) => ({ key: `o-${order.id}`, href: adminRoutes.order(order.id) })),
     ...data.products.map((product) => ({
       key: `p-${product.id}`,
-      href: routes.product(product.slug),
-      external: true,
+      href: adminRoutes.product(product.id),
     })),
     {
       key: "all",
@@ -152,7 +148,7 @@ function Results({
                     {product.isActive ? "" : " · masqué"}
                   </span>
                 </span>
-                <span className="shrink-0 text-xs text-stone">Voir sur le site ↗</span>
+                <span className="shrink-0 text-xs text-stone">{product.sku}</span>
               </div>
             );
           })}
@@ -191,8 +187,7 @@ function SearchBox({ variant, onClose }: { variant: "bar" | "sheet"; onClose?: (
   useEffect(() => setActive(null), [search.data]);
 
   const pick = (hit: Hit) => {
-    if (hit.external) window.open(hit.href, "_blank", "noopener,noreferrer");
-    else router.push(hit.href);
+    router.push(hit.href);
     setText("");
     setFocused(false);
     input.current?.blur();

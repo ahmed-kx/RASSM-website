@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
-import { ComingSoon } from "@/components/admin/coming-soon";
+import { Suspense } from "react";
+import { DeliveryPage } from "@/components/admin/delivery-page";
 
 export const metadata: Metadata = { title: "Livraison" };
 
-export default function Page() {
+export default function AdminDeliveryPage() {
   return (
-    <ComingSoon
-      title="Livraison"
-      description="La modification des tarifs Anderson et des délais par wilaya arrive à la prochaine étape."
-    />
+    <Suspense>
+      <DeliveryPage />
+    </Suspense>
   );
 }

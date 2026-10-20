@@ -1,6 +1,8 @@
 import { z } from "zod";
+import type { Category } from "../schemas/common";
 import {
   createProductSchema,
+  formatSku,
   type productSchema,
   type Product,
   type StockBySize,
@@ -174,13 +176,20 @@ const rawProducts = [
     drop: "Drop 002",
     createdAt: "2026-10-01T09:00:00.000Z",
   },
-] satisfies z.input<typeof productSchema>[];
+] satisfies Omit<z.input<typeof productSchema>, "sku">[];
+
+/** SKUs in catalog order per category (RSM-H-001, RSM-H-002…), as the API numbers them. */
+const counters: Record<Category, number> = { hoodie: 0, sweatshirt: 0, tshirt: 0 };
+const rawProductsWithSku = rawProducts.map((product) => ({
+  ...product,
+  sku: formatSku(product.category, ++counters[product.category]),
+}));
 
 // Discounts must stay below the highest home delivery price in the fee table.
 const productListSchema = z
   .array(createProductSchema(getMaxHomeDeliveryPrice(mockDeliveryFees)))
   .superRefine((products, ctx) => {
-    for (const key of ["id", "slug"] as const) {
+    for (const key of ["id", "slug", "sku"] as const) {
       const seen = new Set<string>();
       products.forEach((product, index) => {
         if (seen.has(product[key])) {
@@ -192,7 +201,7 @@ const productListSchema = z
   });
 
 /** Parsed at module load: a mismatch with the schema throws immediately. */
-export const mockProducts: readonly Product[] = productListSchema.parse(rawProducts);
+export const mockProducts: readonly Product[] = productListSchema.parse(rawProductsWithSku);
 
 export const mockFeaturedProducts = mockProducts.filter((p) => p.featured && p.isActive);
 

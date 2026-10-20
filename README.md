@@ -14,6 +14,7 @@ cp backend/.env.example backend/.env    # fill in MONGODB_URI (MongoDB Atlas)
 cp frontend/.env.example frontend/.env.local
 pnpm seed                               # products + delivery fees into MongoDB
 pnpm create-admin                       # your dashboard account (asks e-mail + password)
+pnpm migrate-images                     # once Cloudinary is set: product photos to Cloudinary
 pnpm dev                                # http://localhost:3000 (site) + http://localhost:4000 (API)
 ```
 

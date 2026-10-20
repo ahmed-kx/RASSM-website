@@ -527,8 +527,8 @@ describe("Anderson export", () => {
       .split("\r\n");
     expect(lines).toEqual([
       "Référence;Nom;Téléphone;Wilaya;Commune;Adresse;Type de livraison;Produit;Montant à encaisser (DA)",
-      "RSM-000001;Yacine Benali;0555 12 34 56;16 - Alger;Bab Ezzouar;Cité 1200 logements, bâtiment 5;Domicile;Fragment Sweatshirt - Noir - Taille M - x1;7200",
-      "RSM-000002;Amina Kaci;0661 00 00 01;16 - Alger;Bab Ezzouar;Stop desk (bureau Anderson);Stop desk;Fragment Sweatshirt - Noir - Taille M - x2;13850",
+      "RSM-000001;Yacine Benali;0555 12 34 56;16 - Alger;Bab Ezzouar;Cité 1200 logements, bâtiment 5;Domicile;RSM-S-001 Fragment Sweatshirt - Noir - Taille M - x1;7200",
+      "RSM-000002;Amina Kaci;0661 00 00 01;16 - Alger;Bab Ezzouar;Stop desk (bureau Anderson);Stop desk;RSM-S-001 Fragment Sweatshirt - Noir - Taille M - x2;13850",
     ]);
     expect(res.headers["x-exported-ids"]).toBe(`${home},${desk}`);
 

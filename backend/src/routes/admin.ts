@@ -39,8 +39,10 @@ import {
 import { login, logout } from "../services/admin-auth";
 import { searchDashboard } from "../services/admin-search";
 import { andersonFileName, buildAndersonCsv } from "../services/anderson-export";
+import { ProductModel } from "../models/product";
+import { addCatalogRoutes, type CatalogRouteOptions } from "./admin-catalog";
 
-export interface AdminRouterOptions {
+export interface AdminRouterOptions extends CatalogRouteOptions {
   allowedOrigins: readonly string[];
   /** Secure cookies (HTTPS only): true in production. */
   secureCookies: boolean;
@@ -84,6 +86,11 @@ export function adminRouter(options: AdminRouterOptions): Router {
     res.json({ admin: currentAdmin(res) });
   });
 
+  addCatalogRoutes(router, {
+    revalidator: options.revalidator,
+    imageStorage: options.imageStorage,
+  });
+
   router.get("/search", async (req, res) => {
     res.json(await searchDashboard(adminSearchQuerySchema.parse(req.query).q));
   });
@@ -101,13 +108,20 @@ export function adminRouter(options: AdminRouterOptions): Router {
     const { ids, all } = parseOrThrow(andersonExportSchema, req.body);
     const orders = await confirmedOrdersForExport(ids, all === true);
     if (orders.length === 0) throw new HttpError(400, "Aucune commande confirmée à exporter.");
+    const products = await ProductModel.find(
+      { _id: { $in: [...new Set(orders.map((order) => order.item.productId))] } },
+      { sku: 1 },
+    ).lean<{ _id: string; sku?: string }[]>();
+    const skus = new Map(
+      products.flatMap((product) => (product.sku ? [[product._id, product.sku]] : [])),
+    );
     res
       .set({
         "Content-Type": "text/csv; charset=utf-8",
         "Content-Disposition": `attachment; filename="${andersonFileName()}"`,
         "X-Exported-Ids": orders.map((order) => order._id.toString()).join(","),
       })
-      .send(buildAndersonCsv(orders));
+      .send(buildAndersonCsv(orders, skus));
   });
 
   router.post("/orders/ship", async (req, res) => {

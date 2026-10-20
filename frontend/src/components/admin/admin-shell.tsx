@@ -368,10 +368,15 @@ function breadcrumbFor(pathname: string): Crumb[] {
   );
   if (!section) return [];
   if (pathname === section.href) return [{ label: section.label }];
-  return [
-    { label: section.label, href: section.href },
-    { label: section.href === adminRoutes.orders ? "Détail de la commande" : "Détail" },
-  ];
+  const detail =
+    section.href === adminRoutes.orders
+      ? "Détail de la commande"
+      : section.href === adminRoutes.products
+        ? pathname === adminRoutes.newProduct
+          ? "Nouveau produit"
+          : "Modifier le produit"
+        : "Détail";
+  return [{ label: section.label, href: section.href }, { label: detail }];
 }
 
 /** Home icon / section / page, under the top bar. */

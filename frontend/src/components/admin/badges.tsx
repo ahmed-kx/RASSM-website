@@ -1,4 +1,10 @@
-import { ORDER_STATUS_LABELS, type AdminOrder, type OrderStatus } from "@rassm/shared";
+import {
+  ORDER_STATUS_LABELS,
+  PRODUCT_STATUS_LABELS,
+  type AdminOrder,
+  type OrderStatus,
+  type ProductStatus,
+} from "@rassm/shared";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
@@ -112,6 +118,32 @@ export function OrderFlags({
           Suspecte{withReasons && order.suspiciousReason ? ` : ${order.suspiciousReason}` : ""}
         </Pill>
       )}
+    </span>
+  );
+}
+
+const PRODUCT_TONE: Record<ProductStatus, Tone> = {
+  active: "success",
+  low: "warning",
+  out: "danger",
+  hidden: "sand",
+};
+
+/** Actif (green), Stock faible (ochre), Rupture (red), Masqué (beige). */
+export function ProductStatusBadge({ status }: { status: ProductStatus }) {
+  return <Pill tone={PRODUCT_TONE[status]}>{PRODUCT_STATUS_LABELS[status]}</Pill>;
+}
+
+/** Units left with a colored dot: green ok, ochre low (total at or below the threshold), red none. */
+export function StockLevel({ units, level }: { units: number; level: "ok" | "low" | "out" }) {
+  const color = level === "ok" ? "text-success" : level === "low" ? "text-warning" : "text-error";
+  const dot = level === "ok" ? "bg-success" : level === "low" ? "bg-warning" : "bg-error";
+  const label = level === "ok" ? "Stock suffisant" : level === "low" ? "Stock faible" : "Rupture";
+  return (
+    <span className={cn("inline-flex items-center gap-2 tabular-nums", color)} title={label}>
+      <span aria-hidden="true" className={cn("size-2.5 rounded-full", dot)} />
+      {units}
+      <span className="sr-only"> ({label})</span>
     </span>
   );
 }

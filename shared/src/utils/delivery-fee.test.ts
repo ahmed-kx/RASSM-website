@@ -399,18 +399,21 @@ describe("wilayas and Anderson fees", () => {
       homePrice: 400,
       stopDeskPrice: 250,
       estimatedDays: 1,
+      suspended: false,
     });
     expect(fee(50)).toEqual({
       wilayaCode: 50,
       homePrice: 1450,
       stopDeskPrice: null,
       estimatedDays: 10,
+      suspended: false,
     });
     expect(fee(56)).toEqual({
       wilayaCode: 56,
       homePrice: 1800,
       stopDeskPrice: 900,
       estimatedDays: 9,
+      suspended: false,
     });
   });
 });

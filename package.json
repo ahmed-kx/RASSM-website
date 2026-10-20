@@ -14,7 +14,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "seed": "pnpm --filter @rassm/backend seed",
-    "create-admin": "pnpm --filter @rassm/backend create-admin"
+    "create-admin": "pnpm --filter @rassm/backend create-admin",
+    "migrate-images": "pnpm --filter @rassm/backend migrate-images"
   },
   "devDependencies": {
     "prettier": "^3.9.10",

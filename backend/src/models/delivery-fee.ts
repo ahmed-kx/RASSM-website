@@ -8,6 +8,8 @@ const deliveryFeeMongooseSchema = new Schema<DeliveryFee>(
     homePrice: { type: Number, required: true, min: 0 },
     stopDeskPrice: { type: Number, default: null, min: 0 },
     estimatedDays: { type: Number, required: true, min: 1 },
+    /** Set in the dashboard: no new orders for this wilaya. */
+    suspended: { type: Boolean, default: false },
   },
   { timestamps: true, versionKey: false },
 );
@@ -20,6 +22,7 @@ export function toDeliveryFee(doc: DeliveryFee): DeliveryFee {
     homePrice: doc.homePrice,
     stopDeskPrice: doc.stopDeskPrice ?? null,
     estimatedDays: doc.estimatedDays,
+    suspended: doc.suspended ?? false,
   });
 }
 

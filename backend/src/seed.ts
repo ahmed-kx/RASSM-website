@@ -1,6 +1,6 @@
 import { mockDeliveryFees, mockProducts } from "@rassm/shared/mocks";
 import { DeliveryFeeModel } from "./models/delivery-fee";
-import { ProductModel, fromProduct } from "./models/product";
+import { ProductModel, ensureProductSkus, fromProduct } from "./models/product";
 
 export interface SeedResult {
   productsCreated: number;
@@ -18,9 +18,14 @@ export interface SeedResult {
  *   included) with the mock values.
  */
 export async function seedDatabase({ reset = false } = {}): Promise<SeedResult> {
+  // Prices are edited in the dashboard: only missing wilayas are added (reset overwrites).
   const feeResult = await DeliveryFeeModel.bulkWrite(
     mockDeliveryFees.map((fee) => ({
-      updateOne: { filter: { wilayaCode: fee.wilayaCode }, update: { $set: fee }, upsert: true },
+      updateOne: {
+        filter: { wilayaCode: fee.wilayaCode },
+        update: reset ? { $set: fee } : { $setOnInsert: fee },
+        upsert: true,
+      },
     })),
   );
 
@@ -36,8 +41,9 @@ export async function seedDatabase({ reset = false } = {}): Promise<SeedResult> 
       };
     }),
   );
-  // Indexes declared in the models (unique slug, order number…).
+  // Indexes declared in the models (unique slug and SKU, order number…).
   await Promise.all([ProductModel.syncIndexes(), DeliveryFeeModel.syncIndexes()]);
+  await ensureProductSkus();
 
   return {
     productsCreated: productResult.upsertedCount,

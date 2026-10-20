@@ -6,7 +6,7 @@ import { orderSearchFilter } from "./admin-orders";
 const LIMIT = 5;
 const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** Global search of the dashboard: orders (name, phone, order number) and products (name). */
+/** Global search of the dashboard: orders (name, phone, order number) and products (name, SKU). */
 export async function searchDashboard(q: string): Promise<AdminSearchResult> {
   if (q.length < 2) return { orders: [], products: [] };
   const [orders, products] = await Promise.all([
@@ -14,7 +14,12 @@ export async function searchDashboard(q: string): Promise<AdminSearchResult> {
       .sort({ createdAt: -1, _id: -1 })
       .limit(LIMIT)
       .lean<OrderDoc[]>(),
-    ProductModel.find({ name: { $regex: escapeRegex(q), $options: "i" } })
+    ProductModel.find({
+      $or: [
+        { name: { $regex: escapeRegex(q), $options: "i" } },
+        { sku: { $regex: `^${escapeRegex(q)}`, $options: "i" } },
+      ],
+    })
       .sort({ name: 1 })
       .limit(LIMIT)
       .lean(),
@@ -32,6 +37,7 @@ export async function searchDashboard(q: string): Promise<AdminSearchResult> {
     })),
     products: products.map((product) => ({
       id: String(product._id),
+      sku: product.sku ?? "",
       name: product.name,
       slug: product.slug,
       image: product.images[0] ?? "",

@@ -1,4 +1,4 @@
-import { apiErrorSchema } from "@rassm/shared";
+import { apiErrorSchema, type CacheTag } from "@rassm/shared";
 import type { z } from "zod";
 
 // HTTP client of the RASSM API. Server components read API_URL (server only) when it is
@@ -34,14 +34,15 @@ async function toApiError(response: Response): Promise<ApiError> {
 
 /**
  * GET, cached by Next for `revalidate` seconds (so stock and prices stay fresh without
- * calling the API on every visit). Returns null on 404.
+ * calling the API on every visit), and refreshed at once when the API revalidates one of
+ * its `tags` after a dashboard change. Returns null on 404.
  */
 export async function apiGet<T extends z.ZodType>(
   path: string,
   schema: T,
-  { revalidate }: { revalidate: number },
+  { revalidate, tags }: { revalidate: number; tags: CacheTag[] },
 ): Promise<z.output<T> | null> {
-  const response = await fetch(`${API_URL}${path}`, { next: { revalidate } });
+  const response = await fetch(`${API_URL}${path}`, { next: { revalidate, tags } });
   if (response.status === 404) return null;
   if (!response.ok) throw await toApiError(response);
   return schema.parse(await response.json());

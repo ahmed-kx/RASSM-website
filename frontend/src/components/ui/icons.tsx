@@ -428,3 +428,57 @@ export function CopyIcon(props: IconProps) {
     </LineIcon>
   );
 }
+
+export function LayersIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="m12 3.5 8.5 4.5-8.5 4.5L3.5 8z" />
+      <path d="m3.5 12 8.5 4.5 8.5-4.5M3.5 16l8.5 4.5 8.5-4.5" />
+    </LineIcon>
+  );
+}
+
+export function CoinsIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <ellipse cx="12" cy="6" rx="7" ry="2.5" />
+      <path d="M5 6v4c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V6M5 10v4c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5v-4M5 14v4c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5v-4" />
+    </LineIcon>
+  );
+}
+
+export function TrashIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="M4 6.5h16M9.5 6.5V4h5v2.5M6.5 6.5 7.5 20h9l1-13.5M10 10.5v6M14 10.5v6" />
+    </LineIcon>
+  );
+}
+
+export function GripIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path
+        d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01"
+        strokeWidth={2.5}
+        strokeLinecap="round"
+      />
+    </LineIcon>
+  );
+}
+
+export function UploadIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="M12 16.5v-12M7 9.5l5-5 5 5M4 20.5h16" />
+    </LineIcon>
+  );
+}
+
+export function ExternalIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="M13.5 4.5h6v6M19.5 4.5 11 13M17 14v5.5H4.5V7H10" />
+    </LineIcon>
+  );
+}

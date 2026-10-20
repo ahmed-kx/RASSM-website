@@ -1,5 +1,6 @@
 export * from "./constants/wilayas";
 export * from "./schemas/admin";
+export * from "./schemas/admin-product";
 export * from "./schemas/api";
 export * from "./schemas/common";
 export * from "./schemas/customer";
@@ -14,3 +15,4 @@ export * from "./utils/delivery-discount-format";
 export * from "./utils/delivery-fee";
 export * from "./utils/format-delivery-delay";
 export * from "./utils/format-price";
+export * from "./utils/slugify";

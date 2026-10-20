@@ -40,7 +40,8 @@ export type ExportOrder = Pick<
   | "total"
 >;
 
-export function andersonRow(order: ExportOrder): (string | number)[] {
+/** One line. The product description starts with its SKU when known ("RSM-H-001 Signature Hoodie…"). */
+export function andersonRow(order: ExportOrder, sku?: string): (string | number)[] {
   const wilaya = getWilaya(order.wilayaCode);
   return [
     order.orderNumber,
@@ -50,15 +51,17 @@ export function andersonRow(order: ExportOrder): (string | number)[] {
     order.commune,
     order.deliveryType === "home" ? order.address : "Stop desk (bureau Anderson)",
     order.deliveryType === "home" ? "Domicile" : "Stop desk",
-    `${order.item.name} - ${order.item.color} - Taille ${order.item.size} - x${order.item.quantity}`,
+    `${sku ? `${sku} ` : ""}${order.item.name} - ${order.item.color} - Taille ${order.item.size} - x${order.item.quantity}`,
     order.total,
   ];
 }
 
-export function buildAndersonCsv(orders: readonly ExportOrder[]): string {
-  const lines = [ANDERSON_COLUMNS, ...orders.map(andersonRow)].map((row) =>
-    row.map(csvCell).join(";"),
-  );
+export function buildAndersonCsv(
+  orders: readonly ExportOrder[],
+  skus: ReadonlyMap<string, string> = new Map(),
+): string {
+  const rows = orders.map((order) => andersonRow(order, skus.get(order.item.productId)));
+  const lines = [ANDERSON_COLUMNS, ...rows].map((row) => row.map(csvCell).join(";"));
   return `\uFEFF${lines.join("\r\n")}\r\n`;
 }
 

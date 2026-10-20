@@ -373,7 +373,9 @@ export async function editOrder(
     throw new HttpError(400, message, { color: message });
   }
 
-  const pricing = await priceOrder(product, edit, doc.item.unitPrice);
+  const pricing = await priceOrder(product, edit, doc.item.unitPrice, {
+    rejectSuspended: edit.wilayaCode !== doc.wilayaCode,
+  });
   const fields = {
     fullName: edit.fullName,
     phone: edit.phone,

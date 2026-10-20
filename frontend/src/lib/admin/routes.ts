@@ -6,6 +6,8 @@ export const adminRoutes = {
   order: (id: string) => `/admin/commandes/${id}`,
   blacklist: "/admin/liste-noire",
   products: "/admin/produits",
+  newProduct: "/admin/produits/nouveau",
+  product: (id: string) => `/admin/produits/${id}`,
   delivery: "/admin/livraison",
   messages: "/admin/messages",
   subscribers: "/admin/abonnes",

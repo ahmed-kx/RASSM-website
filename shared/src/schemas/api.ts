@@ -33,6 +33,16 @@ export const ADMIN_API_PATHS = {
   blacklist: "/api/admin/blacklist",
   blacklistEntry: (phone: string) => `/api/admin/blacklist/${encodeURIComponent(phone)}`,
   search: "/api/admin/search",
+  products: "/api/admin/products",
+  product: (id: string) => `/api/admin/products/${encodeURIComponent(id)}`,
+  productStock: (id: string) => `/api/admin/products/${encodeURIComponent(id)}/stock`,
+  productFlags: (id: string) => `/api/admin/products/${encodeURIComponent(id)}/flags`,
+  productDuplicate: (id: string) => `/api/admin/products/${encodeURIComponent(id)}/duplicate`,
+  uploads: "/api/admin/uploads",
+  deliveryFees: "/api/admin/delivery-fees",
+  deliveryFee: (code: number) => `/api/admin/delivery-fees/${code}`,
+  deliveryBulk: "/api/admin/delivery-fees/bulk",
+  settings: "/api/admin/settings",
 } as const;
 
 /** Name of the admin session cookie (httpOnly, set by the API). */
@@ -83,3 +93,14 @@ export const apiErrorSchema = z.object({
   }),
 });
 export type ApiErrorBody = z.infer<typeof apiErrorSchema>;
+
+/** Cache tags of the website pages that the API refreshes after a dashboard change. */
+export const CACHE_TAGS = ["products", "delivery-fees"] as const;
+export type CacheTag = (typeof CACHE_TAGS)[number];
+
+/** Header carrying the revalidation secret (API → website). */
+export const REVALIDATE_SECRET_HEADER = "x-revalidate-secret";
+
+export const revalidateRequestSchema = z.object({
+  tags: z.array(z.enum(CACHE_TAGS)).min(1).max(CACHE_TAGS.length),
+});

@@ -1,5 +1,8 @@
 import { createApp } from "./app";
 import { connectDatabase, disconnectDatabase } from "./db";
+import { createRevalidator } from "./lib/revalidate";
+import { ensureProductSkus } from "./models/product";
+import { createCloudinaryStorage } from "./services/image-storage";
 import { loadEnv } from "./env";
 import { describeError, logger } from "./lib/logger";
 import { createMetaEvents } from "./meta/conversions-api";
@@ -29,6 +32,21 @@ try {
   process.exit(1);
 }
 
+// Products created before SKUs existed get one (safe to re-run).
+const skusAdded = await ensureProductSkus();
+if (skusAdded > 0) logger.info("SKUs given to existing products", { count: skusAdded });
+
+const imageStorage =
+  env.CLOUDINARY_CLOUD_NAME && env.CLOUDINARY_API_KEY && env.CLOUDINARY_API_SECRET
+    ? createCloudinaryStorage({
+        cloudName: env.CLOUDINARY_CLOUD_NAME,
+        apiKey: env.CLOUDINARY_API_KEY,
+        apiSecret: env.CLOUDINARY_API_SECRET,
+        folder: env.CLOUDINARY_FOLDER,
+      })
+    : null;
+const revalidateUrl = env.REVALIDATE_URL ?? `${env.FRONTEND_ORIGIN[0]}/api/revalidate`;
+
 const app = createApp({
   frontendOrigins: env.FRONTEND_ORIGIN,
   trustProxy: env.TRUST_PROXY,
@@ -44,12 +62,22 @@ const app = createApp({
       : null,
   ),
   secureCookies: env.NODE_ENV === "production",
+  revalidator: createRevalidator(
+    env.REVALIDATE_SECRET ? { url: revalidateUrl, secret: env.REVALIDATE_SECRET } : null,
+  ),
+  imageStorage,
 });
 
 const server = app.listen(env.PORT, () => {
   logger.info(`API listening on http://localhost:${env.PORT}`, {
     allowedOrigins: env.FRONTEND_ORIGIN,
     metaConversionsApi: metaConfig ? "on" : "off (META_PIXEL_ID or META_CAPI_ACCESS_TOKEN not set)",
+    productPhotos: imageStorage
+      ? `on (Cloudinary, ${env.CLOUDINARY_FOLDER})`
+      : "off (CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY or CLOUDINARY_API_SECRET not set)",
+    websiteRefresh: env.REVALIDATE_SECRET
+      ? `on (${revalidateUrl})`
+      : "off (REVALIDATE_SECRET not set)",
     newOrderEmails: env.BREVO_API_KEY
       ? `on (to ${env.NOTIFY_EMAIL})`
       : "off (BREVO_API_KEY not set)",

@@ -1,5 +1,10 @@
 import {
   ADMIN_API_PATHS,
+  adminDeliveryFeesSchema,
+  adminProductDetailSchema,
+  adminProductListSchema,
+  adminSettingsSchema,
+  uploadedImageSchema,
   adminOrderListSchema,
   adminOrderSchema,
   adminOrderUpdatesSchema,
@@ -12,6 +17,13 @@ import {
   type AdminLogin,
   type AdminOrderEdit,
   type AdminOrderQuery,
+  type AdminProductFlags,
+  type AdminProductInput,
+  type AdminProductQuery,
+  type AdminSettings,
+  type AdminStockUpdate,
+  type DeliveryBulk,
+  type DeliveryFeeUpdate,
   type OrderStatus,
 } from "@rassm/shared";
 import { z } from "zod";
@@ -38,7 +50,11 @@ async function request(path: string, init: RequestInit = {}): Promise<Response> 
     response = await fetch(path, {
       ...init,
       credentials: "same-origin",
-      headers: { ...(init.body ? { "Content-Type": "application/json" } : {}), ...init.headers },
+      // JSON bodies are strings; a FormData (photo upload) sets its own multipart type.
+      headers: {
+        ...(typeof init.body === "string" ? { "Content-Type": "application/json" } : {}),
+        ...init.headers,
+      },
     });
   } catch {
     throw new ApiError(0, NETWORK_ERROR);
@@ -168,4 +184,109 @@ export async function removeFromBlacklist(phone: string) {
       method: "DELETE",
     })
   ).entries;
+}
+
+// ---------- Products ----------
+
+const queryString = (query: object) => {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined && value !== "") params.set(key, String(value));
+  }
+  return params.toString();
+};
+
+export function fetchAdminProducts(query: AdminProductQuery) {
+  return requestJson(`${ADMIN_API_PATHS.products}?${queryString(query)}`, adminProductListSchema);
+}
+
+export function fetchAdminProduct(id: string) {
+  return requestJson(ADMIN_API_PATHS.product(id), adminProductDetailSchema);
+}
+
+export function createAdminProduct(product: AdminProductInput) {
+  return requestJson(ADMIN_API_PATHS.products, adminProductDetailSchema, send("POST", { product }));
+}
+
+/** `updatedAt` of the loaded product: the API refuses the save if it changed meanwhile. */
+export function updateAdminProduct(id: string, product: AdminProductInput, updatedAt: string) {
+  return requestJson(
+    ADMIN_API_PATHS.product(id),
+    adminProductDetailSchema,
+    send("PUT", { product, updatedAt }),
+  );
+}
+
+export function updateProductStock(id: string, update: AdminStockUpdate) {
+  return requestJson(
+    ADMIN_API_PATHS.productStock(id),
+    adminProductDetailSchema,
+    send("PATCH", update),
+  );
+}
+
+export function setProductFlags(id: string, flags: AdminProductFlags) {
+  return requestJson(
+    ADMIN_API_PATHS.productFlags(id),
+    adminProductDetailSchema,
+    send("PATCH", flags),
+  );
+}
+
+export function duplicateAdminProduct(id: string) {
+  return requestJson(ADMIN_API_PATHS.productDuplicate(id), adminProductDetailSchema, {
+    method: "POST",
+  });
+}
+
+export async function deleteAdminProduct(id: string): Promise<void> {
+  await request(ADMIN_API_PATHS.product(id), { method: "DELETE" });
+}
+
+/** Uploads one photo to the image storage (through the API, which keeps the secret). */
+export async function uploadProductImage(file: File) {
+  const body = new FormData();
+  body.append("image", file);
+  const { image } = await requestJson(
+    ADMIN_API_PATHS.uploads,
+    z.object({ image: uploadedImageSchema }),
+    { method: "POST", body },
+  );
+  return image;
+}
+
+/** A photo removed before the product was saved (deleted unless something uses it). */
+export async function discardUploadedImage(url: string): Promise<void> {
+  await request(ADMIN_API_PATHS.uploads, send("DELETE", { url })).catch(() => undefined);
+}
+
+// ---------- Delivery prices ----------
+
+export function fetchAdminDeliveryFees() {
+  return requestJson(ADMIN_API_PATHS.deliveryFees, adminDeliveryFeesSchema);
+}
+
+/** `preview`: returns the result and the warnings without saving. */
+export function updateDeliveryFee(code: number, update: DeliveryFeeUpdate, preview = false) {
+  return requestJson(
+    `${ADMIN_API_PATHS.deliveryFee(code)}${preview ? "?apercu=1" : ""}`,
+    adminDeliveryFeesSchema,
+    send("PUT", update),
+  );
+}
+
+export function bulkUpdateDeliveryFees(bulk: DeliveryBulk, preview = false) {
+  return requestJson(
+    `${ADMIN_API_PATHS.deliveryBulk}${preview ? "?apercu=1" : ""}`,
+    adminDeliveryFeesSchema,
+    send("POST", bulk),
+  );
+}
+
+export function fetchAdminSettings() {
+  return requestJson(ADMIN_API_PATHS.settings, adminSettingsSchema);
+}
+
+export function saveAdminSettings(settings: AdminSettings) {
+  return requestJson(ADMIN_API_PATHS.settings, adminSettingsSchema, send("PUT", settings));
 }

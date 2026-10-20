@@ -1,5 +1,6 @@
 import {
   DeliveryTypeUnavailableError,
+  WILAYA_SUSPENDED_MESSAGE,
   getDeliveryFeeWithDiscount,
   getOrderSubtotal,
   type DeliveryFeeBreakdown,
@@ -34,7 +35,17 @@ export async function priceOrder(
   product: Product,
   input: PricingInput,
   unitPrice = product.price,
+  { rejectSuspended = true }: { rejectSuspended?: boolean } = {},
 ): Promise<Pricing> {
+  const deliveryFees = await loadDeliveryFees();
+  // A wilaya suspended in the dashboard takes no new orders (an admin edit that keeps the
+  // order's wilaya is still allowed).
+  if (
+    rejectSuspended &&
+    deliveryFees.find((fee) => fee.wilayaCode === input.wilayaCode)?.suspended
+  ) {
+    throw new HttpError(400, WILAYA_SUSPENDED_MESSAGE, { wilayaCode: WILAYA_SUSPENDED_MESSAGE });
+  }
   const item: OrderItem = {
     productId: product.id,
     color: input.color,
@@ -54,7 +65,7 @@ export async function priceOrder(
       deliveryType: input.deliveryType,
       items: [item],
       products: [product],
-      deliveryFees: await loadDeliveryFees(),
+      deliveryFees,
     });
     const subtotal = getOrderSubtotal(item);
     return { item, subtotal, delivery, total: subtotal + delivery.deliveryFee };

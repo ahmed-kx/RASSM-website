@@ -1,6 +1,6 @@
 "use client";
 
-import { formatDeliveryDelay, formatPrice } from "@rassm/shared";
+import { WILAYA_SUSPENDED_LABEL, formatDeliveryDelay, formatPrice } from "@rassm/shared";
 import { useId, useState } from "react";
 import { inputClasses } from "@/components/ui/form-field";
 import { CloseIcon } from "@/components/ui/icons";
@@ -63,6 +63,7 @@ export function DeliveryRates({ rates }: { rates: readonly DeliveryRate[] }) {
                 <span className="font-semibold text-ink">
                   <span className="mr-2 text-stone tabular-nums">{code(rate)}</span>
                   {rate.wilayaName}
+                  {rate.suspended && <Suspended />}
                 </span>
                 <span className="shrink-0 text-[13px] text-ash">
                   {formatDeliveryDelay(rate.estimatedDays)}
@@ -116,6 +117,7 @@ export function DeliveryRates({ rates }: { rates: readonly DeliveryRate[] }) {
                 <th scope="row" className="py-3 pr-4 font-normal text-ink">
                   <span className="mr-3 text-stone">{code(rate)}</span>
                   {rate.wilayaName}
+                  {rate.suspended && <Suspended />}
                 </th>
                 <td className="py-3 pr-4 text-ash">{formatDeliveryDelay(rate.estimatedDays)}</td>
                 <td className="py-3 pr-4 text-right text-ink">{formatPrice(rate.homePrice)}</td>
@@ -133,5 +135,14 @@ export function DeliveryRates({ rates }: { rates: readonly DeliveryRate[] }) {
         </table>
       </div>
     </div>
+  );
+}
+
+/** A wilaya paused in the dashboard: no orders for now. */
+function Suspended() {
+  return (
+    <span className="mt-0.5 block text-[12px] font-normal text-error">
+      {WILAYA_SUSPENDED_LABEL}
+    </span>
   );
 }

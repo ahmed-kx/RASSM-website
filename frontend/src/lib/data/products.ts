@@ -3,7 +3,8 @@ import { z } from "zod";
 import { apiGet } from "@/lib/api";
 
 // Data access for products, from the API. Pages are server-rendered with a short cache,
-// so stock and prices stay fresh; the API checks the stock again on every order.
+// refreshed at once after a dashboard change ("products" tag); the API checks the stock again
+// on every order.
 
 /** Seconds Next keeps a product response before asking the API again. */
 const PRODUCTS_REVALIDATE = 30;
@@ -15,6 +16,7 @@ const productResponseSchema = z.object({ product: productSchema });
 export async function getProducts(): Promise<Product[]> {
   const data = await apiGet(API_PATHS.products, productListSchema, {
     revalidate: PRODUCTS_REVALIDATE,
+    tags: ["products"],
   });
   return data?.products ?? [];
 }
@@ -27,6 +29,7 @@ export async function getFeaturedProducts(limit = 5): Promise<Product[]> {
 export async function getProductBySlug(slug: string): Promise<Product | undefined> {
   const data = await apiGet(API_PATHS.product(slug), productResponseSchema, {
     revalidate: PRODUCTS_REVALIDATE,
+    tags: ["products"],
   });
   return data?.product;
 }

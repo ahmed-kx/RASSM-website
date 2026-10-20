@@ -4,7 +4,7 @@ import { apiGet } from "@/lib/api";
 
 // Data access for the delivery fee table (Anderson rates), from the API.
 
-/** The rates change rarely: Next asks the API again after 5 minutes. */
+/** Next asks the API again after 5 minutes, or at once after a change in the dashboard. */
 const DELIVERY_FEES_REVALIDATE = 300;
 
 const deliveryFeesResponseSchema = z.object({ deliveryFees: z.array(deliveryFeeSchema) });
@@ -12,6 +12,7 @@ const deliveryFeesResponseSchema = z.object({ deliveryFees: z.array(deliveryFeeS
 export async function getDeliveryFees(): Promise<DeliveryFee[]> {
   const data = await apiGet(API_PATHS.deliveryFees, deliveryFeesResponseSchema, {
     revalidate: DELIVERY_FEES_REVALIDATE,
+    tags: ["delivery-fees"],
   });
   return data?.deliveryFees ?? [];
 }

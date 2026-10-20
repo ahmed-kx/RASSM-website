@@ -22,22 +22,26 @@ pnpm dev                               # website on :3000 and API on :4000
 
 Validated at startup (`src/env.ts`): the API refuses to start and lists what is wrong.
 
-| Variable                 | Required | Example / default                                                                       |
-| ------------------------ | -------- | --------------------------------------------------------------------------------------- |
-| `MONGODB_URI`            | yes      | `mongodb+srv://user:pass@cluster0.xxx.mongodb.net/rassm`                                |
-| `MONGODB_DB_NAME`        | no       | `rassm` (database inside the cluster)                                                   |
-| `DNS_FALLBACK_SERVERS`   | no       | `1.1.1.1,8.8.8.8` (Atlas lookup when this computer's DNS refuses it; empty = none)      |
-| `FRONTEND_ORIGIN`        | yes      | `http://localhost:3000` (comma-separated list)                                          |
-| `PORT`                   | no       | `4000`                                                                                  |
-| `TRUST_PROXY`            | no       | `0`; set to the number of proxies of the host (often `1`) so the real client IP is used |
-| `META_PIXEL_ID`          | no       | Same ID as `NEXT_PUBLIC_META_PIXEL_ID`                                                  |
-| `META_CAPI_ACCESS_TOKEN` | no       | Events Manager > Pixel > Settings > Conversions API                                     |
-| `META_TEST_EVENT_CODE`   | no       | Events Manager "Test events" code                                                       |
-| `META_GRAPH_API_VERSION` | no       | `v23.0`                                                                                 |
-| `BREVO_API_KEY`          | no       | Brevo > SMTP & API > API keys (empty = no e-mail)                                       |
-| `NOTIFY_EMAIL`           | no       | `rassmwear@gmail.com`                                                                   |
-| `EMAIL_FROM`             | no       | `rassmwear@gmail.com` (validated sender in Brevo)                                       |
-| `ADMIN_URL`              | no       | `http://localhost:3000/admin`                                                           |
+| Variable                                                               | Required | Example / default                                                                         |
+| ---------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------- |
+| `MONGODB_URI`                                                          | yes      | `mongodb+srv://user:pass@cluster0.xxx.mongodb.net/rassm`                                  |
+| `MONGODB_DB_NAME`                                                      | no       | `rassm` (database inside the cluster)                                                     |
+| `DNS_FALLBACK_SERVERS`                                                 | no       | `1.1.1.1,8.8.8.8` (Atlas lookup when this computer's DNS refuses it; empty = none)        |
+| `FRONTEND_ORIGIN`                                                      | yes      | `http://localhost:3000` (comma-separated list)                                            |
+| `PORT`                                                                 | no       | `4000`                                                                                    |
+| `TRUST_PROXY`                                                          | no       | `0`; set to the number of proxies of the host (often `1`) so the real client IP is used   |
+| `META_PIXEL_ID`                                                        | no       | Same ID as `NEXT_PUBLIC_META_PIXEL_ID`                                                    |
+| `META_CAPI_ACCESS_TOKEN`                                               | no       | Events Manager > Pixel > Settings > Conversions API                                       |
+| `META_TEST_EVENT_CODE`                                                 | no       | Events Manager "Test events" code                                                         |
+| `META_GRAPH_API_VERSION`                                               | no       | `v23.0`                                                                                   |
+| `BREVO_API_KEY`                                                        | no       | Brevo > SMTP & API > API keys (empty = no e-mail)                                         |
+| `NOTIFY_EMAIL`                                                         | no       | `rassmwear@gmail.com`                                                                     |
+| `EMAIL_FROM`                                                           | no       | `rassmwear@gmail.com` (validated sender in Brevo)                                         |
+| `ADMIN_URL`                                                            | no       | `http://localhost:3000/admin`                                                             |
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | no       | Cloudinary > Settings > API Keys (empty = photo uploads off). The secret stays on the API |
+| `CLOUDINARY_FOLDER`                                                    | no       | `rassm/products`                                                                          |
+| `REVALIDATE_SECRET`                                                    | no       | Same 24+ character value as the frontend `REVALIDATE_SECRET` (empty = no instant refresh) |
+| `REVALIDATE_URL`                                                       | no       | Default: first `FRONTEND_ORIGIN` + `/api/revalidate`                                      |
 
 Never commit `.env`. On MongoDB Atlas, allow the IP address of the server (or of your
 computer in development) in **Network Access**.
@@ -52,8 +56,10 @@ outages after startup are answered with a French 503, never a generic error.
 
 `pnpm seed` loads the catalog and the 58 Anderson delivery fees from `@rassm/shared/mocks`
 and creates the indexes. It is safe to re-run: missing products are created, existing
-products are left as they are (real stock is kept), delivery fees are updated.
-`pnpm seed --reset` overwrites the existing products (stock included) with the mock values.
+products are left as they are (real stock is kept), missing wilayas are added and existing
+delivery prices are kept (they are edited in the dashboard). Products without a SKU get one.
+`pnpm seed --reset` overwrites the existing products (stock included) and the delivery prices
+with the mock values.
 
 ## API
 
@@ -105,21 +111,38 @@ Run it again with the same e-mail to set a new password (the open sessions are c
 (Next.js rewrites it to the API), with an httpOnly SameSite=Strict session cookie (Secure in production).
 Five wrong passwords in a row lock the account for 15 minutes.
 
-| Route                                                                 | What it does                                                                                                 |
-| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `POST /api/admin/auth/login` / `logout`                               | Session cookie in / out                                                                                      |
-| `GET /api/admin/auth/me`                                              | The logged-in admin                                                                                          |
-| `GET /api/admin/search?q=`                                            | Top bar search: orders (name, phone, order number) and products                                              |
-| `GET /api/admin/orders`                                               | List: `status` tab, `q` (name, phone or "RSM-000123"), `wilaya`, `from`, `to`, `page` (or `cursor`), `limit` |
-| `GET /api/admin/orders/updates?since=`                                | New orders since the last poll (live dashboard)                                                              |
-| `GET /api/admin/orders/:id`                                           | One order (marks it opened) and its product                                                                  |
-| `PATCH /api/admin/orders/:id`                                         | Edit before shipping (totals and stock recomputed)                                                           |
-| `POST /api/admin/orders/:id/status`                                   | Allowed status changes only; stock given back once                                                           |
-| `PUT /api/admin/orders/:id/note`                                      | Internal note                                                                                                |
-| `POST /api/admin/orders/:id/blacklist`                                | Blacklist the order's phone                                                                                  |
-| `POST /api/admin/orders/export`                                       | Anderson CSV of confirmed orders (`ids` or `all`)                                                            |
-| `POST /api/admin/orders/ship`                                         | Mark exported orders as shipped                                                                              |
-| `GET/POST /api/admin/blacklist`, `DELETE /api/admin/blacklist/:phone` | Blacklist                                                                                                    |
+| Route                                                                                                      | What it does                                                                                                 |
+| ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `POST /api/admin/auth/login` / `logout`                                                                    | Session cookie in / out                                                                                      |
+| `GET /api/admin/auth/me`                                                                                   | The logged-in admin                                                                                          |
+| `GET /api/admin/search?q=`                                                                                 | Top bar search: orders (name, phone, order number) and products                                              |
+| `GET /api/admin/orders`                                                                                    | List: `status` tab, `q` (name, phone or "RSM-000123"), `wilaya`, `from`, `to`, `page` (or `cursor`), `limit` |
+| `GET /api/admin/orders/updates?since=`                                                                     | New orders since the last poll (live dashboard)                                                              |
+| `GET /api/admin/orders/:id`                                                                                | One order (marks it opened) and its product                                                                  |
+| `PATCH /api/admin/orders/:id`                                                                              | Edit before shipping (totals and stock recomputed)                                                           |
+| `POST /api/admin/orders/:id/status`                                                                        | Allowed status changes only; stock given back once                                                           |
+| `PUT /api/admin/orders/:id/note`                                                                           | Internal note                                                                                                |
+| `POST /api/admin/orders/:id/blacklist`                                                                     | Blacklist the order's phone                                                                                  |
+| `POST /api/admin/orders/export`                                                                            | Anderson CSV of confirmed orders (`ids` or `all`)                                                            |
+| `POST /api/admin/orders/ship`                                                                              | Mark exported orders as shipped                                                                              |
+| `GET/POST /api/admin/blacklist`, `DELETE /api/admin/blacklist/:phone`                                      | Blacklist                                                                                                    |
+| `GET/POST /api/admin/products`                                                                             | Products list (filters, tab counts, KPIs) / create (SKU and id made by the API)                              |
+| `GET/PUT/DELETE /api/admin/products/:id`                                                                   | One product (+ `updatedAt` for the save) / edit / delete (refused with orders: hide it)                      |
+| `PATCH /api/admin/products/:id/stock`, `/flags`; `POST /api/admin/products/:id/duplicate`                  | Stock grid; visible / featured; hidden copy with stock 0                                                     |
+| `POST/DELETE /api/admin/uploads`                                                                           | One product photo to Cloudinary (field `image`, JPG/PNG/WebP, 8 MB) / delete an unused one                   |
+| `GET /api/admin/delivery-fees`, `PUT /api/admin/delivery-fees/:code`, `POST /api/admin/delivery-fees/bulk` | Delivery prices, stop desk, suspension; bulk ± X DA / suspend / reactivate; `?apercu=1` previews             |
+| `GET /api/admin/settings`, `PUT /api/admin/settings`                                                       | Dashboard settings: "Stock faible" threshold (total units, default 10)                                       |
+
+### Product photos (Cloudinary) and instant page refresh
+
+With the three Cloudinary variables set, the dashboard uploads photos through the API (signed:
+the secret never reaches the browser). They are checked (JPG, PNG or WebP from the file's bytes,
+8 MB), stored resized to 2 000 px as compressed WebP, and deleted from Cloudinary once no product
+and no order uses them. `pnpm migrate-images` moves the photos still in
+`frontend/public/images/products` to Cloudinary and updates the products (safe to re-run).
+
+With `REVALIDATE_SECRET` set (same value in the frontend), every product or delivery change asks
+the website (`POST /api/revalidate`) to refresh its pages at once.
 
 ### New order e-mails
 
