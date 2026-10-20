@@ -121,8 +121,10 @@ export async function listProducts(
     loadSettings(),
   ]);
   const products = docs.map(toProduct);
+  const costs = new Map(docs.map((doc) => [doc._id, doc.costPrice ?? null]));
   const rows: AdminProductRow[] = products.map((product) => ({
     ...product,
+    costPrice: costs.get(product.id) ?? null,
     stockTotal: getTotalStock(product),
     status: getProductStatus(product, lowStockThreshold),
     orderCount: counts.get(product.id) ?? 0,
@@ -165,6 +167,7 @@ async function loadDoc(id: string): Promise<ProductDoc> {
 
 const detailOf = async (doc: ProductDoc): Promise<AdminProductDetail> => ({
   product: toProduct(doc),
+  costPrice: doc.costPrice ?? null,
   orderCount: await OrderModel.countDocuments({ "item.productId": doc._id }),
   updatedAt: (doc.updatedAt ?? doc.createdAt).toISOString(),
 });
@@ -215,7 +218,11 @@ export async function createProduct(
   if (await ProductModel.exists({ slug: input.slug })) {
     throw new HttpError(409, SLUG_TAKEN, { slug: SLUG_TAKEN });
   }
-  const doc = await insertProduct({ ...input, images: productImagesOf(input) });
+  const doc = await insertProduct({
+    ...input,
+    costPrice: input.costPrice ?? null,
+    images: productImagesOf(input),
+  });
   logger.info("Product created", { id: doc._id, sku: doc.sku });
   services.revalidator.revalidate(["products"]);
   return detailOf(doc);
@@ -266,7 +273,7 @@ export async function updateProduct(
   // Only if nothing changed since it was read (an order may have taken stock meanwhile).
   const updated = await ProductModel.findOneAndUpdate(
     { _id: id, updatedAt: doc.updatedAt ?? null },
-    { $set: { ...input, images: productImagesOf(input) } },
+    { $set: { ...input, costPrice: input.costPrice ?? null, images: productImagesOf(input) } },
     { returnDocument: "after", runValidators: true },
   ).lean<ProductDoc>();
   if (!updated) throw new HttpError(409, CHANGED);
@@ -349,6 +356,7 @@ export async function duplicateProduct(
     description: doc.description,
     category: doc.category,
     price: doc.price,
+    costPrice: doc.costPrice ?? null,
     images: [...doc.images],
     colors: doc.colors.map((color) => ({
       name: color.name,

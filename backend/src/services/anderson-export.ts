@@ -1,8 +1,8 @@
 import { formatWilaya, getWilaya } from "@rassm/shared";
+import { buildCsv, csvFileName, formatPhoneForCsv } from "../lib/csv";
 import type { OrderDoc } from "../models/order";
 
-// Courier file for Anderson: one line per confirmed order, opened directly by Excel
-// (UTF-8 with BOM, ";" separator as in French Excel).
+// Courier file for Anderson: one line per confirmed order, opened directly by Excel.
 
 export const ANDERSON_COLUMNS = [
   "Référence",
@@ -15,17 +15,6 @@ export const ANDERSON_COLUMNS = [
   "Produit",
   "Montant à encaisser (DA)",
 ] as const;
-
-/** "0555123456" → "0555 12 34 56": with spaces Excel keeps the leading 0 (text, not a number). */
-const formatPhone = (phone: string) =>
-  phone.replace(/^(\d{4})(\d{2})(\d{2})(\d{2})$/, "$1 $2 $3 $4");
-
-/** Quotes a value; a leading = + - @ is neutralised so Excel never runs it as a formula. */
-function csvCell(value: string | number): string {
-  let text = String(value).replace(/\r?\n/g, " ");
-  if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
-  return /[";\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-}
 
 export type ExportOrder = Pick<
   OrderDoc,
@@ -46,7 +35,7 @@ export function andersonRow(order: ExportOrder, sku?: string): (string | number)
   return [
     order.orderNumber,
     order.fullName,
-    formatPhone(order.phone),
+    formatPhoneForCsv(order.phone),
     wilaya ? formatWilaya(wilaya) : order.wilayaCode,
     order.commune,
     order.deliveryType === "home" ? order.address : "Stop desk (bureau Anderson)",
@@ -60,13 +49,13 @@ export function buildAndersonCsv(
   orders: readonly ExportOrder[],
   skus: ReadonlyMap<string, string> = new Map(),
 ): string {
-  const rows = orders.map((order) => andersonRow(order, skus.get(order.item.productId)));
-  const lines = [ANDERSON_COLUMNS, ...rows].map((row) => row.map(csvCell).join(";"));
-  return `\uFEFF${lines.join("\r\n")}\r\n`;
+  return buildCsv(
+    ANDERSON_COLUMNS,
+    orders.map((order) => andersonRow(order, skus.get(order.item.productId))),
+  );
 }
 
 /** anderson-2026-10-19.csv (Algiers date). */
 export function andersonFileName(now = new Date()): string {
-  const date = new Date(now.getTime() + 60 * 60 * 1000).toISOString().slice(0, 10);
-  return `anderson-${date}.csv`;
+  return csvFileName("anderson", now);
 }

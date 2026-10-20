@@ -1,15 +1,20 @@
 import { SIZES, type AdminSearchResult } from "@rassm/shared";
 import { OrderModel, type OrderDoc } from "../models/order";
 import { ProductModel } from "../models/product";
+import { searchClients } from "./admin-clients";
 import { orderSearchFilter } from "./admin-orders";
 
 const LIMIT = 5;
 const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** Global search of the dashboard: orders (name, phone, order number) and products (name, SKU). */
+/**
+ * Global search of the dashboard: clients (name, phone), orders (name, phone, order number)
+ * and products (name, SKU).
+ */
 export async function searchDashboard(q: string): Promise<AdminSearchResult> {
-  if (q.length < 2) return { orders: [], products: [] };
-  const [orders, products] = await Promise.all([
+  if (q.length < 2) return { clients: [], orders: [], products: [] };
+  const [clients, orders, products] = await Promise.all([
+    searchClients(q, LIMIT),
     OrderModel.find(orderSearchFilter(q))
       .sort({ createdAt: -1, _id: -1 })
       .limit(LIMIT)
@@ -25,6 +30,7 @@ export async function searchDashboard(q: string): Promise<AdminSearchResult> {
       .lean(),
   ]);
   return {
+    clients,
     orders: orders.map((order) => ({
       id: order._id.toString(),
       orderNumber: order.orderNumber,

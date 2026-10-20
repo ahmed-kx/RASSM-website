@@ -19,6 +19,18 @@
   --color-rose: #8e3b54; /* admin: "Retournée" pill (muted rose) */
   --color-sand: #e9dfcd; /* admin: "Nouvelle" pill and unopened rows (beige) */
 
+  /* Admin charts: order statuses (checked for colour-blind separation, in this order). */
+  --color-chart-pending: #b08a3e;
+  --color-chart-confirmed: #4f7a43;
+  --color-chart-shipped: #3e6694;
+  --color-chart-delivered: #2e2c2a;
+  --color-chart-cancelled: #a4392b;
+  --color-chart-returned: #b8708a;
+  /* Admin charts: one series (sales area, bars). */
+  --color-chart-series: #3a3937;
+  --color-chart-fill: #e3d9c8;
+  --color-chart-grid: #e6e1d7;
+
   --animate-slide-in-up: slide-in-up 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
   --animate-fade-in: fade-in 200ms ease-out;
   --animate-slide-in-left: slide-in-left 260ms cubic-bezier(0.2, 0.8, 0.2, 1);

@@ -17,6 +17,8 @@ const MUTED_KEY = "rassm-admin-muted";
 interface LiveOrdersValue {
   /** Pending orders nobody has opened yet. */
   unopened: number;
+  /** Contact messages not read yet (not archived). */
+  unreadMessages: number;
   muted: boolean;
   toggleMuted: () => void;
   notificationPermission: NotificationPermission | "unsupported";
@@ -86,6 +88,21 @@ export function LiveOrdersProvider({ children }: { children: ReactNode }) {
     staleTime: 0,
   });
 
+  // A new contact message (the unread counter went up): a toast and the messages list refresh.
+  const lastUnread = useRef<number | null>(null);
+  useEffect(() => {
+    if (data === undefined) return;
+    const previous = lastUnread.current;
+    lastUnread.current = data.unreadMessages;
+    if (previous === null || data.unreadMessages <= previous) return;
+    void queryClient.invalidateQueries({ queryKey: ["admin", "messages"] });
+    showToast({
+      title: "Nouveau message",
+      message: "Un message est arrivé depuis la page Contact.",
+      href: adminRoutes.messages,
+    });
+  }, [data, queryClient, showToast]);
+
   const mutedRef = useRef(muted);
   useEffect(() => {
     mutedRef.current = muted;
@@ -131,6 +148,7 @@ export function LiveOrdersProvider({ children }: { children: ReactNode }) {
 
   const value: LiveOrdersValue = {
     unopened: data?.unopened ?? 0,
+    unreadMessages: data?.unreadMessages ?? 0,
     muted,
     toggleMuted: () => {
       setMuted((current) => {

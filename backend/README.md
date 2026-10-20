@@ -35,6 +35,7 @@ Validated at startup (`src/env.ts`): the API refuses to start and lists what is 
 | `META_TEST_EVENT_CODE`                                                 | no       | Events Manager "Test events" code                                                         |
 | `META_GRAPH_API_VERSION`                                               | no       | `v23.0`                                                                                   |
 | `BREVO_API_KEY`                                                        | no       | Brevo > SMTP & API > API keys (empty = no e-mail)                                         |
+| `BREVO_NEWSLETTER_LIST_ID`                                             | no       | Brevo > Contacts > Lists: the list ID (empty = subscribers stay on the site)              |
 | `NOTIFY_EMAIL`                                                         | no       | `rassmwear@gmail.com`                                                                     |
 | `EMAIL_FROM`                                                           | no       | `rassmwear@gmail.com` (validated sender in Brevo)                                         |
 | `ADMIN_URL`                                                            | no       | `http://localhost:3000/admin`                                                             |
@@ -111,27 +112,32 @@ Run it again with the same e-mail to set a new password (the open sessions are c
 (Next.js rewrites it to the API), with an httpOnly SameSite=Strict session cookie (Secure in production).
 Five wrong passwords in a row lock the account for 15 minutes.
 
-| Route                                                                                                      | What it does                                                                                                 |
-| ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `POST /api/admin/auth/login` / `logout`                                                                    | Session cookie in / out                                                                                      |
-| `GET /api/admin/auth/me`                                                                                   | The logged-in admin                                                                                          |
-| `GET /api/admin/search?q=`                                                                                 | Top bar search: orders (name, phone, order number) and products                                              |
-| `GET /api/admin/orders`                                                                                    | List: `status` tab, `q` (name, phone or "RSM-000123"), `wilaya`, `from`, `to`, `page` (or `cursor`), `limit` |
-| `GET /api/admin/orders/updates?since=`                                                                     | New orders since the last poll (live dashboard)                                                              |
-| `GET /api/admin/orders/:id`                                                                                | One order (marks it opened) and its product                                                                  |
-| `PATCH /api/admin/orders/:id`                                                                              | Edit before shipping (totals and stock recomputed)                                                           |
-| `POST /api/admin/orders/:id/status`                                                                        | Allowed status changes only; stock given back once                                                           |
-| `PUT /api/admin/orders/:id/note`                                                                           | Internal note                                                                                                |
-| `POST /api/admin/orders/:id/blacklist`                                                                     | Blacklist the order's phone                                                                                  |
-| `POST /api/admin/orders/export`                                                                            | Anderson CSV of confirmed orders (`ids` or `all`)                                                            |
-| `POST /api/admin/orders/ship`                                                                              | Mark exported orders as shipped                                                                              |
-| `GET/POST /api/admin/blacklist`, `DELETE /api/admin/blacklist/:phone`                                      | Blacklist                                                                                                    |
-| `GET/POST /api/admin/products`                                                                             | Products list (filters, tab counts, KPIs) / create (SKU and id made by the API)                              |
-| `GET/PUT/DELETE /api/admin/products/:id`                                                                   | One product (+ `updatedAt` for the save) / edit / delete (refused with orders: hide it)                      |
-| `PATCH /api/admin/products/:id/stock`, `/flags`; `POST /api/admin/products/:id/duplicate`                  | Stock grid; visible / featured; hidden copy with stock 0                                                     |
-| `POST/DELETE /api/admin/uploads`                                                                           | One product photo to Cloudinary (field `image`, JPG/PNG/WebP, 8 MB) / delete an unused one                   |
-| `GET /api/admin/delivery-fees`, `PUT /api/admin/delivery-fees/:code`, `POST /api/admin/delivery-fees/bulk` | Delivery prices, stop desk, suspension; bulk ± X DA / suspend / reactivate; `?apercu=1` previews             |
-| `GET /api/admin/settings`, `PUT /api/admin/settings`                                                       | Dashboard settings: "Stock faible" threshold (total units, default 10)                                       |
+| Route                                                                                                        | What it does                                                                                                 |
+| ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| `POST /api/admin/auth/login` / `logout`                                                                      | Session cookie in / out                                                                                      |
+| `GET /api/admin/auth/me`                                                                                     | The logged-in admin                                                                                          |
+| `GET /api/admin/search?q=`                                                                                   | Top bar search: orders (name, phone, order number) and products                                              |
+| `GET /api/admin/orders`                                                                                      | List: `status` tab, `q` (name, phone or "RSM-000123"), `wilaya`, `from`, `to`, `page` (or `cursor`), `limit` |
+| `GET /api/admin/orders/updates?since=`                                                                       | New orders since the last poll (live dashboard)                                                              |
+| `GET /api/admin/orders/:id`                                                                                  | One order (marks it opened) and its product                                                                  |
+| `PATCH /api/admin/orders/:id`                                                                                | Edit before shipping (totals and stock recomputed)                                                           |
+| `POST /api/admin/orders/:id/status`                                                                          | Allowed status changes only; stock given back once                                                           |
+| `PUT /api/admin/orders/:id/note`                                                                             | Internal note                                                                                                |
+| `POST /api/admin/orders/:id/blacklist`                                                                       | Blacklist the order's phone                                                                                  |
+| `POST /api/admin/orders/export`                                                                              | Anderson CSV of confirmed orders (`ids` or `all`)                                                            |
+| `POST /api/admin/orders/ship`                                                                                | Mark exported orders as shipped                                                                              |
+| `GET/POST /api/admin/blacklist`, `DELETE /api/admin/blacklist/:phone`                                        | Blacklist                                                                                                    |
+| `GET/POST /api/admin/products`                                                                               | Products list (filters, tab counts, KPIs) / create (SKU and id made by the API)                              |
+| `GET/PUT/DELETE /api/admin/products/:id`                                                                     | One product (+ `updatedAt` for the save) / edit / delete (refused with orders: hide it)                      |
+| `PATCH /api/admin/products/:id/stock`, `/flags`; `POST /api/admin/products/:id/duplicate`                    | Stock grid; visible / featured; hidden copy with stock 0                                                     |
+| `POST/DELETE /api/admin/uploads`                                                                             | One product photo to Cloudinary (field `image`, JPG/PNG/WebP, 8 MB) / delete an unused one                   |
+| `GET /api/admin/delivery-fees`, `PUT /api/admin/delivery-fees/:code`, `POST /api/admin/delivery-fees/bulk`   | Delivery prices, stop desk, suspension; bulk ± X DA / suspend / reactivate; `?apercu=1` previews             |
+| `GET /api/admin/settings`, `PUT /api/admin/settings`                                                         | Dashboard settings: "Stock faible" threshold (total units, default 10)                                       |
+| `GET /api/admin/stats?from=&to=`                                                                             | Tableau de bord: KPIs with trends, sales chart, statuses, latest orders, best sellers, performance, ads      |
+| `GET/POST /api/admin/ads`, `PUT/DELETE /api/admin/ads/:id`                                                   | Ads spend entries (spread per day) and the figures of a period                                               |
+| `GET /api/admin/clients`, `/clients/export`, `/clients/:phone`                                               | Clients grouped by phone, badges, CSV, detail                                                                |
+| `GET /api/admin/messages`, `GET/PATCH/DELETE /api/admin/messages/:id`                                        | Contact messages: folders, read / archive, delete                                                            |
+| `GET /api/admin/subscribers`, `/subscribers/export`, `POST /subscribers/:id/sync`, `DELETE /subscribers/:id` | Newsletter subscribers, CSV, Brevo retry, delete                                                             |
 
 ### Product photos (Cloudinary) and instant page refresh
 
@@ -144,11 +150,24 @@ and no order uses them. `pnpm migrate-images` moves the photos still in
 With `REVALIDATE_SECRET` set (same value in the frontend), every product or delivery change asks
 the website (`POST /api/revalidate`) to refresh its pages at once.
 
-### New order e-mails
+### Team e-mails and newsletter (Brevo)
 
-With `BREVO_API_KEY` set, each real new order (not a honeypot or a duplicate) sends a French e-mail to
-`NOTIFY_EMAIL` from `EMAIL_FROM` (a sender validated in Brevo), with a link to the order (`ADMIN_URL`).
-Sent in the background: a Brevo failure is logged and never blocks the order.
+With `BREVO_API_KEY` set, each real new order (not a honeypot or a duplicate) and each new contact
+message sends a French e-mail to `NOTIFY_EMAIL` from `EMAIL_FROM` (a sender validated in Brevo), with
+a link to the order or the message (`ADMIN_URL`). Sent in the background: a Brevo failure is logged
+and never blocks the order or the message.
+
+With `BREVO_NEWSLETTER_LIST_ID` set too, every newsletter sign-up is added to that Brevo list in the
+background, and deleting a subscriber in the dashboard removes it from the list (the status of each
+subscriber is shown in "Abonnés", with "Réessayer"). `pnpm sync-newsletter` adds the subscribers
+not yet in the list (safe to re-run). Newsletters are written and sent from Brevo.
+
+### Statistics
+
+The Tableau de bord and Publicité figures are MongoDB aggregations over the orders (by order date,
+Algeria time), the products and the ads spend; see "Statistics, profit and ads" in CLAUDE.md for
+every formula. Cost prices are copied on each order when it is placed, packaging and return costs
+when it becomes delivered or returned, so later changes never rewrite past profit.
 
 ## Tests
 

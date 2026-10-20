@@ -220,6 +220,8 @@ describe("admin products", () => {
     const agent = await adminAgent(app);
     expect((await agent.get("/api/admin/settings").expect(200)).body).toEqual({
       lowStockThreshold: 10,
+      packagingCost: 0,
+      returnCost: 0,
     });
     // 9 units in total (one size with a single unit): low at the default threshold of 10.
     const created = await create(agent, {
@@ -233,7 +235,7 @@ describe("admin products", () => {
     expect(await statusOf()).toBe("low");
 
     const saved = await agent.put("/api/admin/settings").send({ lowStockThreshold: 5 }).expect(200);
-    expect(saved.body).toEqual({ lowStockThreshold: 5 });
+    expect(saved.body).toEqual({ lowStockThreshold: 5, packagingCost: 0, returnCost: 0 });
     const list = await agent.get("/api/admin/products?limit=50").expect(200);
     expect(list.body.lowStockThreshold).toBe(5);
     expect(await statusOf()).toBe("active");

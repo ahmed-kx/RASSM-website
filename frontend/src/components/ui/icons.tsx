@@ -482,3 +482,82 @@ export function ExternalIcon(props: IconProps) {
     </LineIcon>
   );
 }
+
+export function MegaphoneIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="M4 10v4h3l9 4.5V5.5L7 10z" />
+      <path d="M7 14l1.5 5h3L10 15M19 9.5v5" />
+    </LineIcon>
+  );
+}
+
+export function GearIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8" />
+    </LineIcon>
+  );
+}
+
+export function UserIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <circle cx="12" cy="8.5" r="3.5" />
+      <path d="M5 20c.8-3.6 3.5-5.5 7-5.5s6.2 1.9 7 5.5" />
+    </LineIcon>
+  );
+}
+
+export function InfoIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 11v5.5M12 7.5v.5" />
+    </LineIcon>
+  );
+}
+
+export function CalendarIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="M4.5 6.5h15v13h-15zM4.5 10.5h15M8.5 4v4M15.5 4v4" />
+    </LineIcon>
+  );
+}
+
+export function ChartIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="M4 20h16M4 20V4" />
+      <path d="M7.5 15.5l4-4.5 3 3 5-6" />
+    </LineIcon>
+  );
+}
+
+export function AlertIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="M12 4l9 16H3z" />
+      <path d="M12 10v4.5M12 16.8v.4" />
+    </LineIcon>
+  );
+}
+
+export function ArchiveIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="M3.5 5.5h17v4h-17zM5 9.5v10h14v-10M10 13h4" />
+    </LineIcon>
+  );
+}
+
+export function MailOpenIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="M4 10l8-5.5 8 5.5v9.5H4z" />
+      <path d="M4 10l8 5.5 8-5.5" />
+    </LineIcon>
+  );
+}

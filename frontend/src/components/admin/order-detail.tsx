@@ -451,6 +451,19 @@ export function OrderDetail({ id }: { id: string }) {
             <InfoRow label="Stock">
               {order.stockReserved ? "Articles réservés" : "Articles remis en stock"}
             </InfoRow>
+            <InfoRow label="Prix de revient">
+              {order.unitCost === null ? (
+                <span className="text-warning">coût manquant</span>
+              ) : (
+                `${formatPrice(order.unitCost)} × ${order.item.quantity}`
+              )}
+            </InfoRow>
+            {order.costs.packaging !== null && (
+              <InfoRow label="Emballage">{formatPrice(order.costs.packaging)}</InfoRow>
+            )}
+            {order.costs.returnCost !== null && (
+              <InfoRow label="Coût du retour">{formatPrice(order.costs.returnCost)}</InfoRow>
+            )}
             <InfoRow label="Source">Site web</InfoRow>
             <InfoRow label="Navigateur / User Agent">
               <span title={order.userAgent ?? undefined}>{describeUserAgent(order.userAgent)}</span>

@@ -8,6 +8,7 @@ import {
   type DeliveryDiscountLine,
   type MetaTracking,
   type Order,
+  type OrderItem,
   type OrderStatus,
   type OrderSummary,
 } from "@rassm/shared";
@@ -16,8 +17,15 @@ import { Schema, model, type Types } from "mongoose";
 export type MetaEventStatus = "pending" | "sent" | "failed" | "skipped";
 
 /** An order as stored: the shared Order plus internal data the customer never sees. */
-export interface OrderDoc extends Omit<Order, "id" | "createdAt"> {
+export interface OrderDoc extends Omit<Order, "id" | "createdAt" | "item"> {
   _id: Types.ObjectId;
+  /** The ordered product, plus its cost price when the order was placed (admin only). */
+  item: OrderItem & { unitCost?: number | null };
+  /**
+   * Packaging and return costs (settings) copied when the order becomes delivered or
+   * returned, so a later change of the settings never rewrites past profit.
+   */
+  costs?: { packaging?: number | null; returnCost?: number | null };
   createdAt: Date;
   updatedAt: Date;
   /** Who placed it (fraud checks, Meta Conversions API). */
@@ -63,6 +71,8 @@ const itemSchema = new Schema(
     slug: { type: String, required: true },
     image: { type: String, required: true },
     unitPrice: { type: Number, required: true, min: 0 },
+    /** Cost price of one unit when the order was placed (null = unknown, "coût manquant"). */
+    unitCost: { type: Number, min: 0, default: null },
   },
   { _id: false },
 );
@@ -101,6 +111,10 @@ const orderMongooseSchema = new Schema<OrderDoc>(
     freeDelivery: { type: Boolean, required: true },
     deliveryDiscountLines: { type: [discountLineSchema], default: [] },
     total: { type: Number, required: true },
+    costs: {
+      packaging: { type: Number, min: 0 },
+      returnCost: { type: Number, min: 0 },
+    },
     // New orders are always "pending" (reçue): confirmed only after the phone call.
     status: { type: String, enum: ORDER_STATUSES, default: "pending" },
     paymentMethod: { type: String, enum: PAYMENT_METHODS, default: "cash_on_delivery" },

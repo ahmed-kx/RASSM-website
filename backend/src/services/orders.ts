@@ -13,6 +13,7 @@ import type { MetaEvents } from "../meta/conversions-api";
 import { findBlacklisted } from "../models/blacklist";
 import { nextOrderNumber } from "../models/counter";
 import { OrderModel, toOrderSummary } from "../models/order";
+import { ProductModel } from "../models/product";
 import type { OrderNotifier } from "../notifications/new-order-email";
 import { assessOrder, findDuplicateOrder } from "./fraud";
 import { priceOrder } from "./pricing";
@@ -80,14 +81,17 @@ export async function placeOrder(body: unknown, context: PlaceOrderContext): Pro
   if (!(await reserveStock(order))) throw await stockError(order);
 
   try {
-    const [orderNumber, flag, blacklisted] = await Promise.all([
+    const [orderNumber, flag, blacklisted, cost] = await Promise.all([
       nextOrderNumber(),
       assessOrder(order.phone, context.client.ip, now),
       findBlacklisted([order.phone]),
+      ProductModel.findById(product.id, { costPrice: 1 }).lean<{ costPrice?: number | null }>(),
     ]);
     const blacklistReason = blacklisted.get(order.phone)?.reason ?? null;
     const doc = await OrderModel.create({
       ...summary,
+      // Cost price copied now: a later change of the product cost never rewrites past profit.
+      item: { ...summary.item, unitCost: cost?.costPrice ?? null },
       createdAt: now,
       orderNumber,
       client: context.client,

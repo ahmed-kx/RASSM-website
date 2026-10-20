@@ -108,6 +108,13 @@ export const adminOrderSchema = orderFieldsSchema.extend({
   /** True while the ordered units are taken from the stock. */
   stockReserved: z.boolean(),
   metaPurchaseStatus: z.enum(["pending", "sent", "failed", "skipped"]),
+  /** Cost price of one unit when the order was placed. Null = "coût manquant". */
+  unitCost: z.number().int().nonnegative().nullable(),
+  /** Packaging and return costs copied when the order became delivered / returned. */
+  costs: z.object({
+    packaging: z.number().int().nonnegative().nullable(),
+    returnCost: z.number().int().nonnegative().nullable(),
+  }),
   updatedAt: isoDateSchema,
 });
 export type AdminOrder = z.infer<typeof adminOrderSchema>;
@@ -153,6 +160,14 @@ export const adminSearchQuerySchema = z.object({
 });
 
 export const adminSearchResultSchema = z.object({
+  /** Clients (grouped by phone) whose name or phone matches. */
+  clients: z.array(
+    z.object({
+      phone: z.string(),
+      name: z.string(),
+      orders: z.number().int().nonnegative(),
+    }),
+  ),
   orders: z.array(
     z.object({
       id: z.string(),
@@ -181,10 +196,11 @@ export const adminSearchResultSchema = z.object({
 });
 export type AdminSearchResult = z.infer<typeof adminSearchResultSchema>;
 
-/** Polling answer: orders created after `since`, and the "Nouveau" counter. */
+/** Polling answer: orders created after `since`, the "Nouveau" counter and unread messages. */
 export const adminOrderUpdatesSchema = z.object({
   orders: z.array(adminOrderSchema),
   unopened: z.number().int().nonnegative(),
+  unreadMessages: z.number().int().nonnegative(),
   serverTime: isoDateSchema,
 });
 export type AdminOrderUpdates = z.infer<typeof adminOrderUpdatesSchema>;

@@ -18,9 +18,11 @@ Things that are placeholders or decisions still to make. Remove an item once it 
 - [ ] **Dashboard in production**: set `ADMIN_URL` (e-mail links) to the real `https://…/admin`.
 - [ ] **Cloudinary and page refresh in production**: set `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` on the API host, and the same long `REVALIDATE_SECRET` on both hosts (`REVALIDATE_URL` = `https://<site>/api/revalidate` if the first `FRONTEND_ORIGIN` is not the site). Optional: `CLOUDINARY_CLOUD_NAME` in the frontend so next/image only accepts this account's photos.
 
-## Dashboard, next step
+## Dashboard
 
-- [ ] Tableau de bord (statistics, including delivery discounts given and free-delivery orders), Messages (contact), Abonnés (newsletter): today "Bientôt disponible".
+- [ ] **Costs for the profit**: fill the "Prix de revient" of every product (Produits > edit) and the packaging and return costs (Paramètres). Orders placed before a product had a cost price show as "coût manquant" (their profit counts no product cost).
+- [ ] **Ads spend**: enter the Meta Ads spend in Publicité (by day or by period) so the profit, cost per order and ROAS are right.
+- [ ] **Newsletter**: paste `BREVO_NEWSLETTER_LIST_ID` in `backend/.env` (and on the API host), then run `pnpm sync-newsletter` once for the existing subscribers.
 - [ ] Photos uploaded in the product form and abandoned by closing the browser tab before saving stay in Cloudinary (leaving the page in the dashboard deletes them). Clean them from the Cloudinary media library from time to time, or add a cleanup job later.
 - [ ] Renaming a color of a product that has pending orders: their stock is given back to the color name they were ordered in. Rename only colors without open orders (or add the units by hand).
 - [ ] Phone notifications when the dashboard is closed: needs the dashboard as an installable app (PWA + Web Push). Today: live toast and sound while it is open, browser notifications on computers.

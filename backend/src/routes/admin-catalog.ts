@@ -2,7 +2,7 @@ import {
   PRODUCT_IMAGE_MAX_BYTES,
   adminProductFlagsSchema,
   adminProductQuerySchema,
-  adminSettingsSchema,
+  adminSettingsUpdateSchema,
   adminStockUpdateSchema,
   deliveryBulkSchema,
   deliveryFeeUpdateSchema,
@@ -59,7 +59,7 @@ export function addCatalogRoutes(router: Router, options: CatalogRouteOptions): 
   });
 
   router.put("/settings", async (req, res) => {
-    res.json(await saveSettings(parseOrThrow(adminSettingsSchema, req.body)));
+    res.json(await saveSettings(parseOrThrow(adminSettingsUpdateSchema, req.body)));
   });
 
   // ---------- Products ----------

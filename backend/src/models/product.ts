@@ -14,6 +14,8 @@ import { Schema, model } from "mongoose";
 /** A product as stored. `_id` is the shared product id (e.g. "prod_001"). */
 export interface ProductDoc extends Omit<Product, "id" | "createdAt"> {
   _id: string;
+  /** Prix de revient (DA), admin only: never in the public product. Null = not filled in. */
+  costPrice?: number | null;
   createdAt: Date;
   updatedAt?: Date;
 }
@@ -52,6 +54,7 @@ const productMongooseSchema = new Schema<ProductDoc>(
     description: { type: String, required: true },
     category: { type: String, enum: CATEGORIES, required: true },
     price: { type: Number, required: true, min: 1 },
+    costPrice: { type: Number, min: 0, default: null },
     images: { type: [String], required: true },
     // Stock per variant: colors[].stock.<size>. Orders decrement it atomically.
     colors: { type: [colorSchema], required: true },

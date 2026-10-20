@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
-import { ComingSoon } from "@/components/admin/coming-soon";
+import { Suspense } from "react";
+import { MessagesPage } from "@/components/admin/messages-page";
 
 export const metadata: Metadata = { title: "Messages" };
 
 export default function Page() {
   return (
-    <ComingSoon
-      title="Messages"
-      description="Les messages envoyés depuis la page Contact arrivent à la prochaine étape."
-    />
+    <Suspense>
+      <MessagesPage />
+    </Suspense>
   );
 }

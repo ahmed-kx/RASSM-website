@@ -1,6 +1,6 @@
 "use client";
 
-import { formatPrice, type Admin } from "@rassm/shared";
+import { CONTACT_SUBJECT_LABELS, formatPrice, type Admin } from "@rassm/shared";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -18,7 +18,7 @@ import { BellIcon, LogoutIcon, SoundOffIcon, SoundOnIcon } from "@/components/ui
 import { formatRelativeTime, orderProductLine } from "@/lib/admin/format";
 import { adminRoutes } from "@/lib/admin/routes";
 import { cn } from "@/lib/cn";
-import { adminLogout, fetchAdminOrders } from "@/lib/data/admin";
+import { adminLogout, fetchAdminOrders, fetchMessages } from "@/lib/data/admin";
 import { useLiveOrders } from "./live-orders";
 import { useToast } from "./toasts";
 
@@ -214,7 +214,7 @@ function NewOrdersList({ close }: { close: () => void }) {
     return <p className="px-4 py-5 text-sm text-stone">Aucune nouvelle commande.</p>;
   }
   return (
-    <ul className="max-h-[min(60svh,26rem)] divide-y divide-line overflow-y-auto">
+    <ul className="max-h-[min(36svh,18rem)] divide-y divide-line overflow-y-auto">
       {orders.map((order) => (
         <li key={order.id}>
           <Link
@@ -241,13 +241,59 @@ function NewOrdersList({ close }: { close: () => void }) {
   );
 }
 
+/** Unread contact messages, newest first (3 at most). */
+function UnreadMessagesList({ close }: { close: () => void }) {
+  const { data, isPending, isError } = useQuery({
+    queryKey: ["admin", "messages", "bell"],
+    queryFn: () => fetchMessages({ folder: "unread", limit: 3 }),
+  });
+  if (isPending) return <p className="px-4 py-4 text-sm text-stone">Chargement…</p>;
+  if (isError) {
+    return <p className="px-4 py-4 text-sm text-error">Impossible de charger les messages.</p>;
+  }
+  if (data.messages.length === 0) {
+    return <p className="px-4 py-4 text-sm text-stone">Aucun message non lu.</p>;
+  }
+  return (
+    <ul className="divide-y divide-line">
+      {data.messages.map((message) => (
+        <li key={message.id}>
+          <Link
+            href={adminRoutes.message(message.id)}
+            onClick={close}
+            className="block px-4 py-3 hover:bg-cream/60 focus-visible:bg-cream/60"
+          >
+            <span className="flex items-baseline justify-between gap-3">
+              <span className="truncate font-semibold">
+                {message.firstName} {message.lastName}
+              </span>
+              <span className="shrink-0 text-xs text-stone">
+                {CONTACT_SUBJECT_LABELS[message.subject]}
+              </span>
+            </span>
+            <span className="mt-0.5 block truncate text-[13px] text-ash">{message.message}</span>
+            <span className="mt-0.5 block text-xs text-stone">
+              {formatRelativeTime(message.createdAt)}
+            </span>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+const sectionTitle = "text-[11px] font-semibold tracking-label uppercase";
+
 export function NotificationBell({ surface }: { surface: Surface }) {
-  const { unopened } = useLiveOrders();
+  const { unopened, unreadMessages } = useLiveOrders();
   const { dismissAll } = useToast();
-  const label =
-    unopened > 0
-      ? `Notifications : ${unopened} nouvelle${unopened > 1 ? "s" : ""} commande${unopened > 1 ? "s" : ""}`
-      : "Notifications";
+  const parts = [
+    unopened > 0 &&
+      `${unopened} nouvelle${unopened > 1 ? "s" : ""} commande${unopened > 1 ? "s" : ""}`,
+    unreadMessages > 0 &&
+      `${unreadMessages} message${unreadMessages > 1 ? "s" : ""} non lu${unreadMessages > 1 ? "s" : ""}`,
+  ].filter(Boolean);
+  const label = parts.length ? `Notifications : ${parts.join(", ")}` : "Notifications";
   return (
     <AdminMenu
       label={label}
@@ -256,7 +302,7 @@ export function NotificationBell({ surface }: { surface: Surface }) {
       trigger={
         <>
           <BellIcon />
-          {unopened > 0 && (
+          {unopened + unreadMessages > 0 && (
             <span
               aria-hidden="true"
               className={cn(
@@ -271,9 +317,7 @@ export function NotificationBell({ surface }: { surface: Surface }) {
       {(close) => (
         <>
           <div className="flex items-baseline justify-between gap-3 border-b border-line px-4 py-3">
-            <p className="text-[11px] font-semibold tracking-label uppercase">
-              Nouvelles commandes
-            </p>
+            <p className={sectionTitle}>Nouvelles commandes</p>
             {unopened > 0 && <span className="text-xs text-stone tabular-nums">{unopened}</span>}
           </div>
           <NewOrdersList close={close} />
@@ -283,6 +327,20 @@ export function NotificationBell({ surface }: { surface: Surface }) {
             className="flex min-h-11 items-center justify-center border-t border-line px-4 text-[11px] font-semibold tracking-label uppercase hover:bg-cream/60"
           >
             Voir les nouvelles commandes →
+          </Link>
+          <div className="flex items-baseline justify-between gap-3 border-y border-line bg-bone/60 px-4 py-3">
+            <p className={sectionTitle}>Messages non lus</p>
+            {unreadMessages > 0 && (
+              <span className="text-xs text-stone tabular-nums">{unreadMessages}</span>
+            )}
+          </div>
+          <UnreadMessagesList close={close} />
+          <Link
+            href={`${adminRoutes.messages}?dossier=unread`}
+            onClick={close}
+            className="flex min-h-11 items-center justify-center border-t border-line px-4 text-[11px] font-semibold tracking-label uppercase hover:bg-cream/60"
+          >
+            Voir les messages →
           </Link>
           <BrowserNotificationsButton />
         </>

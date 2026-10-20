@@ -13,7 +13,8 @@ import { searchDashboard } from "@/lib/data/admin";
 import { InitialAvatar, adminLabel } from "./admin-ui";
 import { StatusBadge } from "./badges";
 
-// Global search of the top bar: orders (name, phone, internal number) and products, grouped.
+// Global search of the top bar: clients, orders (name, phone, internal number) and products,
+// grouped.
 // Arrow keys move through the results, Enter opens one, Escape closes.
 
 const PLACEHOLDER = "Rechercher une commande, un client, un produit…";
@@ -26,6 +27,10 @@ interface Hit {
 function hitsOf(data: AdminSearchResult | undefined, q: string): Hit[] {
   if (!data) return [];
   return [
+    ...data.clients.map((client) => ({
+      key: `c-${client.phone}`,
+      href: adminRoutes.client(client.phone),
+    })),
     ...data.orders.map((order) => ({ key: `o-${order.id}`, href: adminRoutes.order(order.id) })),
     ...data.products.map((product) => ({
       key: `p-${product.id}`,
@@ -92,17 +97,43 @@ function Results({
       activeKey === hit.key ? "bg-cream" : "hover:bg-cream/60",
     ),
   });
-  const empty = data.orders.length === 0 && data.products.length === 0;
+  const empty = data.clients.length === 0 && data.orders.length === 0 && data.products.length === 0;
+  const clientCount = data.clients.length;
   return (
     <div id={listId} role="listbox" aria-label="Résultats de la recherche" aria-busy={isFetching}>
       {empty && (
         <p className="px-4 py-5 text-sm text-stone">Aucun résultat pour «&nbsp;{q}&nbsp;».</p>
       )}
+      {clientCount > 0 && (
+        <div role="group" aria-label="Clients" className="py-1.5">
+          <p className={cn(adminLabel, "px-4 py-2")}>Clients</p>
+          {data.clients.map((client, index) => {
+            const hit = hits[index];
+            if (!hit) return null;
+            return (
+              <div key={hit.key} {...option(hit)}>
+                <InitialAvatar name={client.name} size="sm" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold">{client.name}</span>
+                  <span className="block truncate text-xs text-ash">
+                    {formatPhone(client.phone)} · {client.orders} commande
+                    {client.orders > 1 ? "s" : ""}
+                  </span>
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
       {data.orders.length > 0 && (
-        <div role="group" aria-label="Commandes" className="py-1.5">
+        <div
+          role="group"
+          aria-label="Commandes"
+          className={cn("py-1.5", clientCount > 0 && "border-t border-line")}
+        >
           <p className={cn(adminLabel, "px-4 py-2")}>Commandes</p>
           {data.orders.map((order, index) => {
-            const hit = hits[index];
+            const hit = hits[clientCount + index];
             if (!hit) return null;
             return (
               <div key={hit.key} {...option(hit)}>
@@ -126,7 +157,7 @@ function Results({
         <div role="group" aria-label="Produits" className="border-t border-line py-1.5">
           <p className={cn(adminLabel, "px-4 py-2")}>Produits</p>
           {data.products.map((product, index) => {
-            const hit = hits[data.orders.length + index];
+            const hit = hits[clientCount + data.orders.length + index];
             if (!hit) return null;
             return (
               <div key={hit.key} {...option(hit)}>

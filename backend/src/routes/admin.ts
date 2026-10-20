@@ -41,8 +41,9 @@ import { searchDashboard } from "../services/admin-search";
 import { andersonFileName, buildAndersonCsv } from "../services/anderson-export";
 import { ProductModel } from "../models/product";
 import { addCatalogRoutes, type CatalogRouteOptions } from "./admin-catalog";
+import { addInsightRoutes, type InsightRouteOptions } from "./admin-insights";
 
-export interface AdminRouterOptions extends CatalogRouteOptions {
+export interface AdminRouterOptions extends CatalogRouteOptions, InsightRouteOptions {
   allowedOrigins: readonly string[];
   /** Secure cookies (HTTPS only): true in production. */
   secureCookies: boolean;
@@ -90,6 +91,7 @@ export function adminRouter(options: AdminRouterOptions): Router {
     revalidator: options.revalidator,
     imageStorage: options.imageStorage,
   });
+  addInsightRoutes(router, { newsletterList: options.newsletterList });
 
   router.get("/search", async (req, res) => {
     res.json(await searchDashboard(adminSearchQuerySchema.parse(req.query).q));

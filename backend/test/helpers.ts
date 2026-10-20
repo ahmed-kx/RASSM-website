@@ -5,7 +5,9 @@ import { createApp, type AppOptions } from "../src/app";
 import { hashPassword } from "../src/lib/password";
 import type { MetaEvents } from "../src/meta/conversions-api";
 import { AdminModel } from "../src/models/admin";
+import type { MessageNotifier } from "../src/notifications/new-message-email";
 import type { OrderNotifier } from "../src/notifications/new-order-email";
+import type { NewsletterList } from "../src/services/newsletter-sync";
 import type { Revalidator } from "../src/lib/revalidate";
 import type { ImageStorage } from "../src/services/image-storage";
 
@@ -52,12 +54,30 @@ export function fakeNotifier() {
   } satisfies OrderNotifier;
 }
 
+/** A notifier that records new message e-mails instead of sending them. */
+export function fakeMessageNotifier() {
+  return {
+    notifyNewMessage: vi.fn<MessageNotifier["notifyNewMessage"]>(async () => undefined),
+  } satisfies MessageNotifier;
+}
+
+/** A Brevo list stand-in: records the contacts added and removed. */
+export function fakeNewsletterList(configured = true) {
+  return {
+    configured,
+    add: vi.fn<NewsletterList["add"]>(async () => undefined),
+    remove: vi.fn<NewsletterList["remove"]>(async () => undefined),
+  } satisfies NewsletterList;
+}
+
 /** The app with high rate limits (unless a test sets its own) and fake Meta / e-mail senders. */
 export function testApp(options: Partial<AppOptions> = {}) {
   const metaEvents = fakeMetaEvents();
   const notifier = fakeNotifier();
   const imageStorage = fakeImageStorage();
   const revalidator = fakeRevalidator();
+  const messageNotifier = fakeMessageNotifier();
+  const newsletterList = fakeNewsletterList();
   const high = { windowMs: 60_000, limit: 1000 };
   const app = createApp({
     frontendOrigins: ["http://localhost:3000"],
@@ -67,6 +87,8 @@ export function testApp(options: Partial<AppOptions> = {}) {
     secureCookies: false,
     imageStorage,
     revalidator,
+    messageNotifier,
+    newsletterList,
     ...options,
     rateLimits: {
       orders: high,
@@ -77,7 +99,16 @@ export function testApp(options: Partial<AppOptions> = {}) {
       ...options.rateLimits,
     },
   });
-  return { app, metaEvents, notifier, imageStorage, revalidator, api: request(app) };
+  return {
+    app,
+    metaEvents,
+    notifier,
+    imageStorage,
+    revalidator,
+    messageNotifier: (options.messageNotifier ?? messageNotifier) as typeof messageNotifier,
+    newsletterList: (options.newsletterList ?? newsletterList) as typeof newsletterList,
+    api: request(app),
+  };
 }
 
 export const ADMIN_EMAIL = "admin@rassm.test";

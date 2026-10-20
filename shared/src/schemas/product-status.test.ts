@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_LOW_STOCK_THRESHOLD,
-  adminSettingsSchema,
+  adminSettingsUpdateSchema,
   getProductStatus,
   getStockLevel,
   isLowVariantStock,
@@ -42,10 +42,10 @@ describe("product status from the total stock", () => {
   });
 
   it("validates the threshold with French messages", () => {
-    expect(adminSettingsSchema.safeParse({ lowStockThreshold: 10 }).success).toBe(true);
-    const negative = adminSettingsSchema.safeParse({ lowStockThreshold: -1 });
+    expect(adminSettingsUpdateSchema.safeParse({ lowStockThreshold: 10 }).success).toBe(true);
+    const negative = adminSettingsUpdateSchema.safeParse({ lowStockThreshold: -1 });
     expect(negative.error?.issues[0]?.message).toBe("Le seuil ne peut pas être négatif.");
-    const decimal = adminSettingsSchema.safeParse({ lowStockThreshold: 2.5 });
+    const decimal = adminSettingsUpdateSchema.safeParse({ lowStockThreshold: 2.5 });
     expect(decimal.error?.issues[0]?.message).toBe("Indiquez un nombre entier d'unités.");
   });
 });

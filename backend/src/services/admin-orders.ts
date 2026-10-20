@@ -25,6 +25,8 @@ import { HttpError } from "../lib/http-error";
 import { describeError, logger } from "../lib/logger";
 import type { MetaEvents } from "../meta/conversions-api";
 import { BlacklistModel, findBlacklisted, type BlacklistDoc } from "../models/blacklist";
+import { ContactMessageModel } from "../models/contact-message";
+import { loadSettings } from "../models/setting";
 import { OrderModel, toOrderSummary, type OrderDoc, type OrderHistoryDoc } from "../models/order";
 import { priceOrder } from "./pricing";
 import { loadProduct, releaseStock, reserveStock, stockError, type Variant } from "./stock";
@@ -59,6 +61,11 @@ function toAdminOrder(doc: OrderDoc, blacklist: Map<string, BlacklistDoc>): Admi
     })),
     stockReserved: doc.stockReserved ?? true,
     metaPurchaseStatus: doc.metaPurchase?.status ?? "pending",
+    unitCost: doc.item.unitCost ?? null,
+    costs: {
+      packaging: doc.costs?.packaging ?? null,
+      returnCost: doc.costs?.returnCost ?? null,
+    },
     updatedAt: doc.updatedAt.toISOString(),
   });
 }
@@ -196,7 +203,7 @@ export async function orderUpdates(
   since: Date | null,
   now = new Date(),
 ): Promise<AdminOrderUpdates> {
-  const [docs, unopened] = await Promise.all([
+  const [docs, unopened, unreadMessages] = await Promise.all([
     since
       ? OrderModel.find({ createdAt: { $gt: since } })
           .sort({ createdAt: 1 })
@@ -204,8 +211,14 @@ export async function orderUpdates(
           .lean<OrderDoc[]>()
       : Promise.resolve([]),
     OrderModel.countDocuments({ status: "pending", openedAt: null }),
+    ContactMessageModel.countDocuments({ read: false, archived: { $ne: true } }),
   ]);
-  return { orders: await toAdminOrders(docs), unopened, serverTime: now.toISOString() };
+  return {
+    orders: await toAdminOrders(docs),
+    unopened,
+    unreadMessages,
+    serverTime: now.toISOString(),
+  };
 }
 
 /** One order (marked as opened), with its product as it is now (stock for edits). */
@@ -265,10 +278,20 @@ export async function changeStatus(
     );
   }
 
+  // Delivered / returned: copy the packaging and return costs of the settings now, so a
+  // later change of the settings never rewrites the profit of this order.
+  const settings = to === "delivered" || to === "returned" ? await loadSettings() : null;
+  const costs = settings
+    ? {
+        "costs.packaging": doc.costs?.packaging ?? settings.packagingCost,
+        ...(to === "returned" && { "costs.returnCost": settings.returnCost }),
+      }
+    : {};
+
   const updated = await OrderModel.findOneAndUpdate(
     { _id: doc._id, status: from, ...(takesAgain && { stockReserved: false }) },
     {
-      $set: { status: to, ...(takesAgain && { stockReserved: true }) },
+      $set: { status: to, ...(takesAgain && { stockReserved: true }), ...costs },
       $push: { history: historyLine(admin, "status", message, to) },
     },
     { returnDocument: "after" },
@@ -383,7 +406,8 @@ export async function editOrder(
     commune: edit.commune,
     address: edit.address,
     deliveryType: edit.deliveryType,
-    item: pricing.item,
+    // Same product: the cost price copied when the order was placed is kept.
+    item: { ...pricing.item, unitCost: doc.item.unitCost ?? null },
     subtotal: pricing.subtotal,
     ...pricing.delivery,
     total: pricing.total,

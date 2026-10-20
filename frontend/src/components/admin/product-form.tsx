@@ -51,6 +51,7 @@ const NEW_PRODUCT: AdminProductInput = {
   description: "",
   category: "hoodie",
   price: 0,
+  costPrice: null,
   colors: [{ name: "Noir", hex: "#111111", images: [], stock: emptyStock() }],
   featured: false,
   isActive: true,
@@ -67,6 +68,7 @@ function inputOf(detail: AdminProductDetail): AdminProductInput {
     description: product.description,
     category: product.category,
     price: product.price,
+    costPrice: detail.costPrice,
     colors: product.colors.map((color, index) => ({
       name: color.name,
       hex: color.hex,
@@ -429,6 +431,48 @@ export function ProductForm({
                         </p>
                       )}
                       <FieldError id="product-price" error={error} />
+                    </div>
+                  );
+                }}
+              </form.Field>
+              <form.Field name="costPrice">
+                {(field) => {
+                  const error = errorOf(field.state.meta.errors);
+                  const cost = field.state.value;
+                  return (
+                    <div>
+                      <label htmlFor="product-cost" className={adminLabel}>
+                        Prix de revient (DA)
+                      </label>
+                      <input
+                        id="product-cost"
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        step={100}
+                        value={cost ?? ""}
+                        onChange={(event) =>
+                          field.handleChange(
+                            event.target.value === "" ? null : event.target.valueAsNumber,
+                          )
+                        }
+                        onBlur={field.handleBlur}
+                        placeholder="Facultatif"
+                        className={cn(adminInput, "mt-1.5 tabular-nums")}
+                        {...describedBy("product-cost", error)}
+                      />
+                      {!error && (
+                        <form.Subscribe selector={(state) => state.values.price}>
+                          {(price) => (
+                            <p className="mt-1 text-xs text-stone">
+                              {typeof cost === "number" && Number.isFinite(cost) && price > 0
+                                ? `Marge par article : ${formatPrice(price - cost)} (${Math.round(((price - cost) / price) * 100)} %)`
+                                : "Visible seulement ici. Sert au calcul du bénéfice."}
+                            </p>
+                          )}
+                        </form.Subscribe>
+                      )}
+                      <FieldError id="product-cost" error={error} />
                     </div>
                   );
                 }}

@@ -135,3 +135,8 @@ export function describeUserAgent(userAgent: string | null): string {
   const version = browser[0].exec(userAgent)?.[1]?.split(".").slice(0, 2).join(".");
   return `${browser[1]}${version ? ` ${version}` : ""}${system ? ` (${system})` : ""}`;
 }
+
+/** WhatsApp chat with a customer, optionally with a pre-filled message. */
+export function whatsAppLink(phone: string, text?: string): string {
+  return `https://wa.me/213${phone.replace(/^0/, "")}${text ? `?text=${encodeURIComponent(text)}` : ""}`;
+}

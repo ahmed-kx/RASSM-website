@@ -17,13 +17,16 @@ import {
   BanIcon,
   CloseIcon,
   DashboardIcon,
+  GearIcon,
   HomeIcon,
   MailIcon,
+  MegaphoneIcon,
   MenuIcon,
   MoreIcon,
   OrdersIcon,
   ShirtIcon,
   TruckIcon,
+  UserIcon,
   UsersIcon,
 } from "@/components/ui/icons";
 import { adminRoutes } from "@/lib/admin/routes";
@@ -53,10 +56,13 @@ const NAV: readonly NavItem[] = [
   { label: "Tableau de bord", href: adminRoutes.home, Icon: DashboardIcon, primary: true },
   { label: "Commandes", href: adminRoutes.orders, Icon: OrdersIcon, primary: true },
   { label: "Produits", href: adminRoutes.products, Icon: ShirtIcon, primary: true },
+  { label: "Clients", href: adminRoutes.clients, Icon: UserIcon },
   { label: "Livraison", href: adminRoutes.delivery, Icon: TruckIcon },
+  { label: "Publicité", href: adminRoutes.ads, Icon: MegaphoneIcon },
   { label: "Messages", href: adminRoutes.messages, Icon: MailIcon },
   { label: "Abonnés", href: adminRoutes.subscribers, Icon: UsersIcon },
   { label: "Liste noire", href: adminRoutes.blacklist, Icon: BanIcon },
+  { label: "Paramètres", href: adminRoutes.settings, Icon: GearIcon },
 ];
 
 const COLLAPSED_KEY = "rassm-admin-sidebar-collapsed";
@@ -74,11 +80,20 @@ const BADGE_STYLES = {
   tab: "absolute -top-2 -right-3.5 h-5 min-w-5 bg-error text-[11px] text-paper",
 } as const;
 
-function CountBadge({ count, style }: { count: number; style: keyof typeof BADGE_STYLES }) {
+function CountBadge({
+  count,
+  style,
+  word = "nouvelle",
+}: {
+  count: number;
+  style: keyof typeof BADGE_STYLES;
+  /** "nouvelle" (orders), "non lu" (messages). */
+  word?: string;
+}) {
   if (count === 0) return null;
   return (
     <span
-      aria-label={`${count} nouvelle${count > 1 ? "s" : ""}`}
+      aria-label={`${count} ${word}${count > 1 ? "s" : ""}`}
       className={cn(
         "grid place-items-center rounded-full px-1.5 leading-none font-semibold tabular-nums",
         BADGE_STYLES[style],
@@ -100,7 +115,7 @@ function SidebarContent({
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
-  const { unopened } = useLiveOrders();
+  const { unopened, unreadMessages } = useLiveOrders();
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-onyx text-paper">
       {/* Concrete texture fading into the black, behind the admin card. */}
@@ -158,6 +173,13 @@ function SidebarContent({
                   )}
                   {href === adminRoutes.orders && (
                     <CountBadge count={unopened} style={collapsed ? "dot" : "sidebar"} />
+                  )}
+                  {href === adminRoutes.messages && (
+                    <CountBadge
+                      count={unreadMessages}
+                      style={collapsed ? "dot" : "sidebar"}
+                      word="non lu"
+                    />
                   )}
                 </Link>
               </li>
@@ -270,7 +292,7 @@ function DesktopTopBar({
 /** Phones: dark top bar (menu, logo, search, sound, bell, avatar) and bottom navigation. */
 function MobileBars({ admin, onOpenMenu }: { admin: Admin; onOpenMenu: () => void }) {
   const pathname = usePathname();
-  const { unopened } = useLiveOrders();
+  const { unopened, unreadMessages } = useLiveOrders();
   const [moreOpen, setMoreOpen] = useState(false);
   const secondary = NAV.filter((item) => !item.primary);
   const moreActive = secondary.some((item) => isActive(pathname, item.href));
@@ -329,7 +351,10 @@ function MobileBars({ admin, onOpenMenu }: { admin: Admin; onOpenMenu: () => voi
               aria-haspopup="dialog"
               className={cn(tab, "w-full", moreActive && "text-paper")}
             >
-              <MoreIcon width={22} height={22} />
+              <span className="relative">
+                <MoreIcon width={22} height={22} />
+                <CountBadge count={unreadMessages} style="tab" word="message non lu" />
+              </span>
               Plus
             </button>
           </li>
@@ -346,7 +371,10 @@ function MobileBars({ admin, onOpenMenu }: { admin: Admin; onOpenMenu: () => voi
                 onClick={() => setMoreOpen(false)}
                 className="flex min-h-13 items-center gap-3 px-4 text-[15px] aria-[current=page]:font-semibold"
               >
-                <Icon /> {label}
+                <Icon /> <span className="flex-1">{label}</span>
+                {href === adminRoutes.messages && (
+                  <CountBadge count={unreadMessages} style="sidebar" word="non lu" />
+                )}
               </Link>
             </li>
           ))}
@@ -375,7 +403,11 @@ function breadcrumbFor(pathname: string): Crumb[] {
         ? pathname === adminRoutes.newProduct
           ? "Nouveau produit"
           : "Modifier le produit"
-        : "Détail";
+        : section.href === adminRoutes.clients
+          ? "Fiche client"
+          : section.href === adminRoutes.messages
+            ? "Message"
+            : "Détail";
   return [{ label: section.label, href: section.href }, { label: detail }];
 }
 

@@ -4,7 +4,9 @@ import helmet from "helmet";
 import type { Revalidator } from "./lib/revalidate";
 import type { MetaEvents } from "./meta/conversions-api";
 import type { ImageStorage } from "./services/image-storage";
+import type { MessageNotifier } from "./notifications/new-message-email";
 import type { OrderNotifier } from "./notifications/new-order-email";
+import type { NewsletterList } from "./services/newsletter-sync";
 import { errorHandler, notFound } from "./middleware/error-handler";
 import { limitRequests, rejectUnsafeKeys, type RateLimitOptions } from "./middleware/security";
 import { adminRouter } from "./routes/admin";
@@ -31,6 +33,10 @@ export interface AppOptions {
   trustProxy: number;
   metaEvents: MetaEvents;
   notifier: OrderNotifier;
+  /** New contact message e-mail to the team. */
+  messageNotifier: MessageNotifier;
+  /** Brevo newsletter list (sign-ups added, deleted subscribers removed). */
+  newsletterList: NewsletterList;
   /** Admin session cookie only over HTTPS (production). */
   secureCookies: boolean;
   /** Refreshes the website's pages after a dashboard change. */
@@ -82,6 +88,7 @@ export function createApp(options: AppOptions): Express {
       metaEvents: options.metaEvents,
       revalidator: options.revalidator,
       imageStorage: options.imageStorage,
+      newsletterList: options.newsletterList,
     }),
   );
   app.use("/api", catalogRouter());
@@ -93,7 +100,12 @@ export function createApp(options: AppOptions): Express {
         contact: limitRequests(limits.contact),
         newsletter: limitRequests(limits.newsletter),
       },
-      { metaEvents: options.metaEvents, notifier: options.notifier },
+      {
+        metaEvents: options.metaEvents,
+        notifier: options.notifier,
+        messageNotifier: options.messageNotifier,
+        newsletterList: options.newsletterList,
+      },
     ),
   );
 

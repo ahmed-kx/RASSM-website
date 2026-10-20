@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
-import { ComingSoon } from "@/components/admin/coming-soon";
+import { Suspense } from "react";
+import { SubscribersPage } from "@/components/admin/subscribers-page";
 
 export const metadata: Metadata = { title: "Abonnés" };
 
 export default function Page() {
   return (
-    <ComingSoon
-      title="Abonnés"
-      description="La liste des inscrits à la newsletter et leur export arrivent à la prochaine étape."
-    />
+    <Suspense>
+      <SubscribersPage />
+    </Suspense>
   );
 }

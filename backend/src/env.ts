@@ -78,7 +78,17 @@ const envSchema = z.object({
     .default("v23.0"),
   /** Brevo transactional e-mail API key (new order e-mails). Secret. Empty = no e-mail. */
   BREVO_API_KEY: optional(z.string().min(20, "BREVO_API_KEY looks too short.")),
-  /** Who receives the new order e-mails. */
+  /**
+   * Brevo list of the newsletter subscribers (Contacts > Lists, the list ID number). Empty =
+   * sign-ups are kept on the site only.
+   */
+  BREVO_NEWSLETTER_LIST_ID: optional(
+    z.coerce
+      .number({ error: "BREVO_NEWSLETTER_LIST_ID must be the list number, e.g. 3." })
+      .int("BREVO_NEWSLETTER_LIST_ID must be the list number, e.g. 3.")
+      .positive("BREVO_NEWSLETTER_LIST_ID must be the list number, e.g. 3."),
+  ),
+  /** Who receives the new order and new message e-mails. */
   NOTIFY_EMAIL: z.email("NOTIFY_EMAIL must be an e-mail address.").default("rassmwear@gmail.com"),
   /** Sender of the e-mails (must be a sender or domain validated in Brevo). */
   EMAIL_FROM: z.email("EMAIL_FROM must be an e-mail address.").default("rassmwear@gmail.com"),

@@ -271,7 +271,7 @@ describe("admin orders", () => {
 
     // One letter: nothing (too short to be useful).
     const short = await agent.get("/api/admin/search?q=a").expect(200);
-    expect(short.body).toEqual({ orders: [], products: [] });
+    expect(short.body).toEqual({ clients: [], orders: [], products: [] });
   });
 
   it("returns the orders created since the last poll", async () => {

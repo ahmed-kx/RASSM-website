@@ -11,7 +11,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "create-admin": "tsx src/create-admin-cli.ts",
-    "migrate-images": "tsx src/migrate-images-cli.ts"
+    "migrate-images": "tsx src/migrate-images-cli.ts",
+    "sync-newsletter": "tsx src/sync-newsletter-cli.ts"
   },
   "dependencies": {
     "@rassm/shared": "workspace:*",

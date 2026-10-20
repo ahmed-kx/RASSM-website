@@ -25,6 +25,14 @@ export const LOW_VARIANT_STOCK = 3;
 export const PRODUCT_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 export const PRODUCT_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
 
+/** Prix de revient (DA): optional (null = not filled in), admin only, never public. */
+export const costPriceSchema = z
+  .number({ error: "Le prix de revient doit être un nombre." })
+  .int("Le prix de revient doit être un nombre entier de dinars.")
+  .min(0, "Le prix de revient ne peut pas être négatif.")
+  .max(1_000_000, "Le prix de revient ne peut pas dépasser 1 000 000 DA.")
+  .nullable();
+
 const adminProductColorSchema = productColorSchema.extend({
   images: z
     .array(imageUrlSchema)
@@ -41,6 +49,8 @@ export const adminProductInputSchema = productSchema
   .extend({
     // The form always sends the list (no default), so input and output types match.
     deliveryDiscountTiers: deliveryDiscountTiersSchema.unwrap(),
+    /** Admin only (profit statistics). Null or absent = not filled in. */
+    costPrice: costPriceSchema.optional(),
     colors: z
       .array(adminProductColorSchema)
       .min(1, "Ajoutez au moins une couleur.")
@@ -121,18 +131,47 @@ export const isLowVariantStock = (units: number) => units > 0 && units <= LOW_VA
 
 // ---------- Settings ----------
 
-/** Dashboard settings stored in the database. */
+/** A cost in whole DA (settings, cost price). */
+const costDaSchema = (what: string) =>
+  z
+    .number({ error: `Indiquez ${what} en DA.` })
+    .int(`Indiquez ${what} en DA, sans centimes.`)
+    .min(0, `${what.charAt(0).toUpperCase()}${what.slice(1)} ne peut pas être négatif.`)
+    .max(
+      1_000_000,
+      `${what.charAt(0).toUpperCase()}${what.slice(1)} ne peut pas dépasser 1 000 000 DA.`,
+    );
+
+/**
+ * Dashboard settings stored in the database. The packaging and return costs are copied on
+ * each order when it becomes delivered or returned, so a later change never rewrites past
+ * profit.
+ */
 export const adminSettingsSchema = z.object({
   lowStockThreshold: z
     .number({ error: "Indiquez un nombre d'unités." })
     .int("Indiquez un nombre entier d'unités.")
     .min(0, "Le seuil ne peut pas être négatif.")
     .max(10_000, "Le seuil ne peut pas dépasser 10 000 unités."),
+  /** Coût d'emballage par commande (DA). */
+  packagingCost: costDaSchema("le coût d'emballage"),
+  /** What the courier charges for a refused / returned order (DA). */
+  returnCost: costDaSchema("le coût d'un retour"),
 });
 export type AdminSettings = z.infer<typeof adminSettingsSchema>;
 export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   lowStockThreshold: DEFAULT_LOW_STOCK_THRESHOLD,
+  packagingCost: 0,
+  returnCost: 0,
 };
+
+/** PUT /api/admin/settings: any of the settings (the others are kept). */
+export const adminSettingsUpdateSchema = adminSettingsSchema
+  .partial()
+  .refine((value) => Object.values(value).some((entry) => entry !== undefined), {
+    message: "Rien à modifier.",
+  });
+export type AdminSettingsUpdate = z.infer<typeof adminSettingsUpdateSchema>;
 
 // ---------- List ----------
 
@@ -181,6 +220,7 @@ export interface AdminProductQuery {
 }
 
 export const adminProductRowSchema = productSchema.extend({
+  costPrice: costPriceSchema,
   stockTotal: z.number().int().nonnegative(),
   status: z.enum(PRODUCT_STATUSES),
   /** Orders that contain this product (a product with orders can only be hidden). */
@@ -225,6 +265,8 @@ export type AdminProductList = z.infer<typeof adminProductListSchema>;
 
 export const adminProductDetailSchema = z.object({
   product: productSchema,
+  /** Admin only: never in the public product. */
+  costPrice: costPriceSchema,
   orderCount: z.number().int().nonnegative(),
   /** Sent back on save: the API refuses the change if the product changed meanwhile. */
   updatedAt: isoDateSchema,

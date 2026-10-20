@@ -6,6 +6,14 @@ export interface ContactMessageDoc extends ContactForm {
   _id: Types.ObjectId;
   /** False until the team has read it in the dashboard. */
   read: boolean;
+  /** Archived messages leave the inbox (kept until deleted). */
+  archived: boolean;
+  /** New message e-mail to the team (Brevo). */
+  emailNotification: {
+    status: "pending" | "sent" | "failed" | "skipped";
+    sentAt?: Date;
+    error?: string;
+  };
   client: { ip: string | null; userAgent: string | null };
   createdAt: Date;
   updatedAt: Date;
@@ -20,6 +28,12 @@ const contactMessageSchema = new Schema<ContactMessageDoc>(
     subject: { type: String, enum: CONTACT_SUBJECTS, required: true },
     message: { type: String, required: true },
     read: { type: Boolean, default: false },
+    archived: { type: Boolean, default: false },
+    emailNotification: {
+      status: { type: String, enum: ["pending", "sent", "failed", "skipped"], default: "pending" },
+      sentAt: Date,
+      error: String,
+    },
     client: {
       ip: { type: String, default: null },
       userAgent: { type: String, default: null },
@@ -28,6 +42,7 @@ const contactMessageSchema = new Schema<ContactMessageDoc>(
   { timestamps: true, versionKey: false },
 );
 contactMessageSchema.index({ read: 1, createdAt: -1 });
+contactMessageSchema.index({ archived: 1, read: 1, createdAt: -1 });
 contactMessageSchema.index({ createdAt: -1 });
 
 export const ContactMessageModel = model<ContactMessageDoc>("ContactMessage", contactMessageSchema);

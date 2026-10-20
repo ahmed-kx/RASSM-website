@@ -10,5 +10,10 @@ export const adminRoutes = {
   product: (id: string) => `/admin/produits/${id}`,
   delivery: "/admin/livraison",
   messages: "/admin/messages",
+  message: (id: string) => `/admin/messages/${id}`,
   subscribers: "/admin/abonnes",
+  clients: "/admin/clients",
+  client: (phone: string) => `/admin/clients/${encodeURIComponent(phone)}`,
+  ads: "/admin/publicite",
+  settings: "/admin/parametres",
 } as const;

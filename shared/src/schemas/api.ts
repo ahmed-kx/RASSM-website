@@ -43,6 +43,18 @@ export const ADMIN_API_PATHS = {
   deliveryFee: (code: number) => `/api/admin/delivery-fees/${code}`,
   deliveryBulk: "/api/admin/delivery-fees/bulk",
   settings: "/api/admin/settings",
+  stats: "/api/admin/stats",
+  ads: "/api/admin/ads",
+  ad: (id: string) => `/api/admin/ads/${encodeURIComponent(id)}`,
+  clients: "/api/admin/clients",
+  clientsExport: "/api/admin/clients/export",
+  client: (phone: string) => `/api/admin/clients/${encodeURIComponent(phone)}`,
+  messages: "/api/admin/messages",
+  message: (id: string) => `/api/admin/messages/${encodeURIComponent(id)}`,
+  subscribers: "/api/admin/subscribers",
+  subscribersExport: "/api/admin/subscribers/export",
+  subscriber: (id: string) => `/api/admin/subscribers/${encodeURIComponent(id)}`,
+  subscriberSync: (id: string) => `/api/admin/subscribers/${encodeURIComponent(id)}/sync`,
 } as const;
 
 /** Name of the admin session cookie (httpOnly, set by the API). */
