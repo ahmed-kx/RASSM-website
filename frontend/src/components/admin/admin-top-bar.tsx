@@ -4,7 +4,16 @@ import { formatPrice, type Admin } from "@rassm/shared";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
+import { createPortal } from "react-dom";
 import { BellIcon, LogoutIcon, SoundOffIcon, SoundOnIcon } from "@/components/ui/icons";
 import { formatRelativeTime, orderProductLine } from "@/lib/admin/format";
 import { adminRoutes } from "@/lib/admin/routes";
@@ -25,9 +34,11 @@ const iconButton = (surface: Surface) =>
   );
 
 /**
- * A button and its panel. Top bar menus run under the top bar across the screen on phones and
- * drop down on larger screens; "anchored" menus always drop down under their button. Closes on
- * Escape (focus back on the button), a click outside or a page change.
+ * A button and its panel. The panel is rendered in a portal on `document.body` (above every
+ * table row, card and sticky header, whatever stacking context they create) and positioned
+ * with fixed coordinates from the button: under it, or above it near the bottom of the screen,
+ * always inside the viewport. Top bar menus run across the screen under the top bar on phones.
+ * Closes on Escape (focus back on the button), a click outside or a page change.
  */
 export function AdminMenu({
   label,
@@ -45,7 +56,8 @@ export function AdminMenu({
   children: (close: () => void) => ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const root = useRef<HTMLDivElement>(null);
+  const [style, setStyle] = useState<CSSProperties>({ visibility: "hidden" });
+  const panel = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
   const panelId = useId();
   const pathname = usePathname();
@@ -55,7 +67,8 @@ export function AdminMenu({
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: PointerEvent) => {
-      if (!root.current?.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (!panel.current?.contains(target) && !button.current?.contains(target)) setOpen(false);
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
@@ -70,8 +83,50 @@ export function AdminMenu({
     };
   }, [open]);
 
+  // Position from the button, again when the page scrolls or resizes (or the content changes).
+  useLayoutEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const trigger = button.current?.getBoundingClientRect();
+      const box = panel.current;
+      if (!trigger || !box) return;
+      const margin = 12;
+      const gap = 8;
+      const viewW = window.innerWidth;
+      const viewH = window.innerHeight;
+      if (placement === "topbar" && viewW < 640) {
+        setStyle({ left: margin, right: margin, top: 60, maxHeight: viewH - 60 - margin });
+        return;
+      }
+      const width = Math.min(placement === "anchored" ? 256 : 384, viewW - margin * 2);
+      const height = box.offsetHeight;
+      const left = Math.min(Math.max(trigger.right - width, margin), viewW - width - margin);
+      const below = viewH - trigger.bottom - gap - margin;
+      const above = trigger.top - gap - margin;
+      const up = height > below && above > below;
+      const room = Math.max(up ? above : below, 120);
+      const shown = Math.min(height, room);
+      setStyle({
+        left,
+        width,
+        maxHeight: room,
+        top: up ? trigger.top - gap - shown : trigger.bottom + gap,
+      });
+    };
+    place();
+    const observer = new ResizeObserver(place);
+    if (panel.current) observer.observe(panel.current);
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [open, placement]);
+
   return (
-    <div ref={root} className={placement === "anchored" ? "relative" : "sm:relative"}>
+    <>
       <button
         ref={button}
         type="button"
@@ -79,29 +134,31 @@ export function AdminMenu({
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => {
-          if (!open) onOpen?.();
+          if (!open) {
+            setStyle({ visibility: "hidden" });
+            onOpen?.();
+          }
           setOpen(!open);
         }}
         className={triggerClassName}
       >
         {trigger}
       </button>
-      {open && (
-        <div
-          id={panelId}
-          role="region"
-          aria-label={label}
-          className={cn(
-            "z-40 overflow-hidden rounded-md border border-line bg-paper text-ink shadow-[0_18px_40px_-18px_rgb(17_17_17/0.45)] motion-safe:animate-fade-in",
-            placement === "anchored"
-              ? "absolute top-full right-0 mt-2 w-64"
-              : "fixed inset-x-3 top-15 sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:mt-2 sm:w-96",
-          )}
-        >
-          {children(() => setOpen(false))}
-        </div>
-      )}
-    </div>
+      {open &&
+        createPortal(
+          <div
+            ref={panel}
+            id={panelId}
+            role="region"
+            aria-label={label}
+            style={style}
+            className="fixed z-[100] overflow-y-auto rounded-md border border-line bg-paper text-ink opacity-100 shadow-[0_18px_40px_-12px_rgb(17_17_17/0.5)]"
+          >
+            {children(() => setOpen(false))}
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
 
