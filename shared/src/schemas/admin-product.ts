@@ -173,6 +173,32 @@ export const adminSettingsUpdateSchema = adminSettingsSchema
   });
 export type AdminSettingsUpdate = z.infer<typeof adminSettingsUpdateSchema>;
 
+export type AdminSettingKey = keyof AdminSettings;
+
+/**
+ * Reads the text fields of a settings form. Only the keys given are validated and returned
+ * (a form never touches the settings it does not show). An empty cost counts as 0 DA; an
+ * empty threshold is an error.
+ */
+export function parseAdminSettingsInput(
+  input: Partial<Record<AdminSettingKey, string>>,
+):
+  | { success: true; data: AdminSettingsUpdate }
+  | { success: false; errors: Partial<Record<AdminSettingKey, string>> } {
+  const data: Record<string, number> = {};
+  const errors: Partial<Record<AdminSettingKey, string>> = {};
+  for (const key of Object.keys(input) as AdminSettingKey[]) {
+    const text = (input[key] ?? "").trim();
+    const value = text === "" ? (key === "lowStockThreshold" ? undefined : 0) : Number(text);
+    const parsed = adminSettingsSchema.shape[key].safeParse(value);
+    if (parsed.success) data[key] = parsed.data;
+    else errors[key] = parsed.error.issues[0]?.message ?? "Valeur invalide.";
+  }
+  return Object.keys(errors).length
+    ? { success: false, errors }
+    : { success: true, data: data as AdminSettingsUpdate };
+}
+
 // ---------- List ----------
 
 export const PRODUCT_SORTS = [

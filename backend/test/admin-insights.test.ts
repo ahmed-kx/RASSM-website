@@ -273,6 +273,33 @@ describe("admin insights: costs", () => {
     const saved = await agent.put("/api/admin/settings").send({ packagingCost: 90 }).expect(200);
     expect(saved.body).toEqual({ lowStockThreshold: 4, packagingCost: 90, returnCost: 0 });
   });
+
+  it("saves only the threshold, or only the costs, without touching the rest", async () => {
+    const { app } = testApp();
+    const agent = await adminAgent(app);
+    await agent
+      .put("/api/admin/settings")
+      .send({ lowStockThreshold: 10, packagingCost: 150, returnCost: 600 })
+      .expect(200);
+    // The stock threshold dialog sends the threshold alone.
+    const threshold = await agent.put("/api/admin/settings").send({ lowStockThreshold: 20 });
+    expect(threshold.status).toBe(200);
+    expect(threshold.body).toEqual({ lowStockThreshold: 20, packagingCost: 150, returnCost: 600 });
+    // The costs alone, including 0 (a real value, not "missing").
+    const costs = await agent.put("/api/admin/settings").send({ packagingCost: 0, returnCost: 0 });
+    expect(costs.status).toBe(200);
+    expect(costs.body).toEqual({ lowStockThreshold: 20, packagingCost: 0, returnCost: 0 });
+    // An invalid field is reported under its own key and nothing else changes.
+    const bad = await agent
+      .put("/api/admin/settings")
+      .send({ lowStockThreshold: 30, returnCost: -1 })
+      .expect(400);
+    expect(Object.keys(bad.body.error.fields)).toEqual(["returnCost"]);
+    expect((await agent.get("/api/admin/settings").expect(200)).body.lowStockThreshold).toBe(20);
+    // An empty update is refused in French.
+    const empty = await agent.put("/api/admin/settings").send({}).expect(400);
+    expect(empty.body.error.message).toBe("Rien à modifier.");
+  });
 });
 
 describe("admin insights: tableau de bord", () => {

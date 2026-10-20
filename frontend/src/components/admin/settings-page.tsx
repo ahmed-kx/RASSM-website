@@ -1,6 +1,6 @@
 "use client";
 
-import { adminSettingsSchema, type AdminSettings } from "@rassm/shared";
+import { parseAdminSettingsInput, type AdminSettings } from "@rassm/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { ApiError } from "@/lib/api";
@@ -89,20 +89,13 @@ function SettingsForm({ settings }: { settings: AdminSettings }) {
       noValidate
       onSubmit={(event) => {
         event.preventDefault();
-        const parsed = adminSettingsSchema.safeParse(
-          Object.fromEntries(
-            FIELDS.map(({ key }) => [
-              key,
-              values[key].trim() === "" ? undefined : Number(values[key]),
-            ]),
-          ),
+        // Only the fields that changed are validated and sent (partial update).
+        const changed = FIELDS.filter(({ key }) => values[key] !== String(settings[key]));
+        const parsed = parseAdminSettingsInput(
+          Object.fromEntries(changed.map(({ key }) => [key, values[key]])),
         );
         if (!parsed.success) {
-          setErrors(
-            Object.fromEntries(
-              parsed.error.issues.map((issue) => [String(issue.path[0]), issue.message]),
-            ),
-          );
+          setErrors(parsed.errors);
           return;
         }
         setErrors({});

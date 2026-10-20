@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_LOW_STOCK_THRESHOLD,
   adminSettingsUpdateSchema,
+  parseAdminSettingsInput,
   getProductStatus,
   getStockLevel,
   isLowVariantStock,
@@ -47,5 +48,28 @@ describe("product status from the total stock", () => {
     expect(negative.error?.issues[0]?.message).toBe("Le seuil ne peut pas être négatif.");
     const decimal = adminSettingsUpdateSchema.safeParse({ lowStockThreshold: 2.5 });
     expect(decimal.error?.issues[0]?.message).toBe("Indiquez un nombre entier d'unités.");
+  });
+
+  it("parses a settings form: only its own fields, empty costs = 0", () => {
+    // The stock threshold dialog: nothing else is asked.
+    expect(parseAdminSettingsInput({ lowStockThreshold: "20" })).toEqual({
+      success: true,
+      data: { lowStockThreshold: 20 },
+    });
+    expect(parseAdminSettingsInput({ packagingCost: "", returnCost: "0" })).toEqual({
+      success: true,
+      data: { packagingCost: 0, returnCost: 0 },
+    });
+    const empty = parseAdminSettingsInput({ lowStockThreshold: " " });
+    expect(empty).toEqual({
+      success: false,
+      errors: { lowStockThreshold: "Indiquez un nombre d'unités." },
+    });
+    const mixed = parseAdminSettingsInput({ packagingCost: "-3", returnCost: "12.5" });
+    expect(mixed.success).toBe(false);
+    if (!mixed.success) {
+      expect(mixed.errors.packagingCost).toBe("Le coût d'emballage ne peut pas être négatif.");
+      expect(mixed.errors.returnCost).toBe("Indiquez le coût d'un retour en DA, sans centimes.");
+    }
   });
 });

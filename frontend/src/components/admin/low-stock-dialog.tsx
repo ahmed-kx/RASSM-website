@@ -1,6 +1,6 @@
 "use client";
 
-import { adminSettingsSchema } from "@rassm/shared";
+import { parseAdminSettingsInput } from "@rassm/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { ApiError } from "@/lib/api";
@@ -54,11 +54,9 @@ function LowStockForm({ current, onClose }: { current: number; onClose: () => vo
   });
 
   const submit = () => {
-    const parsed = adminSettingsSchema.safeParse({
-      lowStockThreshold: value.trim() === "" ? undefined : Number(value),
-    });
+    const parsed = parseAdminSettingsInput({ lowStockThreshold: value });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? "Valeur invalide.");
+      setError(parsed.errors.lowStockThreshold ?? "Valeur invalide.");
       return;
     }
     setError(null);
