@@ -22,6 +22,12 @@ export const ADMIN_API_PATHS = {
   login: "/api/admin/auth/login",
   logout: "/api/admin/auth/logout",
   me: "/api/admin/auth/me",
+  forgotPassword: "/api/admin/auth/password/forgot",
+  resetPassword: "/api/admin/auth/password/reset",
+  sessions: "/api/admin/security/sessions",
+  session: (id: string) => `/api/admin/security/sessions/${encodeURIComponent(id)}`,
+  otherSessions: "/api/admin/security/sessions/others",
+  changePassword: "/api/admin/security/password",
   orders: "/api/admin/orders",
   orderUpdates: "/api/admin/orders/updates",
   order: (id: string) => `/api/admin/orders/${encodeURIComponent(id)}`,
@@ -59,6 +65,8 @@ export const ADMIN_API_PATHS = {
 
 /** Name of the admin session cookie (httpOnly, set by the API). */
 export const ADMIN_SESSION_COOKIE = "rassm_admin";
+/** Long-lived random id of a browser (httpOnly): a login from an unknown one sends an alert. */
+export const ADMIN_DEVICE_COOKIE = "rassm_device";
 
 /**
  * Hidden anti-spam field ("honeypot") of the order and contact forms. People never see it

@@ -9,7 +9,8 @@ import {
   createOrderNotifier,
   orderLink,
 } from "../src/notifications/new-order-email";
-import { MAX_FAILED_LOGINS } from "../src/services/admin-auth";
+import { MAX_FAILED_LOGINS } from "@rassm/shared";
+import { LoginThrottleModel } from "../src/models/login-throttle";
 import {
   ADMIN_EMAIL,
   ADMIN_PASSWORD,
@@ -88,18 +89,15 @@ describe("admin login", () => {
     const locked = await api
       .post("/api/admin/auth/login")
       .send({ email: ADMIN_EMAIL, password: "faux-mot-de-passe" })
-      .expect(423);
-    expect(locked.body.error.message).toMatch(/compte est bloqué pendant encore 15 min/);
+      .expect(429);
+    expect(locked.body.error.message).toBe("Trop de tentatives. Réessayez dans 15 minutes.");
     await api
       .post("/api/admin/auth/login")
       .send({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD })
-      .expect(423);
+      .expect(429);
 
     // Lock over: the right password works again.
-    await AdminModel.updateOne(
-      { email: ADMIN_EMAIL },
-      { $set: { lockedUntil: new Date(Date.now() - 1000) } },
-    );
+    await LoginThrottleModel.updateMany({}, { $set: { lockedUntil: new Date(Date.now() - 1000) } });
     await api
       .post("/api/admin/auth/login")
       .send({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD })

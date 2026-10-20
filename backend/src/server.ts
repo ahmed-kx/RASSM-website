@@ -8,6 +8,7 @@ import { describeError, logger } from "./lib/logger";
 import { createMetaEvents } from "./meta/conversions-api";
 import { createMessageNotifier } from "./notifications/new-message-email";
 import { createOrderNotifier } from "./notifications/new-order-email";
+import { createSecurityMailer } from "./notifications/security-email";
 import { createBrevoNewsletterList } from "./services/newsletter-sync";
 
 const env = loadEnv();
@@ -71,6 +72,10 @@ const app = createApp({
   messageNotifier: createMessageNotifier(emailConfig),
   newsletterList,
   secureCookies: env.NODE_ENV === "production",
+  securityMailer: createSecurityMailer(emailConfig, {
+    logResetLinks: env.NODE_ENV !== "production",
+  }),
+  adminUrl: env.ADMIN_URL,
   revalidator: createRevalidator(
     env.REVALIDATE_SECRET ? { url: revalidateUrl, secret: env.REVALIDATE_SECRET } : null,
   ),
@@ -88,7 +93,7 @@ const server = app.listen(env.PORT, () => {
       ? `on (${revalidateUrl})`
       : "off (REVALIDATE_SECRET not set)",
     teamEmails: env.BREVO_API_KEY
-      ? `on (new orders and messages to ${env.NOTIFY_EMAIL})`
+      ? `on (new orders and messages to ${env.NOTIFY_EMAIL}, security e-mails to the admin)`
       : "off (BREVO_API_KEY not set)",
     newsletterSync: newsletterList.configured
       ? `on (Brevo list ${env.BREVO_NEWSLETTER_LIST_ID})`

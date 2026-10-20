@@ -107,14 +107,23 @@ Create the first admin (asks the e-mail and the password in the terminal, nothin
 pnpm create-admin
 ```
 
-Run it again with the same e-mail to set a new password (the open sessions are closed). Log in at
+Run it again with the same e-mail to set a new password (the open sessions are closed and a login
+lock is lifted). Passwords: 12 characters minimum, not containing "rassm", not a common password;
+hashed with argon2id. Log in at
 `/admin/connexion` on the website. The dashboard calls `/api/admin/*` on the website's domain
 (Next.js rewrites it to the API), with an httpOnly SameSite=Strict session cookie (Secure in production).
-Five wrong passwords in a row lock the account for 15 minutes.
+Five wrong passwords in a row lock the account and the IP for 15 minutes, doubled at each new lock
+(up to 24 hours). "Mot de passe oublié ?" sends a single-use link valid 30 minutes (Brevo), which
+also works while the account is locked. Without "Se souvenir de moi" a session lasts 12 hours (2 hours
+without activity); with it, 30 days. The admin gets an e-mail alert for a login from a new browser, a
+password change or reset, and a lock. Sessions are listed and revoked in Paramètres > Sécurité.
 
 | Route                                                                                                        | What it does                                                                                                 |
 | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| `POST /api/admin/auth/login` / `logout`                                                                      | Session cookie in / out                                                                                      |
+| `POST /api/admin/auth/login` / `logout`                                                                      | Session cookie in / out (`remember`: 30 days)                                                                |
+| `POST /api/admin/auth/password/forgot` / `reset`                                                             | Reset link by e-mail (neutral answer), new password with the link                                            |
+| `GET /api/admin/security/sessions`, `DELETE …/sessions/:id`, `DELETE …/sessions/others`                      | Open sessions, revoke one or all the others                                                                  |
+| `POST /api/admin/security/password`                                                                          | Change the password (current one required; other sessions logged out)                                        |
 | `GET /api/admin/auth/me`                                                                                     | The logged-in admin                                                                                          |
 | `GET /api/admin/search?q=`                                                                                   | Top bar search: orders (name, phone, order number) and products                                              |
 | `GET /api/admin/orders`                                                                                      | List: `status` tab, `q` (name, phone or "RSM-000123"), `wilaya`, `from`, `to`, `page` (or `cursor`), `limit` |

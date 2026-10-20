@@ -2,13 +2,15 @@
 // password are asked in the terminal (the password is not displayed) and never stored in code.
 import { createInterface } from "node:readline";
 import { Writable } from "node:stream";
-import { adminPasswordSchema } from "@rassm/shared";
+import { ADMIN_PASSWORD_MIN_LENGTH, adminPasswordSchema } from "@rassm/shared";
 import { z } from "zod";
 import { connectDatabase, disconnectDatabase } from "./db";
 import { loadEnv } from "./env";
 import { hashPassword } from "./lib/password";
 import { AdminModel } from "./models/admin";
+import { AdminPasswordResetModel } from "./models/admin-password-reset";
 import { AdminSessionModel } from "./models/admin-session";
+import { accountKey, clearThrottle } from "./services/login-throttle";
 
 /** Output that can be muted while the password is typed. */
 let muted = false;
@@ -50,7 +52,10 @@ try {
   const email = z.email().safeParse((await ask("Admin e-mail: ")).toLowerCase());
   if (!email.success) throw new Error("Invalid e-mail address.");
 
-  const password = await ask("Password (10 characters minimum): ", { hidden: true });
+  const password = await ask(
+    `Password (${ADMIN_PASSWORD_MIN_LENGTH} characters minimum, not a common password, without "rassm"): `,
+    { hidden: true },
+  );
   const valid = adminPasswordSchema.safeParse(password);
   if (!valid.success) throw new Error(valid.error.issues[0]?.message ?? "Invalid password.");
   if ((await ask("Repeat the password: ", { hidden: true })) !== password) {
@@ -65,11 +70,12 @@ try {
     const answer = await ask(`An admin ${email.data} already exists. Reset its password? (y/N) `);
     if (!/^(y|yes|o|oui)$/i.test(answer)) throw new Error("Cancelled: nothing changed.");
     existing.passwordHash = await hashPassword(password);
-    existing.failedLoginAttempts = 0;
-    existing.lockedUntil = null;
+    existing.passwordChangedAt = new Date();
     await existing.save();
-    // Log out every open session of this admin.
+    // Log out every open session, cancel the reset links and lift a login lock.
     await AdminSessionModel.deleteMany({ adminId: existing._id });
+    await AdminPasswordResetModel.deleteMany({ adminId: existing._id });
+    await clearThrottle([accountKey(email.data)]);
     console.warn(`Password reset for ${email.data}.`);
   } else {
     await AdminModel.create({ email: email.data, passwordHash: await hashPassword(password) });

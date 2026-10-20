@@ -6,6 +6,7 @@ import type { MetaEvents } from "./meta/conversions-api";
 import type { ImageStorage } from "./services/image-storage";
 import type { MessageNotifier } from "./notifications/new-message-email";
 import type { OrderNotifier } from "./notifications/new-order-email";
+import type { SecurityMailer } from "./notifications/security-email";
 import type { NewsletterList } from "./services/newsletter-sync";
 import { errorHandler, notFound } from "./middleware/error-handler";
 import { limitRequests, rejectUnsafeKeys, type RateLimitOptions } from "./middleware/security";
@@ -20,8 +21,10 @@ export const DEFAULT_RATE_LIMITS = {
   orders: { windowMs: FIFTEEN_MINUTES, limit: 10 },
   contact: { windowMs: FIFTEEN_MINUTES, limit: 5 },
   newsletter: { windowMs: FIFTEEN_MINUTES, limit: 10 },
-  /** Login attempts per IP (the account itself locks after 5 failures in a row). */
-  login: { windowMs: FIFTEEN_MINUTES, limit: 10 },
+  /** Login requests per IP (on top of the 5-failure lock per account and per IP). */
+  login: { windowMs: FIFTEEN_MINUTES, limit: 20 },
+  /** Requests per IP on each password route (forgot, reset, change). */
+  password: { windowMs: FIFTEEN_MINUTES, limit: 10 },
   /** Dashboard requests per IP (the live updates poll every few seconds). */
   admin: { windowMs: FIFTEEN_MINUTES, limit: 3000 },
 } satisfies Record<string, RateLimitOptions>;
@@ -39,6 +42,10 @@ export interface AppOptions {
   newsletterList: NewsletterList;
   /** Admin session cookie only over HTTPS (production). */
   secureCookies: boolean;
+  /** Password reset links and security alerts to the admin. */
+  securityMailer: SecurityMailer;
+  /** Dashboard URL (reset links), e.g. https://rassm.dz/admin. */
+  adminUrl: string;
   /** Refreshes the website's pages after a dashboard change. */
   revalidator: Revalidator;
   /** Product photos (Cloudinary); null = uploads disabled. */
@@ -84,6 +91,9 @@ export function createApp(options: AppOptions): Express {
       allowedOrigins: options.frontendOrigins,
       secureCookies: options.secureCookies,
       loginLimiter: limitRequests(limits.login),
+      passwordLimiter: () => limitRequests(limits.password),
+      mailer: options.securityMailer,
+      adminUrl: options.adminUrl,
       adminLimiter: limitRequests(limits.admin),
       metaEvents: options.metaEvents,
       revalidator: options.revalidator,

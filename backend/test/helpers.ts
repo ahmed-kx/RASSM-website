@@ -7,6 +7,7 @@ import type { MetaEvents } from "../src/meta/conversions-api";
 import { AdminModel } from "../src/models/admin";
 import type { MessageNotifier } from "../src/notifications/new-message-email";
 import type { OrderNotifier } from "../src/notifications/new-order-email";
+import type { SecurityMailer } from "../src/notifications/security-email";
 import type { NewsletterList } from "../src/services/newsletter-sync";
 import type { Revalidator } from "../src/lib/revalidate";
 import type { ImageStorage } from "../src/services/image-storage";
@@ -61,6 +62,16 @@ export function fakeMessageNotifier() {
   } satisfies MessageNotifier;
 }
 
+/** Records the reset links and security alerts instead of e-mailing them. */
+export function fakeSecurityMailer() {
+  return {
+    sendPasswordReset: vi.fn<SecurityMailer["sendPasswordReset"]>(async () => undefined),
+    sendAlert: vi.fn<SecurityMailer["sendAlert"]>(async () => undefined),
+  } satisfies SecurityMailer;
+}
+
+export const TEST_ADMIN_URL = "http://localhost:3000/admin";
+
 /** A Brevo list stand-in: records the contacts added and removed. */
 export function fakeNewsletterList(configured = true) {
   return {
@@ -78,6 +89,7 @@ export function testApp(options: Partial<AppOptions> = {}) {
   const revalidator = fakeRevalidator();
   const messageNotifier = fakeMessageNotifier();
   const newsletterList = fakeNewsletterList();
+  const securityMailer = fakeSecurityMailer();
   const high = { windowMs: 60_000, limit: 1000 };
   const app = createApp({
     frontendOrigins: ["http://localhost:3000"],
@@ -89,12 +101,15 @@ export function testApp(options: Partial<AppOptions> = {}) {
     revalidator,
     messageNotifier,
     newsletterList,
+    securityMailer,
+    adminUrl: TEST_ADMIN_URL,
     ...options,
     rateLimits: {
       orders: high,
       contact: high,
       newsletter: high,
       login: high,
+      password: high,
       admin: high,
       ...options.rateLimits,
     },
@@ -107,6 +122,7 @@ export function testApp(options: Partial<AppOptions> = {}) {
     revalidator,
     messageNotifier: (options.messageNotifier ?? messageNotifier) as typeof messageNotifier,
     newsletterList: (options.newsletterList ?? newsletterList) as typeof newsletterList,
+    securityMailer: (options.securityMailer ?? securityMailer) as typeof securityMailer,
     api: request(app),
   };
 }

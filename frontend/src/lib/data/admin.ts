@@ -37,6 +37,10 @@ import {
   type AdminProductInput,
   type AdminProductQuery,
   type AdminStockUpdate,
+  adminSessionListSchema,
+  type AdminChangePassword,
+  type AdminForgotPassword,
+  type AdminResetPassword,
   type DeliveryBulk,
   type DeliveryFeeUpdate,
   type OrderStatus,
@@ -103,6 +107,47 @@ export function adminLogin(data: AdminLogin) {
 
 export async function adminLogout(): Promise<void> {
   await request(ADMIN_API_PATHS.logout, { method: "POST" }).catch(() => undefined);
+}
+
+/** "Mot de passe oublié ?": the API answers the same neutral message for every e-mail. */
+export function requestPasswordReset(data: AdminForgotPassword) {
+  return requestJson(
+    ADMIN_API_PATHS.forgotPassword,
+    z.object({ message: z.string() }),
+    send("POST", data),
+  );
+}
+
+export async function resetAdminPassword(data: AdminResetPassword): Promise<void> {
+  await request(ADMIN_API_PATHS.resetPassword, send("POST", data));
+}
+
+// ---------- Security (Paramètres > Sécurité) ----------
+
+export function fetchAdminSessions() {
+  return requestJson(ADMIN_API_PATHS.sessions, adminSessionListSchema);
+}
+
+export function revokeAdminSession(id: string) {
+  return requestJson(
+    ADMIN_API_PATHS.session(id),
+    z.object({ ok: z.literal(true), current: z.boolean() }),
+    { method: "DELETE" },
+  );
+}
+
+export function revokeOtherAdminSessions() {
+  return requestJson(ADMIN_API_PATHS.otherSessions, z.object({ closed: z.number() }), {
+    method: "DELETE",
+  });
+}
+
+export function changeAdminPassword(data: AdminChangePassword) {
+  return requestJson(
+    ADMIN_API_PATHS.changePassword,
+    z.object({ closedSessions: z.number() }),
+    send("POST", data),
+  );
 }
 
 // ---------- Orders ----------

@@ -1,6 +1,4 @@
 import {
-  ADMIN_SESSION_COOKIE,
-  adminLoginSchema,
   adminNoteSchema,
   adminOrderEditSchema,
   adminOrderQuerySchema,
@@ -12,16 +10,9 @@ import {
 } from "@rassm/shared";
 import { Router, type RequestHandler } from "express";
 import { z } from "zod";
-import { getClientInfo } from "../lib/client-info";
 import { HttpError, parseOrThrow } from "../lib/http-error";
 import type { MetaEvents } from "../meta/conversions-api";
-import {
-  currentAdmin,
-  readSessionToken,
-  requireAdmin,
-  requireSameOrigin,
-  sessionCookieOptions,
-} from "../middleware/admin";
+import { currentAdmin, requireAdmin, requireSameOrigin } from "../middleware/admin";
 import {
   blacklistOrderPhone,
   addToBlacklist,
@@ -36,18 +27,16 @@ import {
   setNote,
   shipOrders,
 } from "../services/admin-orders";
-import { login, logout } from "../services/admin-auth";
 import { searchDashboard } from "../services/admin-search";
 import { andersonFileName, buildAndersonCsv } from "../services/anderson-export";
 import { ProductModel } from "../models/product";
+import { addPublicAuthRoutes, addSecurityRoutes, type AuthRouteOptions } from "./admin-auth";
 import { addCatalogRoutes, type CatalogRouteOptions } from "./admin-catalog";
 import { addInsightRoutes, type InsightRouteOptions } from "./admin-insights";
 
-export interface AdminRouterOptions extends CatalogRouteOptions, InsightRouteOptions {
+export interface AdminRouterOptions
+  extends CatalogRouteOptions, InsightRouteOptions, AuthRouteOptions {
   allowedOrigins: readonly string[];
-  /** Secure cookies (HTTPS only): true in production. */
-  secureCookies: boolean;
-  loginLimiter: RequestHandler;
   adminLimiter: RequestHandler;
   metaEvents: MetaEvents;
 }
@@ -62,23 +51,7 @@ export function adminRouter(options: AdminRouterOptions): Router {
     next();
   });
 
-  router.post("/auth/login", options.loginLimiter, async (req, res) => {
-    const { email, password } = parseOrThrow(adminLoginSchema, req.body);
-    const session = await login(email, password, getClientInfo(req));
-    res.cookie(
-      ADMIN_SESSION_COOKIE,
-      session.token,
-      sessionCookieOptions(options.secureCookies, session.expiresAt),
-    );
-    res.json({ admin: session.admin });
-  });
-
-  router.post("/auth/logout", async (req, res) => {
-    const token = readSessionToken(req);
-    if (token) await logout(token);
-    res.clearCookie(ADMIN_SESSION_COOKIE, sessionCookieOptions(options.secureCookies));
-    res.json({ ok: true });
-  });
+  addPublicAuthRoutes(router, options);
 
   // Everything below requires a session.
   router.use(options.adminLimiter, requireAdmin);
@@ -86,6 +59,7 @@ export function adminRouter(options: AdminRouterOptions): Router {
   router.get("/auth/me", (_req, res) => {
     res.json({ admin: currentAdmin(res) });
   });
+  addSecurityRoutes(router, options);
 
   addCatalogRoutes(router, {
     revalidator: options.revalidator,

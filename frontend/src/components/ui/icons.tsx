@@ -561,3 +561,58 @@ export function MailOpenIcon(props: IconProps) {
     </LineIcon>
   );
 }
+
+export function LockIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="M5.5 10.5h13v10h-13z" />
+      <path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3" />
+      <path d="M12 14.5v2" />
+    </LineIcon>
+  );
+}
+
+export function EyeIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" />
+      <circle cx="12" cy="12" r="3" />
+    </LineIcon>
+  );
+}
+
+export function EyeOffIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="M9.9 5.8A9.6 9.6 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a17 17 0 0 1-2.6 3.4M14.1 14.2A3 3 0 0 1 9.8 9.9M6.4 7.6C3.9 9.3 2.5 12 2.5 12S6 18.5 12 18.5c1.6 0 3-.4 4.2-1" />
+      <path d="m3.5 3.5 17 17" />
+    </LineIcon>
+  );
+}
+
+export function LaptopIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="M4.5 5.5h15v10h-15z" />
+      <path d="M2.5 18.5h19" />
+    </LineIcon>
+  );
+}
+
+export function SmartphoneIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <path d="M7.5 2.5h9v19h-9z" />
+      <path d="M11 18.5h2" />
+    </LineIcon>
+  );
+}
+
+export function KeyIcon(props: IconProps) {
+  return (
+    <LineIcon {...props}>
+      <circle cx="8" cy="15" r="4" />
+      <path d="m11 12 8.5-8.5M16 7l2.5 2.5M14 9l2 2" />
+    </LineIcon>
+  );
+}

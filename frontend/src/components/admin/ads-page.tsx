@@ -316,7 +316,9 @@ function EntryForm({
     onError: (error) =>
       setErrors(
         error instanceof ApiError
-          ? (error.fields ?? { form: error.message })
+          ? Object.keys(error.fields).length > 0
+            ? error.fields
+            : { form: error.message }
           : { form: "Enregistrement impossible." },
       ),
   });

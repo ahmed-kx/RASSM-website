@@ -6,10 +6,12 @@ import { NextResponse, type NextRequest } from "next/server";
 // with the API, and every admin API route checks the session again.
 
 const LOGIN_PATH = "/admin/connexion";
+/** Pages open without a session: login and the password reset by e-mail. */
+const PUBLIC_PATHS = [LOGIN_PATH, "/admin/mot-de-passe-oublie", "/admin/nouveau-mot-de-passe"];
 
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
-  if (pathname === LOGIN_PATH || request.cookies.has(ADMIN_SESSION_COOKIE)) {
+  if (PUBLIC_PATHS.includes(pathname) || request.cookies.has(ADMIN_SESSION_COOKIE)) {
     return NextResponse.next();
   }
   const login = new URL(LOGIN_PATH, request.url);

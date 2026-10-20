@@ -7,6 +7,7 @@ import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { fetchAdminSettings, saveAdminSettings } from "@/lib/data/admin";
 import { AdminCard, AdminEmpty, AdminPageHeader, adminInput, buttonClass } from "./admin-ui";
+import { SecuritySection } from "./security-section";
 import { useToast } from "./toasts";
 
 // Paramètres: the costs used by the profit statistics, and the "Stock faible" threshold.
@@ -36,7 +37,7 @@ export function SettingsPage() {
   const query = useQuery({ queryKey: ["admin", "settings"], queryFn: fetchAdminSettings });
   return (
     <>
-      <AdminPageHeader title="Paramètres" subtitle="Coûts et seuils de vos statistiques" />
+      <AdminPageHeader title="Paramètres" subtitle="Coûts, seuils et sécurité du compte" />
       <div className="mt-7 max-w-2xl">
         {query.isPending ? (
           <AdminEmpty>Chargement…</AdminEmpty>
@@ -45,6 +46,9 @@ export function SettingsPage() {
         ) : (
           <SettingsForm settings={query.data} />
         )}
+      </div>
+      <div className="max-w-3xl">
+        <SecuritySection />
       </div>
     </>
   );
@@ -77,7 +81,9 @@ function SettingsForm({ settings }: { settings: AdminSettings }) {
     onError: (error) =>
       setErrors(
         error instanceof ApiError
-          ? (error.fields ?? { form: error.message })
+          ? Object.keys(error.fields).length > 0
+            ? error.fields
+            : { form: error.message }
           : { form: "Enregistrement impossible." },
       ),
   });

@@ -2,6 +2,8 @@
 export const adminRoutes = {
   home: "/admin",
   login: "/admin/connexion",
+  forgotPassword: "/admin/mot-de-passe-oublie",
+  newPassword: "/admin/nouveau-mot-de-passe",
   orders: "/admin/commandes",
   order: (id: string) => `/admin/commandes/${id}`,
   blacklist: "/admin/liste-noire",
@@ -16,4 +18,5 @@ export const adminRoutes = {
   client: (phone: string) => `/admin/clients/${encodeURIComponent(phone)}`,
   ads: "/admin/publicite",
   settings: "/admin/parametres",
+  security: "/admin/parametres#securite",
 } as const;

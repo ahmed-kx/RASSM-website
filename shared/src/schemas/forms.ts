@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { algerianPhoneSchema } from "./customer";
 
-const emailSchema = z
+export const emailSchema = z
   .string({ error: "Veuillez entrer votre adresse e-mail." })
   .trim()
   .min(1, "Veuillez entrer votre adresse e-mail.")
@@ -74,5 +74,9 @@ export const adminLoginSchema = z.object({
     .string({ error: "Veuillez entrer votre mot de passe." })
     .min(1, "Veuillez entrer votre mot de passe.")
     .max(200, "Le mot de passe est trop long."),
+  /** "Se souvenir de moi": 30 days on this device instead of 12 hours. */
+  remember: z.boolean().optional(),
 });
 export type AdminLogin = z.infer<typeof adminLoginSchema>;
+/** The login form: the checkbox always has a value. */
+export const adminLoginFormSchema = adminLoginSchema.extend({ remember: z.boolean() });

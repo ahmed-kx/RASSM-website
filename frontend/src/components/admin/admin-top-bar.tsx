@@ -14,7 +14,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { BellIcon, LogoutIcon, SoundOffIcon, SoundOnIcon } from "@/components/ui/icons";
+import { BellIcon, KeyIcon, LogoutIcon, SoundOffIcon, SoundOnIcon } from "@/components/ui/icons";
 import { formatRelativeTime, orderProductLine } from "@/lib/admin/format";
 import { adminRoutes } from "@/lib/admin/routes";
 import { cn } from "@/lib/cn";
@@ -372,7 +372,7 @@ export function AccountMenu({ admin, surface }: { admin: Admin; surface: Surface
         </span>
       }
     >
-      {() => (
+      {(close) => (
         <>
           <div className="border-b border-line px-4 py-3">
             <p className="text-xs text-stone">Connecté en tant que</p>
@@ -380,6 +380,14 @@ export function AccountMenu({ admin, surface }: { admin: Admin; surface: Surface
               {admin.email}
             </p>
           </div>
+          <Link
+            href={adminRoutes.security}
+            onClick={close}
+            className="flex min-h-12 w-full items-center gap-3 px-4 text-sm hover:bg-cream/60"
+          >
+            <KeyIcon width={18} height={18} />
+            Sécurité du compte
+          </Link>
           <button
             type="button"
             onClick={() => void logout()}

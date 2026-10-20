@@ -2,6 +2,7 @@ export * from "./constants/wilayas";
 export * from "./schemas/admin";
 export * from "./schemas/admin-crm";
 export * from "./schemas/admin-product";
+export * from "./schemas/admin-security";
 export * from "./schemas/admin-stats";
 export * from "./schemas/api";
 export * from "./schemas/common";

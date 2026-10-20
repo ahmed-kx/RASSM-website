@@ -49,13 +49,18 @@ export async function brevoRequest(
   return response;
 }
 
-/** Sends one e-mail to the team. Throws when Brevo refuses it. */
+/** Sends one e-mail to the team (NOTIFY_EMAIL). Throws when Brevo refuses it. */
 export async function sendTeamEmail(config: EmailConfig, email: Email): Promise<void> {
+  await sendEmail(config, config.notifyEmail, email);
+}
+
+/** Sends one e-mail to an address. Throws when Brevo refuses it. */
+export async function sendEmail(config: EmailConfig, to: string, email: Email): Promise<void> {
   await brevoRequest(config.brevoApiKey, "/smtp/email", {
     method: "POST",
     body: {
       sender: { name: "RASSM", email: config.from },
-      to: [{ email: config.notifyEmail }],
+      to: [{ email: to }],
       subject: email.subject,
       htmlContent: email.html,
       textContent: email.text,

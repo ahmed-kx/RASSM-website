@@ -7,12 +7,6 @@ import { productOrderFieldsSchema } from "./product-order";
 // Admin dashboard: shapes shared by the admin API (backend) and the dashboard (frontend).
 // Labels are French (the dashboard is in French).
 
-/** Password rules for an admin account (create-admin script). */
-export const adminPasswordSchema = z
-  .string({ error: "Veuillez entrer un mot de passe." })
-  .min(10, "Le mot de passe doit contenir au moins 10 caractères.")
-  .max(200, "Le mot de passe est trop long.");
-
 export const adminSchema = z.object({
   id: idSchema,
   email: z.email(),
