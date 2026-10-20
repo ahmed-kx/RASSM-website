@@ -117,7 +117,7 @@ function SidebarContent({
   const pathname = usePathname();
   const { unopened, unreadMessages } = useLiveOrders();
   return (
-    <div className="relative flex h-full flex-col overflow-hidden bg-onyx text-paper">
+    <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-onyx text-paper">
       {/* Concrete texture fading into the black, behind the admin card. */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-80">
         <Image
@@ -125,6 +125,7 @@ function SidebarContent({
           alt=""
           fill
           sizes="300px"
+          loading="eager"
           className="object-cover object-[70%_center] opacity-35 grayscale"
         />
         <div className="absolute inset-0 bg-linear-to-b from-onyx via-onyx/70 to-onyx/30" />
@@ -134,7 +135,10 @@ function SidebarContent({
         href={adminRoutes.home}
         onClick={onNavigate}
         aria-label="RASSM Admin, tableau de bord"
-        className={cn("relative block pt-8 pb-9", collapsed ? "px-0 text-center" : "px-7")}
+        className={cn(
+          "relative block shrink-0 pt-6 pb-5 [@media(min-height:860px)]:pt-8 [@media(min-height:860px)]:pb-8",
+          collapsed ? "px-0 text-center" : "px-7",
+        )}
       >
         <span className="block font-display text-[2.1rem] leading-none tracking-[0.16em]">
           {collapsed ? "R" : "RASSM"}
@@ -146,8 +150,11 @@ function SidebarContent({
         )}
       </Link>
 
-      <nav aria-label="Navigation du tableau de bord" className="relative flex-1 px-3">
-        <ul className="space-y-1">
+      <nav
+        aria-label="Navigation du tableau de bord"
+        className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-3"
+      >
+        <ul className="space-y-0.5">
           {NAV.map(({ label, href, Icon }) => {
             const active = isActive(pathname, href);
             return (
@@ -158,7 +165,7 @@ function SidebarContent({
                   aria-current={active ? "page" : undefined}
                   title={collapsed ? label : undefined}
                   className={cn(
-                    "relative flex h-12 items-center gap-3.5 rounded-md text-[15px] transition-colors",
+                    "relative flex h-10 items-center gap-3.5 rounded-md text-[15px] transition-colors [@media(min-height:860px)]:h-12",
                     collapsed ? "justify-center px-0" : "px-4",
                     active
                       ? "bg-paper/8 text-paper ring-1 ring-paper/12"
@@ -188,7 +195,7 @@ function SidebarContent({
         </ul>
       </nav>
 
-      <div className="relative p-3 pb-5">
+      <div className="relative shrink-0 p-3">
         <div
           className={cn(
             "flex items-center gap-3 rounded-md bg-onyx/70 ring-1 ring-paper/12 backdrop-blur-sm",
@@ -236,7 +243,7 @@ function SidebarDrawer({
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
-      className="m-0 h-svh max-h-none w-[min(86vw,300px)] max-w-none bg-onyx p-0 backdrop:bg-ink/60 motion-safe:animate-slide-in-left lg:hidden"
+      className="m-0 h-dvh max-h-none w-[min(86vw,300px)] max-w-none bg-onyx p-0 backdrop:bg-ink/60 motion-safe:animate-slide-in-left lg:hidden"
     >
       {open && (
         <div className="relative h-full">
@@ -493,7 +500,7 @@ export function AdminShell({ admin, children }: { admin: Admin; children: ReactN
           collapsed ? "lg:grid-cols-[84px_minmax(0,1fr)]" : "lg:grid-cols-[272px_minmax(0,1fr)]",
         )}
       >
-        <aside className="sticky top-0 hidden h-svh lg:block">
+        <aside className="sticky top-0 hidden h-dvh self-start lg:block">
           <SidebarContent admin={admin} collapsed={collapsed} />
         </aside>
         <SidebarDrawer admin={admin} open={drawerOpen} onClose={() => setDrawerOpen(false)} />

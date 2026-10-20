@@ -62,9 +62,40 @@ function bucketTitle(start: string, granularity: Granularity): string {
 const compact = (value: number) =>
   Math.abs(value) >= 1_000_000
     ? `${formatNumber(Math.round(value / 100_000) / 10)} M`
-    : Math.abs(value) >= 1000
+    : Math.abs(value) >= 10_000
       ? `${formatNumber(Math.round(value / 100) / 10)} k`
       : formatNumber(value);
+
+/**
+ * Clean Y axis: always includes 0, steps of 1, 2 or 5 × 10^n (whole numbers for orders), about
+ * four intervals. Nothing to show (all 0): 0 to 1 000 DA, or 0 to 4 orders.
+ */
+export function niceScale(
+  values: number[],
+  whole: boolean,
+): { domain: [number, number]; ticks: number[] } {
+  const low = Math.min(0, ...values);
+  const high = Math.max(0, ...values);
+  if (low === 0 && high === 0) {
+    const step = whole ? 1 : 250;
+    return { domain: [0, step * 4], ticks: [0, 1, 2, 3, 4].map((n) => n * step) };
+  }
+  const rough = (high - low) / 4;
+  const power = 10 ** Math.floor(Math.log10(rough));
+  const unit = [1, 2, 5, 10].find((m) => m * power >= rough) ?? 10;
+  const step = Math.max(whole ? 1 : 0, unit * power);
+  const first = Math.floor(low / step) * step;
+  const last = Math.ceil(high / step) * step;
+  const ticks: number[] = [];
+  for (let tick = first; tick <= last + step / 2; tick += step) ticks.push(tick);
+  return { domain: [first, last], ticks };
+}
+
+const EMPTY_TEXT: Record<SalesMetric, string> = {
+  revenue: "Aucune vente encaissée sur cette période",
+  orders: "Aucune commande sur cette période",
+  profit: "Aucun bénéfice sur cette période",
+};
 
 const formatMetric = (metric: SalesMetric, value: number) =>
   metric === "orders"
@@ -87,11 +118,23 @@ export function SalesChart({
     value: point[metric],
   }));
   const hasNegative = data.some((point) => point.value < 0);
+  const empty = data.every((point) => point.value === 0);
+  const scale = niceScale(
+    data.map((point) => point.value),
+    metric === "orders",
+  );
   const title = SALES_METRICS.find((entry) => entry.id === metric)?.label ?? "";
 
   return (
     <>
-      <div className="h-56 sm:h-64 lg:h-72 xl:h-[22rem]" aria-hidden="true">
+      <div className="relative h-56 sm:h-64 lg:h-72 xl:h-[22rem]" aria-hidden="true">
+        {empty && (
+          <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center px-12 pb-6">
+            <p className="rounded-sm bg-paper px-3 py-1.5 text-center text-sm text-stone">
+              {EMPTY_TEXT[metric]}
+            </p>
+          </div>
+        )}
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
             <defs>
@@ -116,6 +159,9 @@ export function SalesChart({
               tick={{ fill: "var(--color-stone)", fontSize: 12 }}
               tickFormatter={compact}
               allowDecimals={false}
+              domain={scale.domain}
+              ticks={scale.ticks}
+              interval={0}
             />
             {hasNegative && <ReferenceLine y={0} stroke="var(--color-stone)" strokeWidth={1} />}
             <Tooltip
