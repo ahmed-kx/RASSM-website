@@ -59,7 +59,7 @@ export function LoginForm({ next, notice }: { next: string | null; notice: strin
         event.preventDefault();
         void form.handleSubmit();
       }}
-      className="space-y-6 lg:space-y-[2.2vh]"
+      className="space-y-[max(14px,calc(20*var(--u,1px)))]"
     >
       {notice && !error && <AuthAlert tone="info">{notice}</AuthAlert>}
       <form.Field name="email">
@@ -103,17 +103,17 @@ export function LoginForm({ next, notice }: { next: string | null; notice: strin
         }}
       </form.Field>
 
-      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
         <form.Field name="remember">
           {(field) => (
-            <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm text-ink">
-              <span className="relative grid size-4.5 shrink-0 place-items-center">
+            <label className="flex min-h-11 cursor-pointer items-center gap-[max(10px,calc(12*var(--u,1px)))] font-auth text-[max(11px,calc(12.5*var(--u,1px)))] text-ink/85 lg:min-h-0">
+              <span className="relative grid size-[max(15px,calc(16*var(--u,1px)))] shrink-0 place-items-center">
                 <input
                   type="checkbox"
                   name="remember"
                   checked={field.state.value}
                   onChange={(event) => field.handleChange(event.target.checked)}
-                  className="peer absolute inset-0 cursor-pointer appearance-none border border-ink/50 bg-paper checked:border-ink checked:bg-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                  className="peer absolute inset-0 cursor-pointer appearance-none border border-ink/45 bg-paper/50 checked:border-ink checked:bg-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                 />
                 <CheckIcon
                   width={13}
@@ -132,11 +132,13 @@ export function LoginForm({ next, notice }: { next: string | null; notice: strin
       </div>
 
       {error && <AuthAlert>{error}</AuthAlert>}
-      <form.Subscribe selector={(state) => state.isSubmitting}>
-        {(isSubmitting) => (
-          <AuthSubmit pending={isSubmitting} label="Se connecter" pendingLabel="Connexion…" />
-        )}
-      </form.Subscribe>
+      <div className="pt-[calc(9*var(--u,1px))]">
+        <form.Subscribe selector={(state) => state.isSubmitting}>
+          {(isSubmitting) => (
+            <AuthSubmit pending={isSubmitting} label="Se connecter" pendingLabel="Connexion…" />
+          )}
+        </form.Subscribe>
+      </div>
     </form>
   );
 }

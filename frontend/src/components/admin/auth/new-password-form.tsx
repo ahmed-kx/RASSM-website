@@ -69,7 +69,7 @@ export function NewPasswordForm() {
   if (resetToken === undefined) return null;
   if (resetToken === null || error === INVALID_RESET_LINK) {
     return (
-      <div className="space-y-7">
+      <div className="space-y-[max(14px,calc(20*var(--u,1px)))]">
         <AuthAlert>{INVALID_RESET_LINK}</AuthAlert>
         <div className="flex flex-wrap gap-x-8 gap-y-3">
           <Link href={adminRoutes.forgotPassword} className={authLink}>
@@ -91,7 +91,7 @@ export function NewPasswordForm() {
         event.preventDefault();
         void form.handleSubmit();
       }}
-      className="space-y-6"
+      className="space-y-[max(14px,calc(20*var(--u,1px)))]"
     >
       <form.Field name="password">
         {(field) => {

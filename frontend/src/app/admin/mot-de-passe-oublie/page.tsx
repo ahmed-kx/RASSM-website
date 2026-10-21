@@ -7,6 +7,7 @@ export const metadata: Metadata = { title: "Mot de passe oublié" };
 export default function ForgotPasswordPage() {
   return (
     <AuthShell
+      longTitle
       title="Mot de passe oublié"
       subtitle={
         <p>

@@ -7,6 +7,7 @@ export const metadata: Metadata = { title: "Nouveau mot de passe" };
 export default function NewPasswordPage() {
   return (
     <AuthShell
+      longTitle
       title="Nouveau mot de passe"
       subtitle={
         <p>Choisissez un nouveau mot de passe. Toutes les sessions ouvertes seront déconnectées.</p>

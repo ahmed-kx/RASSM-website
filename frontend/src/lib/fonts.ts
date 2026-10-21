@@ -1,4 +1,4 @@
-import { Cormorant_Garamond, Covered_By_Your_Grace, Spectral } from "next/font/google";
+import { Cormorant_Garamond, Covered_By_Your_Grace, Montserrat, Spectral } from "next/font/google";
 
 /** High-contrast display serif: logo and headings. */
 export const displayFont = Cormorant_Garamond({
@@ -22,5 +22,16 @@ export const handFont = Covered_By_Your_Grace({
   subsets: ["latin"],
   weight: "400",
   variable: "--font-covered",
+  display: "swap",
+});
+
+/**
+ * Light geometric sans: only the admin login pages (design/admin-login.png: subline, inputs,
+ * small links and labels). Applied by AuthShell, so the public site never loads it.
+ */
+export const authSansFont = Montserrat({
+  subsets: ["latin"],
+  weight: ["300", "400", "500"],
+  variable: "--font-montserrat",
   display: "swap",
 });

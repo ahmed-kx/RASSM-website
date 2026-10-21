@@ -38,9 +38,9 @@ export function ForgotPasswordForm() {
 
   if (sent) {
     return (
-      <div className="space-y-7">
+      <div className="space-y-[max(14px,calc(20*var(--u,1px)))]">
         <AuthAlert tone="info">{sent}</AuthAlert>
-        <p className="text-sm leading-relaxed text-ash">
+        <p className="font-auth text-[13px] leading-relaxed font-light text-ash">
           Pensez à regarder dans les courriers indésirables. Le lien ne fonctionne qu&apos;une fois.
         </p>
         <Link href={adminRoutes.login} className={authLink}>
@@ -58,7 +58,7 @@ export function ForgotPasswordForm() {
         event.preventDefault();
         void form.handleSubmit();
       }}
-      className="space-y-6"
+      className="space-y-[max(14px,calc(20*var(--u,1px)))]"
     >
       <form.Field name="email">
         {(field) => {

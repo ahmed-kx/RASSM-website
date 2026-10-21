@@ -13,12 +13,13 @@ import { describedBy } from "@/components/ui/form-field";
 import { cn } from "@/lib/cn";
 
 // Fields of the login, forgot password and new password cards (design/admin-login.png):
-// spaced uppercase label, input with a thin icon, French error under it.
+// spaced uppercase label, input with a thin icon, French error under it. Sizes are design pixels
+// times --u (set by AuthShell on computers; 1px elsewhere, e.g. Paramètres > Sécurité).
 
 export const PASSWORD_HINT = `Au moins ${ADMIN_PASSWORD_MIN_LENGTH} caractères, sans « rassm » ni mot de passe courant. Une phrase de plusieurs mots est idéale.`;
 
 const inputClass =
-  "h-[3.25rem] w-full border border-ink/25 bg-paper/60 pl-12 text-[15px] text-ink placeholder:text-stone/80 transition-colors focus:border-ink focus:bg-paper focus:outline-none aria-invalid:border-error";
+  "h-[max(36px,calc(53*var(--u,1px)))] w-full border border-ink/20 bg-paper/50 pl-[max(40px,calc(54*var(--u,1px)))] font-auth text-[max(13px,calc(13.5*var(--u,1px)))] font-light tracking-[0.03em] text-ink placeholder:text-stone/80 transition-colors focus:border-ink/60 focus:bg-paper focus:outline-none aria-invalid:border-error";
 
 export function AuthField({
   id,
@@ -37,20 +38,21 @@ export function AuthField({
 }) {
   return (
     <div>
-      <label htmlFor={id} className="text-xs font-semibold tracking-label text-ink uppercase">
+      <label
+        htmlFor={id}
+        className="text-[max(9.5px,calc(12.5*var(--u,1px)))] font-semibold tracking-[0.26em] text-ink uppercase"
+      >
         {label}
       </label>
-      <div className="relative mt-3">
-        <Icon
-          width={19}
-          height={19}
-          className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-ash"
-        />
+      <div className="relative mt-[max(6px,calc(10*var(--u,1px)))]">
+        <Icon className="pointer-events-none absolute top-1/2 left-[max(13px,calc(18*var(--u,1px)))] size-[max(15px,calc(18*var(--u,1px)))] -translate-y-1/2 text-ash" />
         {children}
       </div>
-      {hint && !error && <p className="mt-2 text-xs leading-relaxed text-ash">{hint}</p>}
+      {hint && !error && (
+        <p className="mt-2 font-auth text-xs leading-relaxed font-light text-ash">{hint}</p>
+      )}
       {error && (
-        <p id={`${id}-error`} className="mt-2 text-sm text-error">
+        <p id={`${id}-error`} className="mt-2 font-auth text-[13px] text-error">
           {error}
         </p>
       )}
@@ -111,9 +113,13 @@ export function PasswordField({
         aria-label={visible ? "Masquer le mot de passe" : "Afficher le mot de passe"}
         aria-pressed={visible}
         aria-controls={id}
-        className="absolute top-1/2 right-1.5 grid size-11 -translate-y-1/2 place-items-center text-ash transition-colors hover:text-ink"
+        className="absolute top-1/2 right-[max(2px,calc(8*var(--u,1px)))] grid size-11 -translate-y-1/2 place-items-center text-ash transition-colors hover:text-ink"
       >
-        {visible ? <EyeOffIcon width={19} height={19} /> : <EyeIcon width={19} height={19} />}
+        {visible ? (
+          <EyeOffIcon className="size-[max(16px,calc(18*var(--u,1px)))]" />
+        ) : (
+          <EyeIcon className="size-[max(16px,calc(18*var(--u,1px)))]" />
+        )}
       </button>
     </AuthField>
   );
@@ -132,10 +138,10 @@ export function AuthSubmit({
     <button
       type="submit"
       disabled={pending}
-      className="flex h-16 w-full items-center justify-center gap-4 bg-ink text-xs font-semibold tracking-label text-paper uppercase transition-colors hover:bg-graphite disabled:opacity-60"
+      className="flex h-[max(44px,calc(72*var(--u,1px)))] w-full items-center justify-center gap-[calc(18*var(--u,1px))] bg-ink text-[max(11px,calc(12*var(--u,1px)))] font-medium tracking-[0.32em] text-paper uppercase transition-colors hover:bg-graphite disabled:opacity-60"
     >
       {pending ? pendingLabel : label}
-      {!pending && <ArrowRightIcon width={18} height={18} />}
+      {!pending && <ArrowRightIcon className="size-[max(15px,calc(17*var(--u,1px)))]" />}
     </button>
   );
 }
@@ -152,7 +158,7 @@ export function AuthAlert({
     <p
       role={tone === "error" ? "alert" : "status"}
       className={cn(
-        "border-l-2 py-0.5 pl-3 text-sm leading-relaxed",
+        "border-l-2 py-0.5 pl-3 font-auth text-[13px] leading-relaxed",
         tone === "error" ? "border-error text-error" : "border-ink text-ink",
       )}
     >
@@ -162,4 +168,4 @@ export function AuthAlert({
 }
 
 export const authLink =
-  "text-[13px] text-ash underline underline-offset-4 transition-colors hover:text-ink";
+  "font-auth text-[max(12px,calc(12.5*var(--u,1px)))] text-ash underline underline-offset-4 transition-colors hover:text-ink";

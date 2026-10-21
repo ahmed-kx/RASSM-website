@@ -60,6 +60,8 @@
   --font-display: var(--font-cormorant), "Times New Roman", serif;
   --font-serif: var(--font-spectral), Georgia, serif;
   --font-hand: var(--font-covered), cursive;
+  /* Admin login pages (AuthShell sets --font-montserrat); elsewhere the body serif. */
+  --font-auth: var(--font-montserrat, var(--font-spectral)), ui-sans-serif, system-ui, sans-serif;
 }
 
 @layer base {
