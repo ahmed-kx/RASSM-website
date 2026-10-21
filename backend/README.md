@@ -42,6 +42,8 @@ Validated at startup (`src/env.ts`): the API refuses to start and lists what is 
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | no       | Cloudinary > Settings > API Keys (empty = photo uploads off). The secret stays on the API |
 | `CLOUDINARY_FOLDER`                                                    | no       | `rassm/products`                                                                          |
 | `REVALIDATE_SECRET`                                                    | no       | Same 24+ character value as the frontend `REVALIDATE_SECRET` (empty = no instant refresh) |
+| `BACKUP_DIR` / `BACKUP_KEEP`                                           | no       | `backups` (relative to `backend/`) / `14` backups kept                                    |
+| `BACKUP_PASSPHRASE`                                                    | no       | 16+ characters: encrypts `pnpm backup` files (needed to restore them)                     |
 | `REVALIDATE_URL`                                                       | no       | Default: first `FRONTEND_ORIGIN` + `/api/revalidate`                                      |
 
 Never commit `.env`. On MongoDB Atlas, allow the IP address of the server (or of your
@@ -177,6 +179,13 @@ The Tableau de bord and Publicité figures are MongoDB aggregations over the ord
 Algeria time), the products and the ads spend; see "Statistics, profit and ads" in CLAUDE.md for
 every formula. Cost prices are copied on each order when it is placed, packaging and return costs
 when it becomes delivered or returned, so later changes never rewrite past profit.
+
+## Security and backups
+
+With `NODE_ENV=production` the API refuses to start with weak or example secrets, or non-https
+URLs. Every dashboard change needs the site's `Origin` and the session's `X-CSRF-Token`. `pnpm backup`
+saves the database (compressed, encrypted with `BACKUP_PASSPHRASE`); `pnpm restore -- <file>`
+restores it. Details, secret rotation and the backup schedule: [`docs/SECURITY.md`](../docs/SECURITY.md).
 
 ## Tests
 

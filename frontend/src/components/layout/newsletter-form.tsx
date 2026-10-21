@@ -2,11 +2,13 @@
 
 import { newsletterFormSchema } from "@rassm/shared";
 import { revalidateLogic, useForm } from "@tanstack/react-form";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { HoneypotField } from "@/components/ui/honeypot-field";
 import { ArrowRightIcon } from "@/components/ui/icons";
 import { ApiError } from "@/lib/api";
 import { subscribeToNewsletter } from "@/lib/data/newsletter";
 import { toServerErrors } from "@/lib/form-errors";
+import { useFormTimer } from "@/lib/form-timer";
 
 const SUBSCRIBE_ERROR = "L'inscription n'a pas pu être enregistrée. Veuillez réessayer.";
 
@@ -17,6 +19,8 @@ const SUBSCRIBE_ERROR = "L'inscription n'a pas pu être enregistrée. Veuillez r
 export function NewsletterForm() {
   const [subscribed, setSubscribed] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
+  const honeypotRef = useRef<HTMLInputElement>(null);
+  const formTime = useFormTimer();
 
   const form = useForm({
     defaultValues: { email: "" },
@@ -25,7 +29,10 @@ export function NewsletterForm() {
     onSubmit: async ({ value, formApi }) => {
       setFailure(null);
       try {
-        await subscribeToNewsletter(newsletterFormSchema.parse(value));
+        await subscribeToNewsletter(newsletterFormSchema.parse(value), {
+          website: honeypotRef.current?.value,
+          elapsedMs: formTime(),
+        });
         setSubscribed(true);
         formApi.reset();
       } catch (error) {
@@ -41,12 +48,14 @@ export function NewsletterForm() {
   return (
     <form
       noValidate
+      className="relative"
       onSubmit={(event) => {
         event.preventDefault();
         event.stopPropagation();
         void form.handleSubmit();
       }}
     >
+      <HoneypotField id="newsletter-website" ref={honeypotRef} />
       <form.Field name="email">
         {(field) => {
           const error = field.state.meta.errors[0]?.message;

@@ -2,7 +2,9 @@ import { z } from "zod";
 
 // Customer-facing text is French: Zod's built-in messages too (custom messages override them).
 // Every schema imports this file, so the locale is always set before any validation.
-z.config(z.locales.fr());
+// In the browser Zod never compiles code with `new Function` (jitless): the site's
+// Content-Security-Policy forbids eval, and even Zod's test of it is reported as a violation.
+z.config({ ...z.locales.fr(), jitless: "window" in globalThis });
 
 export const CATEGORIES = ["hoodie", "sweatshirt", "tshirt"] as const;
 export const categorySchema = z.enum(CATEGORIES, { error: "Choisissez une catégorie valide." });

@@ -105,6 +105,11 @@ export function MessageDetail({ id }: { id: string }) {
                 Archivé
               </Pill>
             )}
+            {message.suspicious && (
+              <Pill tone="warning" size="sm" title={message.suspiciousReason ?? undefined}>
+                Suspect{message.suspiciousReason ? ` : ${message.suspiciousReason}` : ""}
+              </Pill>
+            )}
             Reçu le {formatDateTime(message.createdAt)}
           </p>
         </div>

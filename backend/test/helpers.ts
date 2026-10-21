@@ -1,4 +1,4 @@
-import type { OrderRequest } from "@rassm/shared";
+import { ADMIN_CSRF_COOKIE, ADMIN_CSRF_HEADER, type OrderRequest } from "@rassm/shared";
 import request from "supertest";
 import { vi } from "vitest";
 import { createApp, type AppOptions } from "../src/app";
@@ -111,6 +111,9 @@ export function testApp(options: Partial<AppOptions> = {}) {
       login: high,
       password: high,
       admin: high,
+      sensitive: high,
+      catalog: high,
+      global: { windowMs: 60_000, limit: 100_000 },
       ...options.rateLimits,
     },
   });
@@ -127,6 +130,33 @@ export function testApp(options: Partial<AppOptions> = {}) {
   };
 }
 
+/** The website origin allowed by the test app. */
+export const ORIGIN = "http://localhost:3000";
+
+/** The CSRF token set by a response (login, or any request that renews it). */
+export function csrfFrom(res: { headers: Record<string, unknown> }): string | null {
+  const cookies = ([] as string[]).concat((res.headers["set-cookie"] as string[]) ?? []);
+  const cookie = cookies.find((line) => line.startsWith(`${ADMIN_CSRF_COOKIE}=`));
+  return cookie
+    ? decodeURIComponent(cookie.slice(ADMIN_CSRF_COOKIE.length + 1).split(";")[0] ?? "")
+    : null;
+}
+
+/**
+ * Logs `agent` in and makes it behave like the dashboard: every request sends the site's
+ * Origin and the session's CSRF token. Returns the login answer.
+ */
+export async function loginAgent(
+  agent: ReturnType<typeof request.agent>,
+  body: Record<string, unknown> = { email: ADMIN_EMAIL, password: ADMIN_PASSWORD },
+) {
+  agent.set("Origin", ORIGIN);
+  const res = await agent.post("/api/admin/auth/login").send(body).expect(200);
+  const csrf = csrfFrom(res);
+  if (csrf) agent.set(ADMIN_CSRF_HEADER, csrf);
+  return res;
+}
+
 export const ADMIN_EMAIL = "admin@rassm.test";
 export const ADMIN_PASSWORD = "mot-de-passe-solide";
 
@@ -138,10 +168,7 @@ export async function createTestAdmin(email = ADMIN_EMAIL, password = ADMIN_PASS
 export async function adminAgent(app: ReturnType<typeof testApp>["app"]) {
   await createTestAdmin();
   const agent = request.agent(app);
-  await agent
-    .post("/api/admin/auth/login")
-    .send({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD })
-    .expect(200);
+  await loginAgent(agent);
   return agent;
 }
 
@@ -160,9 +187,10 @@ export const baseOrder = {
   address: "Cité 1200 logements, bâtiment 5",
 } satisfies OrderRequest["order"];
 
+/** An order as the product page sends it (filled in 9 seconds, like a person). */
 export function orderBody(
   order: Partial<OrderRequest["order"]> & Record<string, unknown> = {},
   extra: Omit<Partial<OrderRequest>, "order"> = {},
 ) {
-  return { order: { ...baseOrder, ...order }, ...extra };
+  return { order: { ...baseOrder, ...order }, elapsedMs: 9000, ...extra };
 }

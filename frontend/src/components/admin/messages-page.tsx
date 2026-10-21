@@ -246,6 +246,11 @@ function MessageRow({ message }: { message: AdminMessage }) {
               Non lu
             </Pill>
           )}
+          {message.suspicious && (
+            <Pill tone="warning" size="sm" title={message.suspiciousReason ?? undefined}>
+              Suspect
+            </Pill>
+          )}
         </div>
         <p className={cn("mt-1 line-clamp-2 text-sm", message.read ? "text-stone" : "text-ash")}>
           {message.message}

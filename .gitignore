@@ -15,6 +15,11 @@ next-env.d.ts
 .env.*
 !.env.example
 
+# database backups (customer data: never committed)
+backups/
+*.ndjson.gz
+*.ndjson.gz.enc
+
 # logs & misc
 npm-debug.log*
 pnpm-debug.log*

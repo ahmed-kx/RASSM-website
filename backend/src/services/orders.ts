@@ -15,7 +15,7 @@ import { nextOrderNumber } from "../models/counter";
 import { OrderModel, toOrderSummary } from "../models/order";
 import { ProductModel } from "../models/product";
 import type { OrderNotifier } from "../notifications/new-order-email";
-import { assessOrder, findDuplicateOrder } from "./fraud";
+import { assessOrder, checkPhoneLimit, findDuplicateOrder } from "./fraud";
 import { priceOrder } from "./pricing";
 import { PRODUCT_UNAVAILABLE, loadProduct, releaseStock, reserveStock, stockError } from "./stock";
 
@@ -71,19 +71,22 @@ export async function placeOrder(body: unknown, context: PlaceOrderContext): Pro
     return placed(summary, randomBytes(12).toString("hex"));
   }
 
-  // Same phone + same product within 30 minutes: return the first order, create nothing.
+  // Same phone + same product within 30 minutes: create nothing. The answer repeats what was
+  // just sent, never the stored order (someone who only knows a phone number must not read
+  // another customer's name and address).
   const duplicate = await findDuplicateOrder(order.phone, product.id, now);
   if (duplicate) {
     logger.info("Duplicate order ignored", { orderNumber: duplicate.orderNumber });
-    return placed(toOrderSummary(duplicate), duplicate._id.toString());
+    return placed(summary, duplicate._id.toString());
   }
+  await checkPhoneLimit(order.phone, now);
 
   if (!(await reserveStock(order))) throw await stockError(order);
 
   try {
     const [orderNumber, flag, blacklisted, cost] = await Promise.all([
       nextOrderNumber(),
-      assessOrder(order.phone, context.client.ip, now),
+      assessOrder(order.phone, context.client.ip, now, request.elapsedMs),
       findBlacklisted([order.phone]),
       ProductModel.findById(product.id, { costPrice: 1 }).lean<{ costPrice?: number | null }>(),
     ]);

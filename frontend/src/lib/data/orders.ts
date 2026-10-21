@@ -29,6 +29,8 @@ export class OrderError extends Error {
 export interface OrderExtras {
   /** Hidden anti-spam field: empty for real customers. */
   website?: string;
+  /** Milliseconds between the form appearing and the order (bot check, useFormTimer). */
+  elapsedMs?: number;
   /** Meta cookies and page URL, for the server-side Conversions API. */
   tracking?: MetaTracking;
 }

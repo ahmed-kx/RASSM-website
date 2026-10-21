@@ -7,12 +7,18 @@ import {
   andersonExportSchema,
   blacklistAddSchema,
   bulkShipSchema,
+  normalizeAlgerianPhone,
 } from "@rassm/shared";
 import { Router, type RequestHandler } from "express";
 import { z } from "zod";
 import { HttpError, parseOrThrow } from "../lib/http-error";
 import type { MetaEvents } from "../meta/conversions-api";
-import { currentAdmin, requireAdmin, requireSameOrigin } from "../middleware/admin";
+import {
+  currentAdmin,
+  requireAdmin,
+  requireCsrfToken,
+  requireSameOrigin,
+} from "../middleware/admin";
 import {
   blacklistOrderPhone,
   addToBlacklist,
@@ -38,6 +44,8 @@ export interface AdminRouterOptions
   extends CatalogRouteOptions, InsightRouteOptions, AuthRouteOptions {
   allowedOrigins: readonly string[];
   adminLimiter: RequestHandler;
+  /** Stricter limit for photo uploads and the CSV exports (customer data). */
+  sensitiveLimiter: () => RequestHandler;
   metaEvents: MetaEvents;
 }
 
@@ -53,8 +61,8 @@ export function adminRouter(options: AdminRouterOptions): Router {
 
   addPublicAuthRoutes(router, options);
 
-  // Everything below requires a session.
-  router.use(options.adminLimiter, requireAdmin);
+  // Everything below requires a session, and every change its CSRF token.
+  router.use(options.adminLimiter, requireAdmin(options.secureCookies), requireCsrfToken);
 
   router.get("/auth/me", (_req, res) => {
     res.json({ admin: currentAdmin(res) });
@@ -64,8 +72,12 @@ export function adminRouter(options: AdminRouterOptions): Router {
   addCatalogRoutes(router, {
     revalidator: options.revalidator,
     imageStorage: options.imageStorage,
+    sensitiveLimiter: options.sensitiveLimiter,
   });
-  addInsightRoutes(router, { newsletterList: options.newsletterList });
+  addInsightRoutes(router, {
+    newsletterList: options.newsletterList,
+    sensitiveLimiter: options.sensitiveLimiter,
+  });
 
   router.get("/search", async (req, res) => {
     res.json(await searchDashboard(adminSearchQuerySchema.parse(req.query).q));
@@ -80,7 +92,7 @@ export function adminRouter(options: AdminRouterOptions): Router {
     res.json(await orderUpdates(since.success ? new Date(since.data) : null));
   });
 
-  router.post("/orders/export", async (req, res) => {
+  router.post("/orders/export", options.sensitiveLimiter(), async (req, res) => {
     const { ids, all } = parseOrThrow(andersonExportSchema, req.body);
     const orders = await confirmedOrdersForExport(ids, all === true);
     if (orders.length === 0) throw new HttpError(400, "Aucune commande confirmée à exporter.");
@@ -142,7 +154,7 @@ export function adminRouter(options: AdminRouterOptions): Router {
   });
 
   router.delete("/blacklist/:phone", async (req, res) => {
-    if (!(await removeFromBlacklist(req.params.phone))) {
+    if (!(await removeFromBlacklist(normalizeAlgerianPhone(req.params.phone)))) {
       throw new HttpError(404, "Ce numéro n'est pas sur la liste noire.");
     }
     res.json({ entries: await listBlacklist() });

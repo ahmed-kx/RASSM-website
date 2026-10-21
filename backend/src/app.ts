@@ -16,8 +16,15 @@ import { formsRouter } from "./routes/forms";
 
 const FIFTEEN_MINUTES = 15 * 60 * 1000;
 
-/** Default per-IP limits: generous for real customers, low enough to stop scripts. */
+/**
+ * Default per-IP limits: generous for real customers (many share one IP behind their mobile
+ * operator), low enough to stop scripts. Kept in memory: one API instance (see SECURITY.md).
+ */
 export const DEFAULT_RATE_LIMITS = {
+  /** Safety net on every route (scans of unknown URLs included). */
+  global: { windowMs: FIFTEEN_MINUTES, limit: 5000 },
+  /** Products and delivery fees (the website server caches them, browsers rarely call). */
+  catalog: { windowMs: FIFTEEN_MINUTES, limit: 1200 },
   orders: { windowMs: FIFTEEN_MINUTES, limit: 10 },
   contact: { windowMs: FIFTEEN_MINUTES, limit: 5 },
   newsletter: { windowMs: FIFTEEN_MINUTES, limit: 10 },
@@ -27,6 +34,8 @@ export const DEFAULT_RATE_LIMITS = {
   password: { windowMs: FIFTEEN_MINUTES, limit: 10 },
   /** Dashboard requests per IP (the live updates poll every few seconds). */
   admin: { windowMs: FIFTEEN_MINUTES, limit: 3000 },
+  /** Photo uploads and CSV exports of customer data, per route. */
+  sensitive: { windowMs: FIFTEEN_MINUTES, limit: 60 },
 } satisfies Record<string, RateLimitOptions>;
 
 export interface AppOptions {
@@ -66,7 +75,22 @@ export function createApp(options: AppOptions): Express {
     (address: string, hop: number) => hop < options.trustProxy || isLoopback(address),
   );
 
-  app.use(helmet());
+  // A JSON API: nothing may be rendered, framed or loaded from its answers.
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        useDefaults: false,
+        directives: {
+          defaultSrc: ["'none'"],
+          frameAncestors: ["'none'"],
+          baseUri: ["'none'"],
+          formAction: ["'none'"],
+        },
+      },
+      strictTransportSecurity: { maxAge: 63_072_000, includeSubDomains: true },
+      referrerPolicy: { policy: "no-referrer" },
+    }),
+  );
   app.use(
     cors({
       origin: [...options.frontendOrigins],
@@ -85,6 +109,7 @@ export function createApp(options: AppOptions): Express {
   });
 
   const limits = { ...DEFAULT_RATE_LIMITS, ...options.rateLimits };
+  app.use(limitRequests(limits.global));
   app.use(
     "/api/admin",
     adminRouter({
@@ -95,13 +120,14 @@ export function createApp(options: AppOptions): Express {
       mailer: options.securityMailer,
       adminUrl: options.adminUrl,
       adminLimiter: limitRequests(limits.admin),
+      sensitiveLimiter: () => limitRequests(limits.sensitive),
       metaEvents: options.metaEvents,
       revalidator: options.revalidator,
       imageStorage: options.imageStorage,
       newsletterList: options.newsletterList,
     }),
   );
-  app.use("/api", catalogRouter());
+  app.use("/api", catalogRouter(limitRequests(limits.catalog)));
   app.use(
     "/api",
     formsRouter(

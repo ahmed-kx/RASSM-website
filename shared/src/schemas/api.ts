@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { contactFormSchema } from "./forms";
+import { contactFormSchema, newsletterFormSchema } from "./forms";
 import { productOrderSchema } from "./product-order";
 
 // Request and response shapes of the public API, shared by the backend and the frontend.
@@ -67,9 +67,16 @@ export const ADMIN_API_PATHS = {
 export const ADMIN_SESSION_COOKIE = "rassm_admin";
 /** Long-lived random id of a browser (httpOnly): a login from an unknown one sends an alert. */
 export const ADMIN_DEVICE_COOKIE = "rassm_device";
+/**
+ * Anti-CSRF token of the session (readable by the dashboard's JavaScript, set by the API). Every
+ * dashboard change (POST, PUT, PATCH, DELETE) sends it back in the ADMIN_CSRF_HEADER header:
+ * another site can neither read it nor guess it, so it can never act with the admin's cookie.
+ */
+export const ADMIN_CSRF_COOKIE = "rassm_csrf";
+export const ADMIN_CSRF_HEADER = "x-csrf-token";
 
 /**
- * Hidden anti-spam field ("honeypot") of the order and contact forms. People never see it
+ * Hidden anti-spam field ("honeypot") of the order, contact and newsletter forms. People never see it
  * and leave it empty; bots fill every field. When it is filled, the API answers as if it
  * worked and saves nothing.
  */
@@ -92,18 +99,48 @@ export const metaTrackingSchema = z.object({
 });
 export type MetaTracking = z.infer<typeof metaTrackingSchema>;
 
+/**
+ * Time-to-fill check of the public forms: milliseconds between the form appearing and its
+ * sending, measured by the browser. People need more than a few seconds; scripts post at once
+ * or call the API directly (no value). Such sends are kept but flagged "suspect", never lost.
+ */
+export const FORM_TIMING_FIELD = "elapsedMs";
+/** Forms sent faster than this are flagged as bots. */
+export const MIN_FORM_FILL_MS = 2000;
+const formTimingSchema = z.number().int().min(0).max(1e9).optional().catch(undefined);
+
+/** French reason to flag a send by its fill time, or null when it looks human. */
+export function formTimingReason(elapsedMs: number | undefined): string | null {
+  if (elapsedMs === undefined)
+    return "Envoyé sans passer par le formulaire du site (robot probable)";
+  if (elapsedMs < MIN_FORM_FILL_MS) {
+    return `Formulaire envoyé en ${(elapsedMs / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} s (robot probable)`;
+  }
+  return null;
+}
+
 /** Body of POST /api/orders. */
 export const orderRequestSchema = z.object({
   order: productOrderSchema,
   tracking: metaTrackingSchema.optional().catch(undefined),
   [HONEYPOT_FIELD]: honeypotSchema,
+  [FORM_TIMING_FIELD]: formTimingSchema,
 });
 export type OrderRequest = z.input<typeof orderRequestSchema>;
 
 /** Body of POST /api/contact-messages: the contact form plus the honeypot. */
 export const contactRequestSchema = contactFormSchema.extend({
   [HONEYPOT_FIELD]: honeypotSchema,
+  [FORM_TIMING_FIELD]: formTimingSchema,
 });
+export type ContactRequest = z.input<typeof contactRequestSchema>;
+
+/** Body of POST /api/newsletter: the e-mail plus the honeypot and the fill time. */
+export const newsletterRequestSchema = newsletterFormSchema.extend({
+  [HONEYPOT_FIELD]: honeypotSchema,
+  [FORM_TIMING_FIELD]: formTimingSchema,
+});
+export type NewsletterRequest = z.input<typeof newsletterRequestSchema>;
 
 /** Error body of every API error. `fields` maps a form field to its French message. */
 export const apiErrorSchema = z.object({

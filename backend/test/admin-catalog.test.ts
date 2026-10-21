@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DeliveryFeeModel } from "../src/models/delivery-fee";
 import { ProductModel, ensureProductSkus } from "../src/models/product";
-import { FAKE_STORAGE_BASE, adminAgent, orderBody, testApp } from "./helpers";
+import { FAKE_STORAGE_BASE, adminAgent, orderBody, testApp, ORIGIN } from "./helpers";
 
 type Agent = Awaited<ReturnType<typeof adminAgent>>;
 
@@ -36,26 +36,58 @@ describe("admin products: access", () => {
     const { api } = testApp();
     const calls: [string, () => PromiseLike<{ status: number }>][] = [
       ["GET products", () => api.get("/api/admin/products")],
-      ["POST products", () => api.post("/api/admin/products").send({ product: productInput() })],
+      [
+        "POST products",
+        () =>
+          api.post("/api/admin/products").set("Origin", ORIGIN).send({ product: productInput() }),
+      ],
       ["GET product", () => api.get("/api/admin/products/prod_001")],
       [
         "PUT product",
-        () => api.put("/api/admin/products/prod_001").send({ product: productInput() }),
+        () =>
+          api
+            .put("/api/admin/products/prod_001")
+            .set("Origin", ORIGIN)
+            .send({ product: productInput() }),
       ],
-      ["PATCH stock", () => api.patch("/api/admin/products/prod_001/stock").send({ colors: [] })],
+      [
+        "PATCH stock",
+        () =>
+          api
+            .patch("/api/admin/products/prod_001/stock")
+            .set("Origin", ORIGIN)
+            .send({ colors: [] }),
+      ],
       [
         "PATCH flags",
-        () => api.patch("/api/admin/products/prod_001/flags").send({ isActive: false }),
+        () =>
+          api
+            .patch("/api/admin/products/prod_001/flags")
+            .set("Origin", ORIGIN)
+            .send({ isActive: false }),
       ],
-      ["POST duplicate", () => api.post("/api/admin/products/prod_001/duplicate")],
-      ["DELETE product", () => api.delete("/api/admin/products/prod_001")],
-      ["POST uploads", () => api.post("/api/admin/uploads")],
-      ["DELETE uploads", () => api.delete("/api/admin/uploads").send({ url: photo("x") })],
+      [
+        "POST duplicate",
+        () => api.post("/api/admin/products/prod_001/duplicate").set("Origin", ORIGIN),
+      ],
+      ["DELETE product", () => api.delete("/api/admin/products/prod_001").set("Origin", ORIGIN)],
+      ["POST uploads", () => api.post("/api/admin/uploads").set("Origin", ORIGIN)],
+      [
+        "DELETE uploads",
+        () =>
+          api
+            .delete("/api/admin/uploads")
+            .set("Origin", ORIGIN)
+            .send({ url: photo("x") }),
+      ],
       ["GET delivery", () => api.get("/api/admin/delivery-fees")],
-      ["PUT delivery", () => api.put("/api/admin/delivery-fees/16").send({})],
-      ["POST bulk", () => api.post("/api/admin/delivery-fees/bulk").send({})],
+      ["PUT delivery", () => api.put("/api/admin/delivery-fees/16").set("Origin", ORIGIN).send({})],
+      ["POST bulk", () => api.post("/api/admin/delivery-fees/bulk").set("Origin", ORIGIN).send({})],
       ["GET settings", () => api.get("/api/admin/settings")],
-      ["PUT settings", () => api.put("/api/admin/settings").send({ lowStockThreshold: 3 })],
+      [
+        "PUT settings",
+        () => api.put("/api/admin/settings").set("Origin", ORIGIN).send({ lowStockThreshold: 3 }),
+      ],
     ];
     for (const [label, call] of calls) {
       expect((await call()).status, label).toBe(401);
@@ -288,10 +320,11 @@ describe("admin products", () => {
 });
 
 describe("admin photos", () => {
-  const PNG = Buffer.concat([
-    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-    Buffer.alloc(64),
-  ]);
+  // A real 1 × 1 PNG.
+  const PNG = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+    "base64",
+  );
 
   it("uploads a JPG, PNG or WebP photo, refuses other files and big ones", async () => {
     const { app, imageStorage } = testApp();

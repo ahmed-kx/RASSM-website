@@ -12,7 +12,9 @@
     "test": "vitest run",
     "create-admin": "tsx src/create-admin-cli.ts",
     "migrate-images": "tsx src/migrate-images-cli.ts",
-    "sync-newsletter": "tsx src/sync-newsletter-cli.ts"
+    "sync-newsletter": "tsx src/sync-newsletter-cli.ts",
+    "backup": "tsx src/backup-cli.ts",
+    "restore": "tsx src/restore-cli.ts"
   },
   "dependencies": {
     "@rassm/shared": "workspace:*",

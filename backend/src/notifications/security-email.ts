@@ -164,8 +164,10 @@ export function createSecurityMailer(
   return {
     async sendPasswordReset(to, link, context) {
       if (!config) {
+        // Development without Brevo only (never in production): the logger would mask the
+        // link, so it is printed as is to let the developer open it.
         if (logResetLinks)
-          logger.warn("Password reset link (development only, no Brevo)", { link });
+          console.warn(`Password reset link (development only, no Brevo): ${link}`);
         else logger.warn("Password reset e-mail not sent: BREVO_API_KEY is not set");
         return;
       }

@@ -1,5 +1,7 @@
 import {
   ADMIN_API_PATHS,
+  ADMIN_CSRF_COOKIE,
+  ADMIN_CSRF_HEADER,
   adSpendSchema,
   adminClientDetailSchema,
   adminClientListSchema,
@@ -63,7 +65,36 @@ export function setUnauthorizedHandler(handler: (() => void) | null) {
   onUnauthorized = handler;
 }
 
+/** Routes used without a session (no CSRF token exists yet). */
+const PUBLIC_AUTH_PATHS: readonly string[] = [
+  ADMIN_API_PATHS.login,
+  ADMIN_API_PATHS.logout,
+  ADMIN_API_PATHS.forgotPassword,
+  ADMIN_API_PATHS.resetPassword,
+];
+
+function readCsrfCookie(): string | null {
+  if (typeof document === "undefined") return null;
+  const prefix = `${ADMIN_CSRF_COOKIE}=`;
+  const cookie = document.cookie.split("; ").find((part) => part.startsWith(prefix));
+  return cookie ? decodeURIComponent(cookie.slice(prefix.length)) : null;
+}
+
+/**
+ * The session's anti-CSRF token, sent with every change (the API refuses changes without it).
+ * Set by the API at login; when the browser lost it, any dashboard read gives it back.
+ */
+async function csrfHeaders(path: string): Promise<Record<string, string>> {
+  let token = readCsrfCookie();
+  if (!token && !PUBLIC_AUTH_PATHS.includes(path)) {
+    await fetch(ADMIN_API_PATHS.me, { credentials: "same-origin" }).catch(() => undefined);
+    token = readCsrfCookie();
+  }
+  return token ? { [ADMIN_CSRF_HEADER]: token } : {};
+}
+
 async function request(path: string, init: RequestInit = {}): Promise<Response> {
+  const method = (init.method ?? "GET").toUpperCase();
   let response: Response;
   try {
     response = await fetch(path, {
@@ -72,6 +103,7 @@ async function request(path: string, init: RequestInit = {}): Promise<Response> 
       // JSON bodies are strings; a FormData (photo upload) sets its own multipart type.
       headers: {
         ...(typeof init.body === "string" ? { "Content-Type": "application/json" } : {}),
+        ...(method === "GET" || method === "HEAD" ? {} : await csrfHeaders(path)),
         ...init.headers,
       },
     });

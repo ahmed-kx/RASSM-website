@@ -17,6 +17,7 @@ import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { sendContactMessage } from "@/lib/data/contact";
 import { toServerErrors } from "@/lib/form-errors";
+import { useFormTimer } from "@/lib/form-timer";
 
 const defaultValues: ContactFormValues = {
   firstName: "",
@@ -40,6 +41,7 @@ export function ContactForm() {
   const sending = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
   const honeypotRef = useRef<HTMLInputElement>(null);
+  const formTime = useFormTimer();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const focusFirstError = () => {
@@ -54,7 +56,10 @@ export function ContactForm() {
     validators: { onDynamic: contactFormSchema },
     onSubmit: async ({ value, formApi }) => {
       try {
-        await sendContactMessage(contactFormSchema.parse(value), honeypotRef.current?.value);
+        await sendContactMessage(contactFormSchema.parse(value), {
+          website: honeypotRef.current?.value,
+          elapsedMs: formTime(),
+        });
         setStatus("sent");
         formApi.reset();
       } catch (error) {

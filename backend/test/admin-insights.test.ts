@@ -8,7 +8,7 @@ import { ProductModel } from "../src/models/product";
 import { saveSettings } from "../src/models/setting";
 import { buildNewMessageEmail } from "../src/notifications/new-message-email";
 import { createBrevoNewsletterList } from "../src/services/newsletter-sync";
-import { adminAgent, fakeNewsletterList, orderBody, testApp } from "./helpers";
+import { adminAgent, fakeNewsletterList, orderBody, testApp, ORIGIN } from "./helpers";
 
 // Tableau de bord, Publicité, Clients, Messages and Abonnés.
 
@@ -172,20 +172,26 @@ describe("admin insights: access", () => {
     const calls: [string, () => PromiseLike<{ status: number }>][] = [
       ["GET stats", () => api.get(`/api/admin/stats?${MARCH}`)],
       ["GET ads", () => api.get("/api/admin/ads")],
-      ["POST ads", () => api.post("/api/admin/ads").send({})],
-      ["PUT ads", () => api.put("/api/admin/ads/abc").send({})],
-      ["DELETE ads", () => api.delete("/api/admin/ads/abc")],
+      ["POST ads", () => api.post("/api/admin/ads").set("Origin", ORIGIN).send({})],
+      ["PUT ads", () => api.put("/api/admin/ads/abc").set("Origin", ORIGIN).send({})],
+      ["DELETE ads", () => api.delete("/api/admin/ads/abc").set("Origin", ORIGIN)],
       ["GET clients", () => api.get("/api/admin/clients")],
       ["GET clients export", () => api.get("/api/admin/clients/export")],
       ["GET client", () => api.get("/api/admin/clients/0550000001")],
       ["GET messages", () => api.get("/api/admin/messages")],
       ["GET message", () => api.get("/api/admin/messages/abc")],
-      ["PATCH message", () => api.patch("/api/admin/messages/abc").send({ read: true })],
-      ["DELETE message", () => api.delete("/api/admin/messages/abc")],
+      [
+        "PATCH message",
+        () => api.patch("/api/admin/messages/abc").set("Origin", ORIGIN).send({ read: true }),
+      ],
+      ["DELETE message", () => api.delete("/api/admin/messages/abc").set("Origin", ORIGIN)],
       ["GET subscribers", () => api.get("/api/admin/subscribers")],
       ["GET subscribers export", () => api.get("/api/admin/subscribers/export")],
-      ["POST subscriber sync", () => api.post("/api/admin/subscribers/abc/sync")],
-      ["DELETE subscriber", () => api.delete("/api/admin/subscribers/abc")],
+      [
+        "POST subscriber sync",
+        () => api.post("/api/admin/subscribers/abc/sync").set("Origin", ORIGIN),
+      ],
+      ["DELETE subscriber", () => api.delete("/api/admin/subscribers/abc").set("Origin", ORIGIN)],
     ];
     for (const [label, call] of calls) {
       expect((await call()).status, label).toBe(401);
@@ -779,10 +785,16 @@ describe("admin insights: newsletter subscribers", () => {
     const newsletterList = fakeNewsletterList();
     const { app, api } = testApp({ newsletterList });
     const agent = await adminAgent(app);
-    await api.post("/api/newsletter").send({ email: "Lina@Example.com" }).expect(201);
+    await api
+      .post("/api/newsletter")
+      .send({ elapsedMs: 9000, email: "Lina@Example.com" })
+      .expect(201);
     await vi.waitFor(() => expect(newsletterList.add).toHaveBeenCalledWith("lina@example.com"));
     // Signing up again: nothing sent twice.
-    await api.post("/api/newsletter").send({ email: "lina@example.com" }).expect(201);
+    await api
+      .post("/api/newsletter")
+      .send({ elapsedMs: 9000, email: "lina@example.com" })
+      .expect(201);
     expect(newsletterList.add).toHaveBeenCalledTimes(1);
 
     await vi.waitFor(async () => {
@@ -809,7 +821,10 @@ describe("admin insights: newsletter subscribers", () => {
     const { app, api } = testApp({ newsletterList });
     const agent = await adminAgent(app);
     // The sign-up itself never fails.
-    await api.post("/api/newsletter").send({ email: "omar@example.com" }).expect(201);
+    await api
+      .post("/api/newsletter")
+      .send({ elapsedMs: 9000, email: "omar@example.com" })
+      .expect(201);
     await vi.waitFor(async () => {
       const list = await agent.get("/api/admin/subscribers?sync=failed").expect(200);
       expect(list.body.subscribers[0]?.sync).toMatchObject({
@@ -827,7 +842,10 @@ describe("admin insights: newsletter subscribers", () => {
     const newsletterList = fakeNewsletterList(false);
     const { app, api } = testApp({ newsletterList });
     const agent = await adminAgent(app);
-    await api.post("/api/newsletter").send({ email: "sami@example.com" }).expect(201);
+    await api
+      .post("/api/newsletter")
+      .send({ elapsedMs: 9000, email: "sami@example.com" })
+      .expect(201);
     const list = await agent.get("/api/admin/subscribers").expect(200);
     expect(list.body).toMatchObject({ total: 1, brevoConfigured: false });
     expect(list.body.subscribers[0].sync.status).toBe("off");

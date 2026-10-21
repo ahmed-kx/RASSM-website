@@ -1,14 +1,18 @@
 import { filterAndSortProducts, parseCollectionFilters, slugSchema } from "@rassm/shared";
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
 import { HttpError } from "../lib/http-error";
 import { loadDeliveryFees } from "../models/delivery-fee";
 import { ProductModel, toProduct, type ProductDoc } from "../models/product";
 
 const PRODUCT_NOT_FOUND = "Produit introuvable.";
 
-/** Products and delivery fees (public, read only). */
-export function catalogRouter(): Router {
+/**
+ * Products and delivery fees (public, read only, rate limited per IP). `toProduct` keeps the
+ * public fields only (never the cost price).
+ */
+export function catalogRouter(limiter: RequestHandler): Router {
   const router = Router();
+  router.use(["/products", "/delivery-fees"], limiter);
 
   /**
    * Products on sale. Accepts the collection page filters:

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { CheckIcon, MailIcon } from "@/components/ui/icons";
 import { adminRoutes } from "@/lib/admin/routes";
+import { safeAdminPath } from "@/lib/admin/safe-redirect";
 import { ApiError } from "@/lib/api";
 import { adminLogin } from "@/lib/data/admin";
 import {
@@ -17,11 +18,6 @@ import {
   PasswordField,
   authLink,
 } from "./auth/auth-fields";
-
-/** Only dashboard paths are accepted as the page to open after login. */
-function safeNext(next: string | null): string {
-  return next && /^\/admin(\/|$)/.test(next) && !next.startsWith("//") ? next : adminRoutes.orders;
-}
 
 export function LoginForm({ next, notice }: { next: string | null; notice: string | null }) {
   const router = useRouter();
@@ -36,7 +32,7 @@ export function LoginForm({ next, notice }: { next: string | null; notice: strin
       setError(null);
       try {
         await adminLogin(adminLoginFormSchema.parse(value));
-        router.replace(safeNext(next));
+        router.replace(safeAdminPath(next, adminRoutes.orders));
         router.refresh();
       } catch (caught) {
         setError(

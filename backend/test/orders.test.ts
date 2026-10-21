@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { CounterModel } from "../src/models/counter";
 import { OrderModel } from "../src/models/order";
 import { ProductModel } from "../src/models/product";
-import { orderBody, testApp } from "./helpers";
+import { baseOrder, orderBody, testApp } from "./helpers";
 
 async function stockOf(productId: string, color: string, size: "S" | "M" | "L" | "XL" | "XXL") {
   const product = await ProductModel.findById(productId).lean();
@@ -182,15 +182,23 @@ describe("POST /api/orders: fake orders", () => {
     expect(metaEvents.sendPurchase).not.toHaveBeenCalled();
   });
 
-  it("same phone + same product within 30 minutes: returns the first order, creates none", async () => {
+  it("same phone + same product within 30 minutes: creates nothing, reveals nothing", async () => {
     const { api } = testApp();
     const first = await api.post("/api/orders").send(orderBody()).expect(201);
     const before = await stockOf("prod_003", "Noir", "M");
+    // Someone else with the same phone number: the answer only repeats what they sent.
     const second = await api
       .post("/api/orders")
-      .send(orderBody({ quantity: 2 }))
+      .send(orderBody({ quantity: 2, fullName: "Autre Personne", address: "Ailleurs 12" }))
       .expect(201);
-    expect(second.body).toEqual(first.body);
+    expect(second.body.eventId).toBe(first.body.eventId);
+    expect(second.body.order).toMatchObject({
+      fullName: "Autre Personne",
+      address: "Ailleurs 12",
+      item: { quantity: 2 },
+    });
+    expect(JSON.stringify(second.body)).not.toContain(baseOrder.address);
+    expect(JSON.stringify(second.body)).not.toContain(baseOrder.fullName);
     expect(await OrderModel.countDocuments()).toBe(1);
     expect(await stockOf("prod_003", "Noir", "M")).toBe(before);
 

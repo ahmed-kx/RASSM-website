@@ -13,10 +13,14 @@
     "test": "pnpm -r --if-present test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "prepare": "git config core.hooksPath .githooks || exit 0",
+    "check-secrets": "node scripts/check-secrets.mjs --all",
     "seed": "pnpm --filter @rassm/backend seed",
     "create-admin": "pnpm --filter @rassm/backend create-admin",
     "migrate-images": "pnpm --filter @rassm/backend migrate-images",
-    "sync-newsletter": "pnpm --filter @rassm/backend sync-newsletter"
+    "sync-newsletter": "pnpm --filter @rassm/backend sync-newsletter",
+    "backup": "pnpm --filter @rassm/backend backup",
+    "restore": "pnpm --filter @rassm/backend restore"
   },
   "devDependencies": {
     "prettier": "^3.9.10",

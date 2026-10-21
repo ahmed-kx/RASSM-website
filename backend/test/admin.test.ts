@@ -18,6 +18,7 @@ import {
   createTestAdmin,
   orderBody,
   testApp,
+  ORIGIN,
 } from "./helpers";
 
 type Agent = Awaited<ReturnType<typeof adminAgent>>;
@@ -47,6 +48,7 @@ describe("admin login", () => {
     await createTestAdmin();
     const res = await api
       .post("/api/admin/auth/login")
+      .set("Origin", ORIGIN)
       .send({ email: "Admin@Rassm.test", password: ADMIN_PASSWORD })
       .expect(200);
     expect(res.body.admin).toMatchObject({ email: ADMIN_EMAIL });
@@ -58,7 +60,11 @@ describe("admin login", () => {
 
     const session = res.headers["set-cookie"] as unknown as string[];
     await api.get("/api/admin/auth/me").set("Cookie", session).expect(200);
-    await api.post("/api/admin/auth/logout").set("Cookie", session).expect(200);
+    await api
+      .post("/api/admin/auth/logout")
+      .set("Origin", ORIGIN)
+      .set("Cookie", session)
+      .expect(200);
     await api.get("/api/admin/auth/me").set("Cookie", session).expect(401);
   });
 
@@ -67,10 +73,12 @@ describe("admin login", () => {
     await createTestAdmin();
     const wrong = await api
       .post("/api/admin/auth/login")
+      .set("Origin", ORIGIN)
       .send({ email: ADMIN_EMAIL, password: "pas-le-bon-mot" })
       .expect(401);
     const unknown = await api
       .post("/api/admin/auth/login")
+      .set("Origin", ORIGIN)
       .send({ email: "inconnu@rassm.test", password: "pas-le-bon-mot" })
       .expect(401);
     expect(wrong.body.error.message).toBe("E-mail ou mot de passe incorrect.");
@@ -83,16 +91,19 @@ describe("admin login", () => {
     for (let i = 1; i < MAX_FAILED_LOGINS; i++) {
       await api
         .post("/api/admin/auth/login")
+        .set("Origin", ORIGIN)
         .send({ email: ADMIN_EMAIL, password: "faux-mot-de-passe" })
         .expect(401);
     }
     const locked = await api
       .post("/api/admin/auth/login")
+      .set("Origin", ORIGIN)
       .send({ email: ADMIN_EMAIL, password: "faux-mot-de-passe" })
       .expect(429);
     expect(locked.body.error.message).toBe("Trop de tentatives. Réessayez dans 15 minutes.");
     await api
       .post("/api/admin/auth/login")
+      .set("Origin", ORIGIN)
       .send({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD })
       .expect(429);
 
@@ -100,6 +111,7 @@ describe("admin login", () => {
     await LoginThrottleModel.updateMany({}, { $set: { lockedUntil: new Date(Date.now() - 1000) } });
     await api
       .post("/api/admin/auth/login")
+      .set("Origin", ORIGIN)
       .send({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD })
       .expect(200);
   });
@@ -127,11 +139,13 @@ describe("admin login", () => {
     for (let i = 0; i < 2; i++) {
       await api
         .post("/api/admin/auth/login")
+        .set("Origin", ORIGIN)
         .send({ email: "x@rassm.test", password: "x" })
         .expect(401);
     }
     await api
       .post("/api/admin/auth/login")
+      .set("Origin", ORIGIN)
       .send({ email: "x@rassm.test", password: "x" })
       .expect(429);
   });
@@ -140,9 +154,9 @@ describe("admin login", () => {
     const { api } = testApp();
     const call = {
       get: (path: string) => api.get(path),
-      post: (path: string) => api.post(path),
-      patch: (path: string) => api.patch(path),
-      delete: (path: string) => api.delete(path),
+      post: (path: string) => api.post(path).set("Origin", ORIGIN),
+      patch: (path: string) => api.patch(path).set("Origin", ORIGIN),
+      delete: (path: string) => api.delete(path).set("Origin", ORIGIN),
     };
     const routes: [keyof typeof call, string][] = [
       ["get", "/api/admin/auth/me"],

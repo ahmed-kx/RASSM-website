@@ -127,6 +127,9 @@ export const adminMessageSchema = z.object({
   message: z.string(),
   read: z.boolean(),
   archived: z.boolean(),
+  /** Sent too fast or without the site's form (bot check): shown "Suspect". */
+  suspicious: z.boolean(),
+  suspiciousReason: z.string().nullable(),
   createdAt: isoDateSchema,
 });
 export type AdminMessage = z.infer<typeof adminMessageSchema>;

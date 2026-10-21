@@ -21,5 +21,7 @@ pnpm dev                                # http://localhost:3000 (site) + http://
 
 Dashboard: http://localhost:3000/admin (log in with the account created by `pnpm create-admin`).
 
-Other commands (from the root): `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm format`.
+Other commands (from the root): `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm format`,
+`pnpm backup` / `pnpm restore` (database backups), `pnpm check-secrets`.
+Secrets, rotation, backups and protections: [`docs/SECURITY.md`](docs/SECURITY.md).
 Project rules and architecture: [`CLAUDE.md`](CLAUDE.md).

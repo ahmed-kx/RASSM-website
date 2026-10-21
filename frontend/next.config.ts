@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { cspOptionsFromEnv, publicCsp, securityHeaders } from "./src/lib/security-headers";
 
 const API_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -7,9 +8,12 @@ const CLOUDINARY_PATH = process.env.CLOUDINARY_CLOUD_NAME
   ? `/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload/**`
   : "/*/image/upload/**";
 
+const csp = cspOptionsFromEnv();
+
 const nextConfig: NextConfig = {
   // @rassm/shared ships TypeScript source, so Next compiles it.
   transpilePackages: ["@rassm/shared"],
+  poweredByHeader: false,
 
   // next/image resizes the Cloudinary photos and serves WebP / AVIF to each screen.
   images: {
@@ -25,9 +29,15 @@ const nextConfig: NextConfig = {
     return [{ source: "/api/admin/:path*", destination: `${API_URL}/api/admin/:path*` }];
   },
 
-  // The dashboard is never indexed (also set in its metadata).
+  // Security headers everywhere; the public pages' Content-Security-Policy (the dashboard gets
+  // a stricter one with a nonce from proxy.ts). The dashboard is never indexed.
   async headers() {
     return [
+      { source: "/:path*", headers: securityHeaders(csp) },
+      {
+        source: "/((?!admin(?:/|$)).*)",
+        headers: [{ key: "Content-Security-Policy", value: publicCsp(csp) }],
+      },
       {
         source: "/admin/:path*",
         headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],

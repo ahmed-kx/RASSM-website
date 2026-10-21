@@ -6,7 +6,7 @@ import {
   presetRange,
   statsQuerySchema,
 } from "@rassm/shared";
-import type { Response, Router } from "express";
+import type { RequestHandler, Response, Router } from "express";
 import { csvFileName } from "../lib/csv";
 import { parseOrThrow } from "../lib/http-error";
 import { currentAdmin } from "../middleware/admin";
@@ -24,6 +24,8 @@ import type { NewsletterList } from "../services/newsletter-sync";
 
 export interface InsightRouteOptions {
   newsletterList: NewsletterList;
+  /** Stricter limit for the CSV exports (customer data). */
+  sensitiveLimiter: () => RequestHandler;
 }
 
 /** The period of the query, or the last 30 days. */
@@ -73,7 +75,7 @@ export function addInsightRoutes(router: Router, options: InsightRouteOptions): 
     res.json(await listClients(adminClientQuerySchema.parse(req.query)));
   });
 
-  router.get("/clients/export", async (req, res) => {
+  router.get("/clients/export", options.sensitiveLimiter(), async (req, res) => {
     sendCsv(res, "clients", await clientsCsv(adminClientQuerySchema.parse(req.query)));
   });
 
@@ -107,7 +109,7 @@ export function addInsightRoutes(router: Router, options: InsightRouteOptions): 
     res.json(await listSubscribers(adminSubscriberQuerySchema.parse(req.query), list));
   });
 
-  router.get("/subscribers/export", async (req, res) => {
+  router.get("/subscribers/export", options.sensitiveLimiter(), async (req, res) => {
     sendCsv(res, "abonnes", await subscribersCsv(adminSubscriberQuerySchema.parse(req.query)));
   });
 

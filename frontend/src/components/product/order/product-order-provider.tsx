@@ -22,6 +22,7 @@ import {
 import { PIXEL_CURRENCY, getMetaTracking, trackMetaEvent } from "@/lib/analytics/meta-pixel";
 import { OrderError, placeProductOrder } from "@/lib/data/orders";
 import { toServerErrors } from "@/lib/form-errors";
+import { useFormTimer } from "@/lib/form-timer";
 import { routes } from "@/lib/routes";
 
 /** Id of the order form section: the mobile sticky button scrolls to it. */
@@ -43,6 +44,7 @@ function useProductOrderForm(product: Product, onSubmitted: () => void) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const honeypotRef = useRef<HTMLInputElement>(null);
+  const formTime = useFormTimer();
   // The shared rules plus this product's colors and stock per color + size.
   const schema = useMemo(() => createProductOrderFormSchema(product), [product]);
 
@@ -69,6 +71,7 @@ function useProductOrderForm(product: Product, onSubmitted: () => void) {
       try {
         await placeProductOrder(schema.parse(value), {
           website: honeypotRef.current?.value ?? "",
+          elapsedMs: formTime(),
           tracking: getMetaTracking(),
         });
         onSubmitted();

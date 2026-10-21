@@ -1,4 +1,9 @@
-import { INVALID_RESET_LINK, FORGOT_PASSWORD_MESSAGE, MAX_FAILED_LOGINS } from "@rassm/shared";
+import {
+  ADMIN_CSRF_HEADER,
+  FORGOT_PASSWORD_MESSAGE,
+  INVALID_RESET_LINK,
+  MAX_FAILED_LOGINS,
+} from "@rassm/shared";
 import request from "supertest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ClientInfo } from "../src/lib/client-info";
@@ -29,6 +34,7 @@ import {
   ADMIN_PASSWORD,
   TEST_ADMIN_URL,
   createTestAdmin,
+  csrfFrom,
   fakeSecurityMailer,
   testApp,
 } from "./helpers";
@@ -67,6 +73,18 @@ const loginFrom = (
     .set("User-Agent", userAgent)
     .set("Origin", ORIGIN)
     .send(body);
+
+/** Logs an agent in from a device and keeps its CSRF token, like the dashboard. */
+async function signIn(
+  agent: ReturnType<typeof request.agent>,
+  ip: string,
+  body: Record<string, unknown>,
+  userAgent = CHROME_WINDOWS,
+) {
+  const res = await loginFrom(agent, ip, body, userAgent).expect(200);
+  agent.set(ADMIN_CSRF_HEADER, csrfFrom(res) ?? "");
+  return res;
+}
 
 const wrong = { email: ADMIN_EMAIL, password: "pas-le-bon-mot-de-passe" };
 const right = { email: ADMIN_EMAIL, password: ADMIN_PASSWORD };
@@ -207,6 +225,7 @@ describe("login lock: 5 attempts per account and per IP", () => {
 
     await api
       .post("/api/admin/auth/password/forgot")
+      .set("Origin", ORIGIN)
       .set("X-Forwarded-For", "203.0.113.5")
       .send({ email: ADMIN_EMAIL })
       .expect(200);
@@ -215,6 +234,7 @@ describe("login lock: 5 attempts per account and per IP", () => {
     const token = link.split("#jeton=")[1];
     await api
       .post("/api/admin/auth/password/reset")
+      .set("Origin", ORIGIN)
       .set("X-Forwarded-For", "203.0.113.5")
       .send({ token, password: NEW_PASSWORD })
       .expect(200);
@@ -294,9 +314,9 @@ describe("sessions", () => {
     const laptop = request.agent(app);
     const phone = request.agent(app);
     const tablet = request.agent(app);
-    await loginFrom(laptop, "198.51.100.1", right).expect(200);
-    await loginFrom(phone, "198.51.100.2", { ...right, remember: true }, SAFARI_IPHONE).expect(200);
-    await loginFrom(tablet, "198.51.100.3", right).expect(200);
+    await signIn(laptop, "198.51.100.1", right);
+    await signIn(phone, "198.51.100.2", { ...right, remember: true }, SAFARI_IPHONE);
+    await signIn(tablet, "198.51.100.3", right);
 
     const { body } = await laptop.get("/api/admin/security/sessions").expect(200);
     expect(body.sessions).toHaveLength(3);
@@ -345,8 +365,8 @@ describe("password change (Paramètres > Sécurité)", () => {
     await createTestAdmin();
     const laptop = request.agent(app);
     const phone = request.agent(app);
-    await loginFrom(laptop, "198.51.100.1", right).expect(200);
-    await loginFrom(phone, "198.51.100.2", right, SAFARI_IPHONE).expect(200);
+    await signIn(laptop, "198.51.100.1", right);
+    await signIn(phone, "198.51.100.2", right, SAFARI_IPHONE);
     const change = (body: Record<string, string>) =>
       laptop.post("/api/admin/security/password").set("Origin", ORIGIN).send(body);
 

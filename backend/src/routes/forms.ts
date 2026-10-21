@@ -1,4 +1,4 @@
-import { contactRequestSchema, newsletterFormSchema } from "@rassm/shared";
+import { contactRequestSchema, formTimingReason, newsletterRequestSchema } from "@rassm/shared";
 import { Router, type RequestHandler } from "express";
 import { getClientInfo } from "../lib/client-info";
 import { parseOrThrow } from "../lib/http-error";
@@ -39,12 +39,19 @@ export function formsRouter(
   });
 
   router.post("/contact-messages", limiters.contact, async (req, res) => {
-    const { website, ...message } = parseOrThrow(contactRequestSchema, req.body);
+    const { website, elapsedMs, ...message } = parseOrThrow(contactRequestSchema, req.body);
     // Honeypot filled: a bot. Pretend it worked and save nothing.
     if (website?.trim()) {
       logger.warn("Contact honeypot filled: ignored", { ip: req.ip });
     } else {
-      const doc = await ContactMessageModel.create({ ...message, client: getClientInfo(req) });
+      // Sent too fast or without the form: kept, flagged "Suspect" in the dashboard.
+      const suspiciousReason = formTimingReason(elapsedMs);
+      const doc = await ContactMessageModel.create({
+        ...message,
+        suspicious: suspiciousReason !== null,
+        suspiciousReason,
+        client: getClientInfo(req),
+      });
       // Background: the e-mail to the team never slows down or fails the message.
       inBackground(services.messageNotifier.notifyNewMessage(doc.toObject()), "New message e-mail");
     }
@@ -52,7 +59,17 @@ export function formsRouter(
   });
 
   router.post("/newsletter", limiters.newsletter, async (req, res) => {
-    const { email } = parseOrThrow(newsletterFormSchema, req.body);
+    const { email, website, elapsedMs } = parseOrThrow(newsletterRequestSchema, req.body);
+    // Honeypot filled: a bot. Pretend it worked and save nothing.
+    if (website?.trim()) {
+      logger.warn("Newsletter honeypot filled: ignored", { ip: req.ip });
+      res.status(201).json({ ok: true });
+      return;
+    }
+    // Signed up too fast or without the form: kept but not sent to Brevo (a list full of
+    // addresses typed by bots hurts the sender reputation). "Réessayer" in Abonnés sends it.
+    const suspiciousReason = formTimingReason(elapsedMs);
+    const listConfigured = services.newsletterList.configured;
     // Signing up twice keeps one entry, and the answer is the same (no way to probe emails).
     const address = email.toLowerCase();
     const result = await NewsletterSubscriberModel.updateOne(
@@ -61,7 +78,17 @@ export function formsRouter(
         $setOnInsert: {
           email: address,
           client: getClientInfo(req),
-          brevo: { status: services.newsletterList.configured ? "pending" : "off" },
+          suspicious: suspiciousReason !== null,
+          suspiciousReason,
+          brevo: !listConfigured
+            ? { status: "off" }
+            : suspiciousReason
+              ? {
+                  status: "failed",
+                  error: `Inscription suspecte : ${suspiciousReason}`,
+                  at: new Date(),
+                }
+              : { status: "pending" },
         },
       },
       { upsert: true },
@@ -72,7 +99,7 @@ export function formsRouter(
     });
     // New subscriber: added to the Brevo list in the background (never blocks the sign-up).
     const id = result?.upsertedId;
-    if (id && services.newsletterList.configured) {
+    if (id && listConfigured && !suspiciousReason) {
       inBackground(syncSubscriber(services.newsletterList, id, address), "Brevo newsletter sync");
     }
     res.status(201).json({ ok: true });

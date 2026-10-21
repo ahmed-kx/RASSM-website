@@ -1,4 +1,5 @@
 import {
+  ADMIN_CSRF_COOKIE,
   ADMIN_DEVICE_COOKIE,
   ADMIN_SESSION_COOKIE,
   FORGOT_PASSWORD_MESSAGE,
@@ -7,10 +8,12 @@ import {
   adminLoginSchema,
   adminResetPasswordSchema,
 } from "@rassm/shared";
-import type { RequestHandler, Router } from "express";
+import type { RequestHandler, Response, Router } from "express";
 import { getClientInfo } from "../lib/client-info";
 import { parseOrThrow } from "../lib/http-error";
 import {
+  csrfCookieOptions,
+  csrfTokenFor,
   currentAdmin,
   currentSessionId,
   deviceCookieOptions,
@@ -38,6 +41,12 @@ export interface AuthRouteOptions extends AuthDeps {
   passwordLimiter: () => RequestHandler;
 }
 
+/** Removes the session and CSRF cookies (logout, reset, revoked). */
+function clearSessionCookies(res: Response, secure: boolean) {
+  res.clearCookie(ADMIN_SESSION_COOKIE, sessionCookieOptions(secure));
+  res.clearCookie(ADMIN_CSRF_COOKIE, csrfCookieOptions(secure));
+}
+
 /** Login, logout and the password reset by e-mail: no session needed. */
 export function addPublicAuthRoutes(router: Router, options: AuthRouteOptions) {
   const deps: AuthDeps = { mailer: options.mailer, adminUrl: options.adminUrl };
@@ -57,10 +66,16 @@ export function addPublicAuthRoutes(router: Router, options: AuthRouteOptions) {
     );
     // "Se souvenir de moi": the cookie lasts 30 days; otherwise it ends with the browser
     // (and the server ends the session after 12 hours or 2 hours without activity).
+    const expires = session.remember ? session.expiresAt : undefined;
     res.cookie(
       ADMIN_SESSION_COOKIE,
       session.token,
-      sessionCookieOptions(options.secureCookies, session.remember ? session.expiresAt : undefined),
+      sessionCookieOptions(options.secureCookies, expires),
+    );
+    res.cookie(
+      ADMIN_CSRF_COOKIE,
+      csrfTokenFor(session.token),
+      csrfCookieOptions(options.secureCookies, expires),
     );
     if (session.newDeviceToken) {
       res.cookie(
@@ -75,7 +90,7 @@ export function addPublicAuthRoutes(router: Router, options: AuthRouteOptions) {
   router.post("/auth/logout", async (req, res) => {
     const token = readSessionToken(req);
     if (token) await logout(token);
-    res.clearCookie(ADMIN_SESSION_COOKIE, sessionCookieOptions(options.secureCookies));
+    clearSessionCookies(res, options.secureCookies);
     res.json({ ok: true });
   });
 
@@ -88,7 +103,7 @@ export function addPublicAuthRoutes(router: Router, options: AuthRouteOptions) {
   router.post("/auth/password/reset", options.passwordLimiter(), async (req, res) => {
     const { token, password } = parseOrThrow(adminResetPasswordSchema, req.body);
     await resetPassword(token, password, getClientInfo(req), deps);
-    res.clearCookie(ADMIN_SESSION_COOKIE, sessionCookieOptions(options.secureCookies));
+    clearSessionCookies(res, options.secureCookies);
     res.json({ ok: true });
   });
 }
@@ -109,7 +124,7 @@ export function addSecurityRoutes(router: Router, options: AuthRouteOptions) {
   router.delete("/security/sessions/:id", async (req, res) => {
     await revokeSession(currentAdmin(res).id, String(req.params.id));
     const current = req.params.id === currentSessionId(res);
-    if (current) res.clearCookie(ADMIN_SESSION_COOKIE, sessionCookieOptions(options.secureCookies));
+    if (current) clearSessionCookies(res, options.secureCookies);
     res.json({ ok: true, current });
   });
 

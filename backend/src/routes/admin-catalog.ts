@@ -13,6 +13,7 @@ import type { RequestHandler, Router } from "express";
 import multer from "multer";
 import { z } from "zod";
 import { HttpError, parseOrThrow } from "../lib/http-error";
+import { InvalidImageError, stripImageMetadata } from "../lib/image-metadata";
 import { describeError, logger } from "../lib/logger";
 import type { Revalidator } from "../lib/revalidate";
 import { loadSettings, saveSettings } from "../models/setting";
@@ -38,6 +39,8 @@ export interface CatalogRouteOptions {
   revalidator: Revalidator;
   /** Null when the Cloudinary keys are not set: uploads answer 503. */
   imageStorage: ImageStorage | null;
+  /** Stricter limit for the photo uploads. */
+  sensitiveLimiter: () => RequestHandler;
 }
 
 const STORAGE_OFF =
@@ -131,13 +134,23 @@ export function addCatalogRoutes(router: Router, options: CatalogRouteOptions): 
     });
   };
 
-  router.post("/uploads", receive, async (req, res) => {
+  router.post("/uploads", options.sensitiveLimiter(), receive, async (req, res) => {
     const storage = options.imageStorage;
     if (!storage) throw new HttpError(503, STORAGE_OFF);
     if (!req.file) throw new HttpError(400, "Choisissez une photo.");
-    if (!detectImageType(req.file.buffer)) throw new HttpError(415, BAD_FORMAT);
+    // The real type comes from the bytes (the name and declared type can lie).
+    const type = detectImageType(req.file.buffer);
+    if (!type) throw new HttpError(415, BAD_FORMAT);
+    // GPS position, camera, date… removed before the photo leaves the server.
+    let photo: Buffer;
     try {
-      res.status(201).json({ image: await storage.upload(req.file.buffer) });
+      photo = stripImageMetadata(req.file.buffer, type);
+    } catch (error) {
+      if (error instanceof InvalidImageError) throw new HttpError(415, BAD_FORMAT);
+      throw error;
+    }
+    try {
+      res.status(201).json({ image: await storage.upload(photo) });
     } catch (error) {
       logger.error("Photo upload failed", describeError(error));
       throw new HttpError(502, "L'envoi de la photo a échoué. Réessayez dans un instant.");

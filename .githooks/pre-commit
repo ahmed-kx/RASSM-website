@@ -1,0 +1,3 @@
+#!/bin/sh
+# Blocks commits containing secrets (see scripts/check-secrets.mjs).
+exec node scripts/check-secrets.mjs

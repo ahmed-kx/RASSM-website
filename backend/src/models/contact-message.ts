@@ -8,6 +8,9 @@ export interface ContactMessageDoc extends ContactForm {
   read: boolean;
   /** Archived messages leave the inbox (kept until deleted). */
   archived: boolean;
+  /** Sent too fast or without the site's form (bot check). Kept, shown "Suspect". */
+  suspicious: boolean;
+  suspiciousReason: string | null;
   /** New message e-mail to the team (Brevo). */
   emailNotification: {
     status: "pending" | "sent" | "failed" | "skipped";
@@ -29,6 +32,8 @@ const contactMessageSchema = new Schema<ContactMessageDoc>(
     message: { type: String, required: true },
     read: { type: Boolean, default: false },
     archived: { type: Boolean, default: false },
+    suspicious: { type: Boolean, default: false },
+    suspiciousReason: { type: String, default: null },
     emailNotification: {
       status: { type: String, enum: ["pending", "sent", "failed", "skipped"], default: "pending" },
       sentAt: Date,

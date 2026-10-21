@@ -9,7 +9,7 @@ import { formatPhone, renderTeamEmail, sendTeamEmail, type EmailConfig } from ".
 export type NewMessageEmailMessage = Pick<
   ContactMessageDoc,
   "_id" | "firstName" | "lastName" | "phone" | "email" | "subject" | "message"
->;
+> & { suspiciousReason?: string | null };
 
 export interface MessageNotifier {
   /** Sends the new message e-mail; records the result on the message. Never throws. */
@@ -34,6 +34,7 @@ export function buildNewMessageEmail(message: NewMessageEmailMessage, adminUrl: 
   const html = renderTeamEmail({
     eyebrow: `Nouveau message · ${subjectLabel}`,
     title: name,
+    flags: message.suspiciousReason ? [`Message suspect : ${message.suspiciousReason}`] : [],
     rows,
     body: message.message,
     button: { label: "Ouvrir le message", href: link },
@@ -41,6 +42,7 @@ export function buildNewMessageEmail(message: NewMessageEmailMessage, adminUrl: 
   });
   const text = [
     `Nouveau message : ${name}`,
+    ...(message.suspiciousReason ? [`Message suspect : ${message.suspiciousReason}`] : []),
     "",
     ...rows.map(([label, value]) => `${label} : ${value}`),
     "",

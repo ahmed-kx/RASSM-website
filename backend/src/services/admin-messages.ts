@@ -42,6 +42,8 @@ export function toAdminMessage(doc: ContactMessageDoc): AdminMessage {
     message: doc.message,
     read: doc.read,
     archived: doc.archived ?? false,
+    suspicious: doc.suspicious ?? false,
+    suspiciousReason: doc.suspiciousReason ?? null,
     createdAt: doc.createdAt.toISOString(),
   };
 }

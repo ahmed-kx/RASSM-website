@@ -191,6 +191,9 @@ function sessionEnd(session: AdminSessionDoc): Date {
 export interface AuthenticatedSession {
   admin: Admin;
   sessionId: string;
+  /** "Se souvenir de moi" sessions keep their cookies until `expiresAt`. */
+  remember: boolean;
+  expiresAt: Date;
 }
 
 /** The admin of a session token, or null (unknown, expired, inactive too long). */
@@ -213,7 +216,12 @@ export async function authenticate(
   if (now.getTime() - lastActivity.getTime() >= ACTIVITY_WRITE_MS) {
     await AdminSessionModel.updateOne({ _id: session._id }, { $set: { lastActivityAt: now } });
   }
-  return { admin: toAdmin(admin), sessionId: session._id.toString() };
+  return {
+    admin: toAdmin(admin),
+    sessionId: session._id.toString(),
+    remember: session.remember,
+    expiresAt: session.expiresAt,
+  };
 }
 
 export async function logout(token: string): Promise<void> {
