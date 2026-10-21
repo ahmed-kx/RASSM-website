@@ -277,6 +277,13 @@ Admin charts use the `chart-*` tokens of `globals.css`: one per order status (`c
 - Public forms send `elapsedMs` (`useFormTimer`, `lib/form-timer.ts`) and the honeypot with `sendContactMessage`, `subscribeToNewsletter` and `placeProductOrder`.
 - Animations respect `prefers-reduced-motion` (`motion-safe:` / `motion-reduce:` classes; the hero slider does not auto-play).
 
+## Security
+
+How the site is protected, where every secret lives and how to rotate it, backups and restoring: `docs/SECURITY.md`.
+
+- Before adding any new outside service or script (TikTok Pixel, Google Analytics, chat widget, new font or image host...), add its domains to `frontend/src/lib/security-headers.ts`, otherwise the browser will block it. Test the page for CSP errors after adding it.
+- Never cancel a "Suspecte" order automatically; it may be a real customer, so call first.
+
 ## Code rules
 
 - TypeScript `strict` everywhere. **No `any`** (lint error). Prefer types inferred from Zod schemas.
