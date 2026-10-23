@@ -30,6 +30,7 @@ once a year anyway. After changing a value, restart the app that reads it.
 | `REVALIDATE_SECRET`                            | `backend/.env` **and** `frontend/.env.local` (same value) | Someone can force the site to rebuild its pages (load, no data leak)                                            |
 | `ADMIN_PROXY_SECRET`                           | `backend/.env` **and** `frontend/.env.local` (same value) | Someone who can reach the API directly can choose the IP the dashboard sees (gets around the per-IP login lock) |
 | `BACKUP_PASSPHRASE`                            | `backend/.env` + your password manager                    | The encrypted backups can be read by whoever has the files                                                      |
+| `BACKUP_S3_SECRET_ACCESS_KEY`                  | Render (cron job `rassm-backup`)                          | Files can be written to the backup bucket (a "Write Only" key cannot read or delete the backups)                |
 
 Not secrets (public by design): `NEXT_PUBLIC_META_PIXEL_ID`, `META_PIXEL_ID`, `CLOUDINARY_CLOUD_NAME`,
 `BREVO_NEWSLETTER_LIST_ID`, the URLs.
@@ -90,6 +91,14 @@ developing), never `0.0.0.0/0` in production.
 3. **Keep the old passphrase** in the password manager until the backups made with it are deleted
    (14 days by default): they can only be restored with the passphrase they were made with.
 
+#### Backup bucket key (`BACKUP_S3_ACCESS_KEY_ID`, `BACKUP_S3_SECRET_ACCESS_KEY`)
+
+1. Backblaze > **Application Keys** > **Add a New Application Key** (same settings as in
+   `docs/DEPLOYMENT.md`: the backup bucket only, **Write Only**).
+2. Put the new key ID and key in the Render cron job `rassm-backup` > **Environment**, then
+   **Trigger Run** and check that a new file appears in the bucket.
+3. Delete the old key in the same Backblaze page.
+
 #### Your dashboard password
 
 Paramètres > Sécurité > "Changer le mot de passe", or "Mot de passe oublié ?" on the login page, or
@@ -114,6 +123,16 @@ when:
 
 In every mode, `BREVO_API_KEY` needs `NOTIFY_EMAIL` and `EMAIL_FROM` (no address is written in the
 code). `META_TEST_EVENT_CODE` in production starts, but with a loud warning: remove it.
+
+One-off commands such as the nightly backup run as a "task" (`loadEnv("task")`): they never serve
+requests, so `TRUST_PROXY`, `ADMIN_PROXY_SECRET` and `ADMIN_URL` are not required there; every
+other check stays. `BACKUP_S3_*` must be all set or all empty.
+
+**The website does the same** (`frontend/src/lib/production-env.ts`, run by `next.config.ts`): with
+an `https://` `NEXT_PUBLIC_SITE_URL`, `next build` and `next start` stop with the list of problems
+when `ADMIN_PROXY_SECRET` or `REVALIDATE_SECRET` is missing or weak (32+ characters), `TRUST_PROXY`
+is not set, `NEXT_PUBLIC_API_URL` / `API_URL` is not `https://`, or `ADMIN_HOST` is not a bare host
+name.
 
 ### Secret check before each commit
 
@@ -277,23 +296,29 @@ The files contain every customer's name, phone and address: keep them encrypted,
 `backups/` folder is ignored and the pre-commit check refuses them), and keep a copy somewhere else
 than the server (another disk, a private cloud folder).
 
-### Run it automatically (once deployed)
+### Run it automatically (production)
 
-On the API server (its IP is allowed in Atlas), every night at 3:00, Linux cron (`crontab -e`):
+The Render cron job `rassm-backup` (`render.yaml`) runs `pnpm backup` every night at 03:00 in
+Algeria (02:00 UTC), with a **read-only** database user, and copies the encrypted file to a private
+**Backblaze B2** bucket (`BACKUP_S3_*`, `backend/src/lib/offsite-storage.ts`). Render's disk is
+wiped after each run, so the bucket is the real copy:
 
-```cron
-0 3 * * * cd /srv/rassm && pnpm backup >> /var/log/rassm-backup.log 2>&1
-```
+- the bucket deletes copies older than 14 days itself (lifecycle rule: hide 14 days after upload,
+  delete 1 day later);
+- the cron job's key is **Write Only**: someone who got into Render could add files, but never read
+  or delete the backups;
+- an unencrypted backup is never sent off-site;
+- a failed run (database, encryption or upload) exits with an error and Render e-mails you
+  (Integrations > Notifications: "Only failure notifications").
 
-Windows (Task Scheduler, from a terminal in the project folder):
+Setup, step by step: `docs/DEPLOYMENT.md` > Backups. Cloudflare R2 works too (S3-compatible: set
+its endpoint and `BACKUP_S3_REGION=auto` is found automatically), but it needs a payment card and
+its keys cannot be write-only.
 
-```bat
-schtasks /Create /SC DAILY /ST 03:00 /TN "RASSM backup" /TR "cmd /c cd /d %CD% && pnpm backup >> backups\backup.log 2>&1"
-```
+To restore a copy: Backblaze > **Buckets** > the bucket > **Browse Files** > download the file, then
+follow "Restore" below on your computer (with the passphrase from your password manager).
 
-Then copy `backend/backups/` to the off-site place regularly (rclone, a synced folder…). On a host
-without a disk you keep (serverless), run the backup from another machine whose IP is allowed in
-Atlas.
+On your own computer, `pnpm backup` without `BACKUP_S3_*` keeps the file in `backend/backups/` only.
 
 ### Restore
 
@@ -316,19 +341,27 @@ Test a restore once a month: a backup that was never restored is not a backup.
 
 ## Before going live
 
-- Atlas **Network Access**: only the API server's IP (remove `0.0.0.0/0`).
-- `NODE_ENV=production` and `https://` URLs in both apps.
-- `TRUST_PROXY` in **both** apps = the number of proxies in front of each (hosting load balancer,
-  CDN; usually `1`, `0` if reached directly). Too low: every customer gets the proxy's IP (shared
-  limits, every order flagged). Too high: anyone can choose their IP. Check: place a test order and
-  open it in the dashboard (Adresse IP must be yours), and Paramètres > Sécurité.
+The click-by-click guide is `docs/DEPLOYMENT.md` (Vercel, Render, DNS, Brevo, Meta, Atlas, backups,
+launch day). It covers every point below.
+
+- Atlas **Network Access**: only Render's outbound IP ranges for Frankfurt (remove `0.0.0.0/0`).
+- `TRUST_PROXY`: website on Vercel `1` (Vercel replaces `X-Forwarded-For` with the visitor's IP).
+  API on Render: start with `1`, then open `https://api.rassmstore.live/health/ip` from your phone
+  on mobile data: `ip` must be the IP that a "what is my IP" site shows. If it is not, count the
+  `forwardedFor` entries from the right up to your IP: that number is `TRUST_PROXY`. Too low: every
+  customer gets the proxy's IP (shared limits, every order flagged). Too high: anyone can choose
+  their IP. Also check a test order in the dashboard (Adresse IP must be yours) and Paramètres >
+  Sécurité.
+- `NODE_ENV=production` in the API (not in Vercel: Vercel sets it itself) and `https://` URLs in
+  both apps.
 - `ADMIN_PROXY_SECRET`: the same 32+ random characters in both apps.
 - Dashboard on its own subdomain: DNS `admin.rassmstore.live` pointing to the website, then in the
   website `ADMIN_HOST=admin.rassmstore.live`, in the API `ADMIN_ORIGIN=https://admin.rassmstore.live`
   and `ADMIN_URL=https://admin.rassmstore.live/admin`. Check that `https://rassmstore.live/admin`
   redirects there and `https://rassmstore.live/api/admin/auth/me` answers 404.
 - Remove `META_TEST_EVENT_CODE`; turn off Automatic advanced matching in Events Manager (above).
-- `BACKUP_PASSPHRASE` set, the nightly backup scheduled, one restore tested.
+- `BACKUP_PASSPHRASE` set, the Render cron job's first run copied a file to the B2 bucket, and that
+  file restored once into a test database.
 - `/confidentialite` reviewed with a legal advisor (Law 18-07), and the ANPDP declaration done if
   needed.
 - Once the whole domain is on HTTPS for good, optionally submit it to https://hstspreload.org (add

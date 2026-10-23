@@ -38,7 +38,12 @@ const SECRETS = [
   { name: "Brevo SMTP key", find: (line) => /xsmtpsib-[a-f0-9]{32,}/i.test(line) },
   { name: "Meta access token", find: (line) => /\bEAA[A-Za-z0-9]{60,}/.test(line) },
   { name: "private key", find: (line) => /-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(line) },
-  { name: "AWS key", find: (line) => /\bAKIA[0-9A-Z]{16}\b/.test(line) },
+  {
+    name: "AWS key",
+    // AWS's documentation keys end with EXAMPLE (AKIAIOSFODNN7EXAMPLE): the signature tests use them.
+    find: (line) =>
+      [...line.matchAll(/\bAKIA[0-9A-Z]{16}\b/g)].some(([key]) => !key.endsWith("EXAMPLE")),
+  },
   { name: "GitHub token", find: (line) => /\bgh[pousr]_[A-Za-z0-9]{30,}/.test(line) },
   {
     name: "secret value in an env file",

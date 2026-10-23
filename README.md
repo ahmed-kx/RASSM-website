@@ -24,4 +24,6 @@ Dashboard: http://localhost:3000/admin (log in with the account created by `pnpm
 Other commands (from the root): `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm format`,
 `pnpm backup` / `pnpm restore` (database backups), `pnpm check-secrets`.
 Secrets, rotation, backups and protections: [`docs/SECURITY.md`](docs/SECURITY.md).
+Going live (Vercel + Render): [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md), variables:
+[`docs/ENV-PRODUCTION.md`](docs/ENV-PRODUCTION.md).
 Project rules and architecture: [`CLAUDE.md`](CLAUDE.md).

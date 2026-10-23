@@ -13,12 +13,10 @@ Things that are placeholders or decisions still to make. Remove an item once it 
 - [ ] **Meta Pixel ID**: set `NEXT_PUBLIC_META_PIXEL_ID` in `frontend/.env.local` (and in the hosting environment). Without it, no Meta script is loaded.
 
 - [ ] **Meta Conversions API**: set `META_PIXEL_ID` and `META_CAPI_ACCESS_TOKEN` in `backend/.env` (and on the API host). Check the events in Events Manager > Test events (`META_TEST_EVENT_CODE`).
-- [ ] **Hosting the API**: set `FRONTEND_ORIGIN` to the real domain(s), `TRUST_PROXY` (required) in both apps, the same `ADMIN_PROXY_SECRET` in both apps, `NEXT_PUBLIC_API_URL` in the frontend, and allow the server IP in MongoDB Atlas Network Access. Full list: `docs/SECURITY.md` > Before going live.
-- [ ] **Dashboard subdomain**: `admin.rassmstore.live` (DNS to the website; `ADMIN_HOST` in the website, `ADMIN_ORIGIN` and `ADMIN_URL` in the API). See `docs/SECURITY.md` > Before going live.
+- [ ] **Go live**: follow `docs/DEPLOYMENT.md` (Vercel, Render, Name.com DNS, Brevo domain, Meta domain, Atlas network access, nightly backups to Backblaze B2, launch day checklist). Variables: `docs/ENV-PRODUCTION.md`.
 - [ ] **Meta Events Manager**: turn off Automatic advanced matching and automatic events (Pixel > Settings).
 
 - [ ] **Brevo**: paste `BREVO_API_KEY` in `backend/.env` (and on the API host). Later, send from your own domain: validate it in Brevo (Senders, domains) and change `EMAIL_FROM`.
-- [ ] **Dashboard in production**: set `ADMIN_URL` (e-mail links) to the real `https://admin.rassmstore.live/admin`.
 - [ ] **Cloudinary and page refresh in production**: set `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` on the API host, and the same long `REVALIDATE_SECRET` on both hosts (`REVALIDATE_URL` = `https://<site>/api/revalidate` if the first `FRONTEND_ORIGIN` is not the site). Optional: `CLOUDINARY_CLOUD_NAME` in the frontend so next/image only accepts this account's photos.
 
 ## Dashboard

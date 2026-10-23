@@ -9,7 +9,7 @@ import type { OrderNotifier } from "./notifications/new-order-email";
 import type { SecurityMailer } from "./notifications/security-email";
 import type { NewsletterList } from "./services/newsletter-sync";
 import { errorHandler, notFound } from "./middleware/error-handler";
-import { dashboardClientIp } from "./lib/client-ip";
+import { clientIpOf, dashboardClientIp } from "./lib/client-ip";
 import { knownDevice } from "./middleware/admin";
 import { limitRequests, rejectUnsafeKeys, type RateLimitOptions } from "./middleware/security";
 import { adminRouter } from "./routes/admin";
@@ -127,6 +127,15 @@ export function createApp(options: AppOptions): Express {
   };
   app.use("/api/admin", dashboardClientIp(options.adminProxySecret));
   app.use(limitRequests(limits.global));
+  // Setup check of TRUST_PROXY (docs/DEPLOYMENT.md): the IP the API sees for the caller, and the
+  // X-Forwarded-For entries it received (the caller's own address and the host's proxies).
+  app.get("/health/ip", (req, res) => {
+    const forwardedFor = (req.get("x-forwarded-for") ?? "")
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+    res.set("Cache-Control", "no-store").json({ ip: clientIpOf(req), forwardedFor });
+  });
   app.use(
     "/api/admin",
     adminRouter({

@@ -1,7 +1,16 @@
 import type { NextConfig } from "next";
+import { productionEnvProblems } from "./src/lib/production-env";
 import { cspOptionsFromEnv, publicCsp, securityHeaders } from "./src/lib/security-headers";
 
-const API_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+// A deployed (https) site refuses to build or start with a missing or weak variable.
+const envProblems = productionEnvProblems(process.env);
+if (envProblems.length > 0) {
+  throw new Error(
+    `Invalid environment variables for production (see docs/ENV-PRODUCTION.md):\n${envProblems
+      .map((problem) => `  - ${problem}`)
+      .join("\n")}`,
+  );
+}
 
 /** Product photos on Cloudinary (only this account's when its name is set). */
 const CLOUDINARY_PATH = process.env.CLOUDINARY_CLOUD_NAME
@@ -15,6 +24,7 @@ const csp = cspOptionsFromEnv();
  * dashboard and its API calls only exist on that host (its `__Host-` cookies never reach the
  * public site, and scripts of the public pages, the Meta Pixel included, never run next to them),
  * and that host shows nothing else. Empty = the dashboard is at /admin on the site itself.
+ * src/proxy.ts forwards the dashboard's API calls (/api/admin) to the API, on that host only.
  */
 const ADMIN_HOST = process.env.ADMIN_HOST?.trim() || "";
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/+$/, "");
@@ -32,19 +42,6 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "res.cloudinary.com", pathname: CLOUDINARY_PATH },
     ],
     formats: ["image/avif", "image/webp"],
-  },
-
-  // The dashboard calls the admin API on its own domain: the session cookie is a first-party
-  // cookie of that host (readable by proxy.ts), whatever domain the API has. proxy.ts adds the
-  // visitor's signed IP first.
-  async rewrites() {
-    return [
-      {
-        source: "/api/admin/:path*",
-        destination: `${API_URL}/api/admin/:path*`,
-        ...(ADMIN_HOST && { has: onAdminHost }),
-      },
-    ];
   },
 
   // Dashboard on its own subdomain (ADMIN_HOST): /admin on the public site goes there, and the

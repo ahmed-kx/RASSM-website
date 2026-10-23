@@ -10,9 +10,11 @@ import { trustedProxiesFromEnv, visitorIp } from "@/lib/client-ip";
 import { adminCsp, cspOptionsFromEnv } from "@/lib/security-headers";
 
 // Dashboard pages and dashboard API calls only.
-// 1. /api/admin/* (rewritten to the API by next.config.ts): the visitor's IP is sent to the API
-//    in a header signed with ADMIN_PROXY_SECRET. Headers of that name sent by the visitor are
-//    replaced, and the API never reads X-Forwarded-For there.
+// 1. /api/admin/*: forwarded to the API (API_URL, else NEXT_PUBLIC_API_URL) from this site's own
+//    domain, so the session cookie is a first-party cookie of the dashboard. The visitor's IP is
+//    sent in a header signed with ADMIN_PROXY_SECRET (headers of that name sent by the visitor
+//    are replaced; the API never reads X-Forwarded-For there). With the dashboard on its own
+//    subdomain (ADMIN_HOST), this API only exists on that host: 404 on the public site.
 // 2. Optimistic check: without a session cookie, /admin pages redirect to the login page. The
 //    real check (is the session valid?) is done by the dashboard layout with the API, and every
 //    admin API route checks the session again.
@@ -30,7 +32,14 @@ const SESSION_COOKIES = [
 
 let warnedNoSecret = false;
 
+/** The host of a request, lowercase, without the port. */
+const hostOf = (request: NextRequest) =>
+  (request.headers.get("host") ?? "").replace(/:\d+$/, "").toLowerCase();
+
 async function forwardToApi(request: NextRequest) {
+  const adminHost = process.env.ADMIN_HOST?.trim().toLowerCase();
+  if (adminHost && hostOf(request) !== adminHost) return new NextResponse(null, { status: 404 });
+
   const headers = new Headers(request.headers);
   headers.delete(CLIENT_IP_HEADER);
   headers.delete(CLIENT_IP_SIGNATURE_HEADER);
@@ -45,7 +54,13 @@ async function forwardToApi(request: NextRequest) {
       "ADMIN_PROXY_SECRET is not set: the API cannot know the IP of dashboard visitors (set the same value in the website and the API).",
     );
   }
-  return NextResponse.next({ request: { headers } });
+  const api = (
+    process.env.API_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    "http://localhost:4000"
+  ).replace(/\/+$/, "");
+  const { pathname, search } = request.nextUrl;
+  return NextResponse.rewrite(new URL(`${api}${pathname}${search}`), { request: { headers } });
 }
 
 export async function proxy(request: NextRequest) {

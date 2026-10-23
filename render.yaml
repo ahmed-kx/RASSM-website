@@ -1,0 +1,125 @@
+# Render Blueprint: the RASSM API and its nightly backup, in Frankfurt.
+# Created once with Render > New > Blueprint (docs/DEPLOYMENT.md). Variables marked
+# `sync: false` are secrets or account values: Render asks for them when the Blueprint is created,
+# and afterwards they are edited in the Render dashboard (Environment), never in this file.
+# Every variable is explained in docs/ENV-PRODUCTION.md.
+#
+# Both services install only the API and the shared package, with the exact pnpm version of the
+# root package.json and the committed lockfile; Node.js comes from .node-version.
+
+previews:
+  generation: off
+
+services:
+  # ---------------------------------------------------------------- API (api.rassmstore.live)
+  - type: web
+    name: rassm-api
+    runtime: node
+    plan: starter # always on (no sleeping), 512 MB
+    region: frankfurt
+    branch: main
+    buildCommand: npx --yes pnpm@10.34.7 install --frozen-lockfile --prod --filter "@rassm/backend..."
+    startCommand: cd backend && node --import tsx src/server.ts
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    # Deploy only when the API, the shared package or the dependencies change.
+    buildFilter:
+      paths:
+        - backend/**
+        - shared/**
+        - package.json
+        - pnpm-lock.yaml
+        - pnpm-workspace.yaml
+        - .node-version
+      ignoredPaths:
+        - backend/test/**
+        - "**/*.md"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DB_NAME
+        value: rassm
+      # The first origin builds the newsletter links and the page refresh URL.
+      - key: FRONTEND_ORIGIN
+        value: https://rassmstore.live,https://www.rassmstore.live
+      - key: ADMIN_ORIGIN
+        value: https://admin.rassmstore.live
+      - key: ADMIN_URL
+        value: https://admin.rassmstore.live/admin
+      # Render's proxy in front of the API. Check it once deployed: https://api.rassmstore.live/health/ip
+      - key: TRUST_PROXY
+        value: "1"
+      - key: ADMIN_PROXY_SECRET
+        sync: false
+      - key: REVALIDATE_SECRET
+        sync: false
+      - key: META_PIXEL_ID
+        sync: false
+      - key: META_CAPI_ACCESS_TOKEN
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_NEWSLETTER_LIST_ID
+        sync: false
+      - key: NOTIFY_EMAIL
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: CLOUDINARY_FOLDER
+        value: rassm/products
+
+  # ------------------------------------------- Nightly backup, 03:00 in Algeria (02:00 UTC)
+  # Saves the whole database encrypted (BACKUP_PASSPHRASE) and copies it to the off-site bucket
+  # (Backblaze B2), which deletes copies older than 14 days by itself. A failed run exits with an
+  # error: Render e-mails you (Integrations > Notifications).
+  - type: cron
+    name: rassm-backup
+    runtime: node
+    plan: starter
+    region: frankfurt
+    branch: main
+    schedule: "0 2 * * *"
+    buildCommand: npx --yes pnpm@10.34.7 install --frozen-lockfile --prod --filter "@rassm/backend..."
+    startCommand: cd backend && node --import tsx src/backup-cli.ts
+    autoDeployTrigger: commit
+    buildFilter:
+      paths:
+        - backend/**
+        - shared/**
+        - package.json
+        - pnpm-lock.yaml
+        - pnpm-workspace.yaml
+        - .node-version
+      ignoredPaths:
+        - backend/test/**
+        - "**/*.md"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # A read-only database user (docs/DEPLOYMENT.md > Atlas): the backup never writes.
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DB_NAME
+        value: rassm
+      - key: FRONTEND_ORIGIN
+        value: https://rassmstore.live
+      - key: BACKUP_PASSPHRASE
+        sync: false
+      - key: BACKUP_S3_ENDPOINT
+        sync: false
+      - key: BACKUP_S3_BUCKET
+        sync: false
+      - key: BACKUP_S3_ACCESS_KEY_ID
+        sync: false
+      - key: BACKUP_S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: BACKUP_S3_PREFIX
+        value: rassm/
