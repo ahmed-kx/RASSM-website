@@ -14,7 +14,8 @@
     "migrate-images": "tsx src/migrate-images-cli.ts",
     "sync-newsletter": "tsx src/sync-newsletter-cli.ts",
     "backup": "tsx src/backup-cli.ts",
-    "restore": "tsx src/restore-cli.ts"
+    "restore": "tsx src/restore-cli.ts",
+    "purge-client-data": "tsx src/purge-client-data-cli.ts"
   },
   "dependencies": {
     "@rassm/shared": "workspace:*",

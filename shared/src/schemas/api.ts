@@ -12,6 +12,8 @@ export const API_PATHS = {
   orders: "/api/orders",
   contactMessages: "/api/contact-messages",
   newsletter: "/api/newsletter",
+  /** The link of the confirmation e-mail (double opt-in) is checked here. */
+  newsletterConfirm: "/api/newsletter/confirm",
 } as const;
 
 /**
@@ -37,6 +39,7 @@ export const ADMIN_API_PATHS = {
   orderBlacklist: (id: string) => `/api/admin/orders/${encodeURIComponent(id)}/blacklist`,
   andersonExport: "/api/admin/orders/export",
   bulkShip: "/api/admin/orders/ship",
+  bulkCancel: "/api/admin/orders/cancel",
   blacklist: "/api/admin/blacklist",
   blacklistEntry: (phone: string) => `/api/admin/blacklist/${encodeURIComponent(phone)}`,
   search: "/api/admin/search",
@@ -64,17 +67,56 @@ export const ADMIN_API_PATHS = {
   subscriberSync: (id: string) => `/api/admin/subscribers/${encodeURIComponent(id)}/sync`,
 } as const;
 
-/** Name of the admin session cookie (httpOnly, set by the API). */
+/** Name of the admin session cookie (httpOnly, set by the API). See `adminCookieName`. */
 export const ADMIN_SESSION_COOKIE = "rassm_admin";
 /** Long-lived random id of a browser (httpOnly): a login from an unknown one sends an alert. */
 export const ADMIN_DEVICE_COOKIE = "rassm_device";
+
 /**
- * Anti-CSRF token of the session (readable by the dashboard's JavaScript, set by the API). Every
- * dashboard change (POST, PUT, PATCH, DELETE) sends it back in the ADMIN_CSRF_HEADER header:
- * another site can neither read it nor guess it, so it can never act with the admin's cookie.
+ * The real name of an admin cookie. Over HTTPS (production) it carries the `__Host-` prefix: the
+ * browser then only accepts it from this exact host, Secure, on path "/", never shared with a
+ * subdomain. Plain http (development, tests) cannot use the prefix.
  */
-export const ADMIN_CSRF_COOKIE = "rassm_csrf";
+export function adminCookieName(name: string, secure: boolean): string {
+  return secure ? `__Host-${name}` : name;
+}
+
+/**
+ * Anti-CSRF token of the session. The API gives it in the answer of the login and of
+ * `GET /auth/me` (never in a cookie, so other scripts of the site cannot read it); the dashboard
+ * keeps it in memory and sends it back in this header with every change (POST, PUT, PATCH,
+ * DELETE). Another site can neither read it nor guess it.
+ */
 export const ADMIN_CSRF_HEADER = "x-csrf-token";
+/** The API's answer when the token is missing or stale: the dashboard fetches it and retries. */
+export const CSRF_REFUSED_MESSAGE = "Requête refusée. Rechargez la page puis réessayez.";
+
+/**
+ * Dashboard requests go through the website (Next.js rewrites /api/admin to the API). The site
+ * sends the visitor's IP in these headers, signed with ADMIN_PROXY_SECRET, so the API never has
+ * to trust an X-Forwarded-For header, which any visitor can forge.
+ */
+export const CLIENT_IP_HEADER = "x-rassm-client-ip";
+export const CLIENT_IP_SIGNATURE_HEADER = "x-rassm-client-ip-signature";
+/** A signature older than this is refused (replayed request). */
+export const CLIENT_IP_SIGNATURE_MAX_AGE_MS = 60_000;
+
+/** "<time>.<HMAC-SHA256 hex of `<time>.<ip>`>", with Web Crypto (works in Node and Next.js). */
+export async function signClientIp(secret: string, ip: string, time: number): Promise<string> {
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(`${time}.${ip}`));
+  const hex = [...new Uint8Array(signature)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+  return `${time}.${hex}`;
+}
 
 /**
  * Hidden anti-spam field ("honeypot") of the order, contact and newsletter forms. People never see it
@@ -142,6 +184,15 @@ export const newsletterRequestSchema = newsletterFormSchema.extend({
   [FORM_TIMING_FIELD]: formTimingSchema,
 });
 export type NewsletterRequest = z.input<typeof newsletterRequestSchema>;
+
+/** Body of POST /api/newsletter/confirm: the token of the confirmation link. */
+export const newsletterConfirmSchema = z.object({
+  token: z.string().regex(/^[A-Za-z0-9_-]{43}$/, "Ce lien de confirmation n'est pas valable."),
+});
+export type NewsletterConfirm = z.infer<typeof newsletterConfirmSchema>;
+/** Answer when the confirmation link is unknown, used or older than 7 days. */
+export const INVALID_NEWSLETTER_LINK =
+  "Ce lien de confirmation n'est plus valable. Inscrivez-vous à nouveau pour en recevoir un autre.";
 
 /** Error body of every API error. `fields` maps a form field to its French message. */
 export const apiErrorSchema = z.object({

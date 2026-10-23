@@ -1,7 +1,8 @@
 import {
   ADMIN_API_PATHS,
-  ADMIN_CSRF_COOKIE,
   ADMIN_CSRF_HEADER,
+  CSRF_REFUSED_MESSAGE,
+  bulkCancelResultSchema,
   adSpendSchema,
   adminClientDetailSchema,
   adminClientListSchema,
@@ -50,8 +51,9 @@ import {
 import { z } from "zod";
 import { ApiError } from "@/lib/api";
 
-// Dashboard data (browser). Calls /api/admin/* on the site's own domain (rewritten to the
-// API by next.config.ts), with the httpOnly session cookie. Throws ApiError (French).
+// Dashboard data (browser). Calls /api/admin/* on the dashboard's own domain (rewritten to the
+// API by next.config.ts), with the httpOnly session cookie and the anti-CSRF token kept in
+// memory. Throws ApiError (French).
 
 const GENERIC_ERROR = "Une erreur est survenue. Veuillez réessayer.";
 const NETWORK_ERROR = "Connexion impossible. Vérifiez votre connexion internet et réessayez.";
@@ -73,40 +75,63 @@ const PUBLIC_AUTH_PATHS: readonly string[] = [
   ADMIN_API_PATHS.resetPassword,
 ];
 
-function readCsrfCookie(): string | null {
-  if (typeof document === "undefined") return null;
-  const prefix = `${ADMIN_CSRF_COOKIE}=`;
-  const cookie = document.cookie.split("; ").find((part) => part.startsWith(prefix));
-  return cookie ? decodeURIComponent(cookie.slice(prefix.length)) : null;
-}
-
 /**
  * The session's anti-CSRF token, sent with every change (the API refuses changes without it).
- * Set by the API at login; when the browser lost it, any dashboard read gives it back.
+ * Kept in memory only (never in a cookie: no other script of the site can read it), from the
+ * login answer or GET /auth/me.
  */
-async function csrfHeaders(path: string): Promise<Record<string, string>> {
-  let token = readCsrfCookie();
-  if (!token && !PUBLIC_AUTH_PATHS.includes(path)) {
-    await fetch(ADMIN_API_PATHS.me, { credentials: "same-origin" }).catch(() => undefined);
-    token = readCsrfCookie();
+let csrfToken: string | null = null;
+
+async function fetchCsrfToken(): Promise<string | null> {
+  try {
+    const response = await fetch(ADMIN_API_PATHS.me, { credentials: "same-origin" });
+    const body = z
+      .object({ csrfToken: z.string() })
+      .safeParse(await response.json().catch(() => null));
+    csrfToken = body.success ? body.data.csrfToken : null;
+  } catch {
+    csrfToken = null;
   }
+  return csrfToken;
+}
+
+async function csrfHeaders(path: string): Promise<Record<string, string>> {
+  if (PUBLIC_AUTH_PATHS.includes(path)) return {};
+  const token = csrfToken ?? (await fetchCsrfToken());
   return token ? { [ADMIN_CSRF_HEADER]: token } : {};
+}
+
+async function sendRequest(path: string, init: RequestInit, method: string): Promise<Response> {
+  return fetch(path, {
+    ...init,
+    credentials: "same-origin",
+    // JSON bodies are strings; a FormData (photo upload) sets its own multipart type.
+    headers: {
+      ...(typeof init.body === "string" ? { "Content-Type": "application/json" } : {}),
+      ...(method === "GET" || method === "HEAD" ? {} : await csrfHeaders(path)),
+      ...init.headers,
+    },
+  });
 }
 
 async function request(path: string, init: RequestInit = {}): Promise<Response> {
   const method = (init.method ?? "GET").toUpperCase();
   let response: Response;
   try {
-    response = await fetch(path, {
-      ...init,
-      credentials: "same-origin",
-      // JSON bodies are strings; a FormData (photo upload) sets its own multipart type.
-      headers: {
-        ...(typeof init.body === "string" ? { "Content-Type": "application/json" } : {}),
-        ...(method === "GET" || method === "HEAD" ? {} : await csrfHeaders(path)),
-        ...init.headers,
-      },
-    });
+    response = await sendRequest(path, init, method);
+    // A token from an earlier session (logged in again in another tab): fetch it and retry once.
+    if (response.status === 403 && method !== "GET" && !PUBLIC_AUTH_PATHS.includes(path)) {
+      const body = apiErrorSchema.safeParse(
+        await response
+          .clone()
+          .json()
+          .catch(() => null),
+      );
+      if (body.success && body.data.error.message === CSRF_REFUSED_MESSAGE) {
+        csrfToken = null;
+        response = await sendRequest(path, init, method);
+      }
+    }
   } catch {
     throw new ApiError(0, NETWORK_ERROR);
   }
@@ -133,11 +158,18 @@ const send = (method: string, body: unknown): RequestInit => ({
 
 // ---------- Auth ----------
 
-export function adminLogin(data: AdminLogin) {
-  return requestJson(ADMIN_API_PATHS.login, z.object({ admin: adminSchema }), send("POST", data));
+export async function adminLogin(data: AdminLogin) {
+  const result = await requestJson(
+    ADMIN_API_PATHS.login,
+    z.object({ admin: adminSchema, csrfToken: z.string() }),
+    send("POST", data),
+  );
+  csrfToken = result.csrfToken;
+  return { admin: result.admin };
 }
 
 export async function adminLogout(): Promise<void> {
+  csrfToken = null;
   await request(ADMIN_API_PATHS.logout, { method: "POST" }).catch(() => undefined);
 }
 
@@ -265,6 +297,11 @@ export async function exportForAnderson(selection: { ids: string[] } | { all: tr
 
 export function shipOrders(ids: string[]) {
   return requestJson(ADMIN_API_PATHS.bulkShip, bulkShipResultSchema, send("POST", { ids }));
+}
+
+/** "Annuler" on the selected orders (new and confirmed ones only; stock given back once). */
+export function cancelOrders(ids: string[]) {
+  return requestJson(ADMIN_API_PATHS.bulkCancel, bulkCancelResultSchema, send("POST", { ids }));
 }
 
 // ---------- Blacklist ----------

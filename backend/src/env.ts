@@ -18,8 +18,27 @@ export function weakSecretReason(value: string, minLength: number): string | nul
   return null;
 }
 
-const isLocalHost = (url: string) =>
+export const isLocalHost = (url: string) =>
   ["localhost", "127.0.0.1", "[::1]", "0.0.0.0"].includes(new URL(url).hostname);
+
+const originList = (name: string) =>
+  z
+    .string({ error: `${name} is required, e.g. http://localhost:3000.` })
+    .transform((value) =>
+      value
+        .split(",")
+        .map((origin) => origin.trim())
+        .filter(Boolean),
+    )
+    .pipe(
+      z
+        .array(
+          z
+            .url(`${name} must contain full origins, e.g. https://rassmstore.live.`)
+            .transform((url) => new URL(url).origin),
+        )
+        .min(1, `${name} is required.`),
+    );
 
 /** Empty values in .env ("KEY=") count as not set. */
 const optional = <T extends z.ZodType>(schema: T) =>
@@ -62,29 +81,32 @@ const envSchema = z
           }),
         ),
       ),
-    /** Site origin(s) allowed by CORS, comma-separated, e.g. https://rassm.dz,https://www.rassm.dz */
-    FRONTEND_ORIGIN: z
-      .string({ error: "FRONTEND_ORIGIN is required, e.g. http://localhost:3000." })
-      .transform((value) =>
-        value
-          .split(",")
-          .map((origin) => origin.trim())
-          .filter(Boolean),
-      )
-      .pipe(
-        z
-          .array(
-            z
-              .url("FRONTEND_ORIGIN must contain full origins, e.g. https://rassm.dz.")
-              .transform((url) => new URL(url).origin),
-          )
-          .min(1, "FRONTEND_ORIGIN is required."),
-      ),
     /**
-     * Number of reverse proxies in front of the API (hosting load balancer). Needed to read
-     * the real client IP for rate limiting and fraud checks. 0 when the API is reached directly.
+     * Site origin(s) allowed by CORS, comma-separated, e.g.
+     * https://rassmstore.live,https://www.rassmstore.live. The first one builds the links of the
+     * e-mails (newsletter confirmation).
      */
-    TRUST_PROXY: z.coerce.number().int().min(0).max(10).default(0),
+    FRONTEND_ORIGIN: originList("FRONTEND_ORIGIN"),
+    /**
+     * Origin(s) of the dashboard when it runs on its own subdomain, e.g.
+     * https://admin.rassmstore.live: only they may then send dashboard requests. Empty = the
+     * dashboard is on the site itself (FRONTEND_ORIGIN).
+     */
+    ADMIN_ORIGIN: optional(originList("ADMIN_ORIGIN")),
+    /**
+     * Number of reverse proxies in front of the API (hosting load balancer), to read the real
+     * client IP for rate limits and fraud checks; 0 when the API is reached directly. Required in
+     * production: a wrong value gives every customer the same IP, or lets anyone choose theirs.
+     */
+    TRUST_PROXY: optional(z.coerce.number().int().min(0).max(10)),
+    /**
+     * Same value in the website (frontend/.env.local): the website signs the visitor's IP of every
+     * dashboard request with it (the API never trusts X-Forwarded-For there). Required in
+     * production.
+     */
+    ADMIN_PROXY_SECRET: optional(
+      z.string().min(32, "ADMIN_PROXY_SECRET must have 32+ characters."),
+    ),
     /** Meta Pixel ID (same as the frontend NEXT_PUBLIC_META_PIXEL_ID). */
     META_PIXEL_ID: optional(
       z.string().regex(/^\d{5,20}$/, "META_PIXEL_ID must contain digits only."),
@@ -109,10 +131,10 @@ const envSchema = z
         .int("BREVO_NEWSLETTER_LIST_ID must be the list number, e.g. 3.")
         .positive("BREVO_NEWSLETTER_LIST_ID must be the list number, e.g. 3."),
     ),
-    /** Who receives the new order and new message e-mails. */
-    NOTIFY_EMAIL: z.email("NOTIFY_EMAIL must be an e-mail address.").default("rassmwear@gmail.com"),
-    /** Sender of the e-mails (must be a sender or domain validated in Brevo). */
-    EMAIL_FROM: z.email("EMAIL_FROM must be an e-mail address.").default("rassmwear@gmail.com"),
+    /** Who receives the new order, new message and alert e-mails. Required with BREVO_API_KEY. */
+    NOTIFY_EMAIL: optional(z.email("NOTIFY_EMAIL must be an e-mail address.")),
+    /** Sender of the e-mails (validated in Brevo). Required with BREVO_API_KEY. */
+    EMAIL_FROM: optional(z.email("EMAIL_FROM must be an e-mail address.")),
     /** Cloudinary (product photos). All three are needed to upload; empty = uploads disabled. */
     CLOUDINARY_CLOUD_NAME: optional(
       z.string().regex(/^[A-Za-z0-9_-]+$/, "CLOUDINARY_CLOUD_NAME looks wrong."),
@@ -144,10 +166,23 @@ const envSchema = z
     BACKUP_PASSPHRASE: optional(z.string().min(16, "BACKUP_PASSPHRASE must have 16+ characters.")),
   })
   .superRefine((env, ctx) => {
-    // Production refuses to start with weak, example or insecure values.
-    if (env.NODE_ENV !== "production") return;
     const fail = (path: string, message: string) =>
       ctx.addIssue({ code: "custom", path: [path], message });
+    if (env.BREVO_API_KEY) {
+      if (!env.NOTIFY_EMAIL) fail("NOTIFY_EMAIL", "is required with BREVO_API_KEY.");
+      if (!env.EMAIL_FROM) fail("EMAIL_FROM", "is required with BREVO_API_KEY.");
+    }
+    // A site on https is a deployed site: it must run in production mode (Secure cookies, the
+    // checks below, no reset link in the logs). Forgetting NODE_ENV must never lower the guard.
+    const deployed = env.FRONTEND_ORIGIN.some(
+      (origin) => origin.startsWith("https://") && !isLocalHost(origin),
+    );
+    if (deployed && env.NODE_ENV !== "production") {
+      fail("NODE_ENV", 'must be "production" when FRONTEND_ORIGIN is an https site.');
+    }
+
+    // Production refuses to start with weak, example or insecure values.
+    if (env.NODE_ENV !== "production") return;
 
     let mongo: URL | null = null;
     try {
@@ -171,6 +206,23 @@ const envSchema = z
       if (!origin.startsWith("https://") || isLocalHost(origin)) {
         fail("FRONTEND_ORIGIN", `must be the https:// site in production (got ${origin}).`);
       }
+    }
+    for (const origin of env.ADMIN_ORIGIN ?? []) {
+      if (!origin.startsWith("https://") || isLocalHost(origin)) {
+        fail("ADMIN_ORIGIN", `must be the https:// dashboard in production (got ${origin}).`);
+      }
+    }
+    if (env.TRUST_PROXY === undefined) {
+      fail(
+        "TRUST_PROXY",
+        "must be set in production: the number of proxies in front of the API (0 if none).",
+      );
+    }
+    if (!env.ADMIN_PROXY_SECRET) {
+      fail("ADMIN_PROXY_SECRET", "is required in production (same value in the website).");
+    } else {
+      const weak = weakSecretReason(env.ADMIN_PROXY_SECRET, 32);
+      if (weak) fail("ADMIN_PROXY_SECRET", `${weak} (use 32+ random characters).`);
     }
     if (!env.ADMIN_URL.startsWith("https://") || isLocalHost(env.ADMIN_URL)) {
       fail("ADMIN_URL", "must be the https:// dashboard URL in production.");

@@ -1,4 +1,5 @@
 import type { Request } from "express";
+import { clientIpOf } from "./client-ip";
 
 export interface ClientInfo {
   ip: string | null;
@@ -8,11 +9,11 @@ export interface ClientInfo {
 }
 
 /**
- * Client IP and user agent. The IP comes from `req.ip`, which reads X-Forwarded-For only
- * for the number of proxies set in TRUST_PROXY (so it cannot be spoofed by the client).
+ * Client IP and user agent. The IP comes from `clientIpOf` (lib/client-ip.ts): X-Forwarded-For
+ * only for the TRUST_PROXY proxies, and on the dashboard the IP signed by the website.
  */
 export function getClientInfo(req: Request): ClientInfo {
-  const ip = req.ip?.replace(/^::ffff:/, "") ?? null;
+  const ip = clientIpOf(req);
   const userAgent = req.get("user-agent")?.slice(0, 500) ?? null;
   return { ip: ip || null, userAgent: userAgent || null, location: readLocation(req, ip) };
 }

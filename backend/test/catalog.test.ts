@@ -1,3 +1,4 @@
+import { toPublicProduct } from "@rassm/shared";
 import { mockProducts } from "@rassm/shared/mocks";
 import { describe, expect, it } from "vitest";
 import { ProductModel } from "../src/models/product";
@@ -11,8 +12,34 @@ describe("catalog", () => {
     expect(res.body.products).toHaveLength(mockProducts.length);
     const all = await api.get("/api/products").expect(200);
     expect(all.body.products).toEqual(
-      [...mockProducts].sort((a, b) => Number(b.featured) - Number(a.featured)),
+      [...mockProducts]
+        .sort((a, b) => Number(b.featured) - Number(a.featured))
+        .map(toPublicProduct),
     );
+  });
+
+  it("never gives the exact stock above 3, nor the SKU (availability per size only)", async () => {
+    const { api } = testApp();
+    const { body } = await api.get("/api/products").expect(200);
+    const text = JSON.stringify(body);
+    expect(text).not.toMatch(/"stock"|"sku"|RSM-[HST]-/);
+    const classic = await api.get("/api/products/classic-tee").expect(200);
+    // Crème: M sold out, L 3 left (exact: "Plus que 3 en stock"), S 4 left: only "available".
+    expect(classic.body.product.colors[1].availability).toMatchObject({
+      M: { status: "sold_out" },
+      L: { status: "low", remaining: 3 },
+      S: { status: "available" },
+    });
+    for (const product of body.products as { colors: { availability: object }[] }[]) {
+      for (const color of product.colors) {
+        for (const variant of Object.values(color.availability)) {
+          expect(Object.keys(variant).sort()).toEqual(
+            "remaining" in variant ? ["remaining", "status"] : ["status"],
+          );
+          if ("remaining" in variant) expect(variant.remaining).toBeLessThanOrEqual(3);
+        }
+      }
+    }
   });
 
   it("applies the collection page filters", async () => {
@@ -36,7 +63,10 @@ describe("catalog", () => {
   it("returns a product by slug, or a French 404", async () => {
     const { api } = testApp();
     const res = await api.get("/api/products/classic-tee").expect(200);
-    expect(res.body.product.colors[1]).toMatchObject({ name: "Crème", stock: { M: 0, L: 3 } });
+    expect(res.body.product.colors[1]).toMatchObject({
+      name: "Crème",
+      availability: { M: { status: "sold_out" }, L: { status: "low", remaining: 3 } },
+    });
     const missing = await api.get("/api/products/nope").expect(404);
     expect(missing.body).toEqual({ error: { message: "Produit introuvable." } });
   });

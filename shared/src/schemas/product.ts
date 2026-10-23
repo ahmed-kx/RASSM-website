@@ -72,8 +72,8 @@ export function formatSku(category: Category, number: number): string {
 
 export const productSchema = z.object({
   id: idSchema,
-  /** Internal reference (dashboard, Anderson export). */
-  sku: skuSchema,
+  /** Internal reference (dashboard, Anderson export). Never in the public API. */
+  sku: skuSchema.optional(),
   name: z
     .string()
     .trim()
@@ -135,6 +135,83 @@ export function checkTierAmounts(
       });
     }
   });
+}
+
+// Public products (GET /api/products): the exact stock and the SKU stay private. Each variant
+// only says whether it is available, low (with the number, 3 or less: "Plus que 2 en stock")
+// or sold out, so competitors cannot follow the sales.
+
+/** At or below this stock, the public API gives the exact number ("low"). */
+export const PUBLIC_LOW_STOCK = 3;
+
+export const VARIANT_AVAILABILITIES = ["available", "low", "sold_out"] as const;
+export const variantAvailabilitySchema = z.discriminatedUnion("status", [
+  z.object({ status: z.literal("available") }),
+  z.object({ status: z.literal("low"), remaining: z.number().int().min(1).max(PUBLIC_LOW_STOCK) }),
+  z.object({ status: z.literal("sold_out") }),
+]);
+export type VariantAvailability = z.infer<typeof variantAvailabilitySchema>;
+
+export const publicProductSchema = productSchema.omit({ sku: true, colors: true }).extend({
+  colors: z
+    .array(
+      productColorSchema.omit({ stock: true }).extend({
+        availability: z.object(
+          Object.fromEntries(SIZES.map((size) => [size, variantAvailabilitySchema])) as Record<
+            Size,
+            typeof variantAvailabilitySchema
+          >,
+        ),
+      }),
+    )
+    .min(1),
+});
+export type PublicProduct = z.infer<typeof publicProductSchema>;
+
+export function toVariantAvailability(stock: number): VariantAvailability {
+  if (stock <= 0) return { status: "sold_out" };
+  if (stock <= PUBLIC_LOW_STOCK) return { status: "low", remaining: stock };
+  return { status: "available" };
+}
+
+/** What the API publishes: availability per variant, no stock numbers above 3, no SKU. */
+export function toPublicProduct(product: Product): PublicProduct {
+  const { sku: _sku, colors, ...rest } = product;
+  return {
+    ...rest,
+    colors: colors.map(({ stock, ...color }) => ({
+      ...color,
+      availability: Object.fromEntries(
+        SIZES.map((size) => [size, toVariantAvailability(stock[size])]),
+      ) as Record<Size, VariantAvailability>,
+    })),
+  };
+}
+
+/**
+ * Back to a `Product` for the shop pages: "available" counts as MAX_QUANTITY_PER_ORDER units (the
+ * most a customer can order at once), "low" as its number, "sold out" as 0. The API checks the
+ * real stock on every order.
+ */
+export function fromPublicProduct(product: PublicProduct, availableUnits: number): Product {
+  return {
+    ...product,
+    colors: product.colors.map(({ availability, ...color }) => ({
+      ...color,
+      stock: Object.fromEntries(
+        SIZES.map((size) => {
+          const variant = availability[size];
+          const units =
+            variant.status === "available"
+              ? availableUnits
+              : variant.status === "low"
+                ? variant.remaining
+                : 0;
+          return [size, units];
+        }),
+      ) as StockBySize,
+    })),
+  };
 }
 
 // Stock helpers: stock lives on each color (variant = color + size).

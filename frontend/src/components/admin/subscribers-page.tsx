@@ -40,6 +40,7 @@ const DEFAULT_PAGE_SIZE = 20;
 const BREVO_URL = "https://app.brevo.com/";
 
 const SYNC_TONE: Record<SubscriberSyncStatus, "success" | "danger" | "sand" | "warning"> = {
+  unconfirmed: "sand",
   synced: "success",
   failed: "danger",
   pending: "warning",
@@ -127,11 +128,13 @@ export function SubscribersPage() {
       showToast(
         subscriber.sync.status === "synced"
           ? { title: "Ajouté à la liste Brevo", message: subscriber.email, tone: "success" }
-          : {
-              title: "Toujours en erreur",
-              message: subscriber.sync.error ?? undefined,
-              tone: "error",
-            },
+          : subscriber.sync.status === "unconfirmed"
+            ? { title: "E-mail de confirmation envoyé", message: subscriber.email }
+            : {
+                title: "Toujours en erreur",
+                message: subscriber.sync.error ?? undefined,
+                tone: "error",
+              },
       );
     },
     onError: fail("Synchronisation impossible"),
@@ -274,14 +277,17 @@ export function SubscribersPage() {
                   </div>
                   <div className="flex items-center justify-end gap-1">
                     {(subscriber.sync.status === "failed" ||
-                      subscriber.sync.status === "pending") && (
+                      subscriber.sync.status === "pending" ||
+                      subscriber.sync.status === "unconfirmed") && (
                       <button
                         type="button"
                         disabled={retry.isPending}
                         onClick={() => retry.mutate(subscriber.id)}
                         className={buttonClass("soft", "h-10", "plain")}
                       >
-                        Réessayer
+                        {subscriber.sync.status === "unconfirmed"
+                          ? "Renvoyer l'e-mail"
+                          : "Réessayer"}
                       </button>
                     )}
                     <button

@@ -22,6 +22,7 @@ const HEADER_OVER_HERO: readonly string[] = [
   routes.exchanges,
   routes.sizeGuide,
   routes.faq,
+  routes.privacy,
 ];
 
 function isActive(pathname: string, href: string) {

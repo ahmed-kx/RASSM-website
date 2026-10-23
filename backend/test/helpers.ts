@@ -1,4 +1,10 @@
-import { ADMIN_CSRF_COOKIE, ADMIN_CSRF_HEADER, type OrderRequest } from "@rassm/shared";
+import { createHmac } from "node:crypto";
+import {
+  ADMIN_CSRF_HEADER,
+  CLIENT_IP_HEADER,
+  CLIENT_IP_SIGNATURE_HEADER,
+  type OrderRequest,
+} from "@rassm/shared";
 import request from "supertest";
 import { vi } from "vitest";
 import { createApp, type AppOptions } from "../src/app";
@@ -53,6 +59,7 @@ export function fakeMetaEvents() {
 export function fakeNotifier() {
   return {
     notifyNewOrder: vi.fn<OrderNotifier["notifyNewOrder"]>(async () => undefined),
+    notifyAlert: vi.fn<OrderNotifier["notifyAlert"]>(async () => undefined),
   } satisfies OrderNotifier;
 }
 
@@ -79,7 +86,21 @@ export function fakeNewsletterList(configured = true) {
     configured,
     add: vi.fn<NewsletterList["add"]>(async () => undefined),
     remove: vi.fn<NewsletterList["remove"]>(async () => undefined),
+    sendConfirmation: vi.fn<NewsletterList["sendConfirmation"]>(async () => undefined),
   } satisfies NewsletterList;
+}
+
+/** The secret shared by the test website and the test API (signed visitor IPs). */
+export const TEST_PROXY_SECRET = "test-proxy-secret-0123456789-abcdefghij";
+
+/**
+ * The headers the website adds to a dashboard request coming from `ip` (proxy.ts): the visitor's
+ * IP signed with the shared secret. Same result as the shared `signClientIp` (checked in
+ * hardening.test.ts), computed synchronously so supertest chains stay simple.
+ */
+export function viaSite(ip: string, secret = TEST_PROXY_SECRET, time = Date.now()) {
+  const hex = createHmac("sha256", secret).update(`${time}.${ip}`).digest("hex");
+  return { [CLIENT_IP_HEADER]: ip, [CLIENT_IP_SIGNATURE_HEADER]: `${time}.${hex}` };
 }
 
 /** The app with high rate limits (unless a test sets its own) and fake Meta / e-mail senders. */
@@ -95,6 +116,7 @@ export function testApp(options: Partial<AppOptions> = {}) {
   const app = createApp({
     frontendOrigins: ["http://localhost:3000"],
     trustProxy: 0,
+    adminProxySecret: TEST_PROXY_SECRET,
     metaEvents,
     notifier,
     secureCookies: false,
@@ -110,6 +132,7 @@ export function testApp(options: Partial<AppOptions> = {}) {
       contact: high,
       newsletter: high,
       login: high,
+      loginAll: high,
       password: high,
       admin: high,
       sensitive: high,
@@ -134,13 +157,10 @@ export function testApp(options: Partial<AppOptions> = {}) {
 /** The website origin allowed by the test app. */
 export const ORIGIN = "http://localhost:3000";
 
-/** The CSRF token set by a response (login, or any request that renews it). */
-export function csrfFrom(res: { headers: Record<string, unknown> }): string | null {
-  const cookies = ([] as string[]).concat((res.headers["set-cookie"] as string[]) ?? []);
-  const cookie = cookies.find((line) => line.startsWith(`${ADMIN_CSRF_COOKIE}=`));
-  return cookie
-    ? decodeURIComponent(cookie.slice(ADMIN_CSRF_COOKIE.length + 1).split(";")[0] ?? "")
-    : null;
+/** The CSRF token given in an answer (login, GET /auth/me), never in a cookie. */
+export function csrfFrom(res: { body: unknown }): string | null {
+  const token = (res.body as { csrfToken?: unknown } | null)?.csrfToken;
+  return typeof token === "string" ? token : null;
 }
 
 /**

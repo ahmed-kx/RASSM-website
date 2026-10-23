@@ -13,7 +13,13 @@ import {
   NewsletterSubscriberModel,
   type NewsletterSubscriberDoc,
 } from "../models/newsletter-subscriber";
-import { inBackground, syncSubscriber, type NewsletterList } from "./newsletter-sync";
+import {
+  inBackground,
+  sendConfirmation,
+  syncSubscriber,
+  type ConfirmationOptions,
+  type NewsletterList,
+} from "./newsletter-sync";
 
 // Abonnés: newsletter subscribers, kept in sync with the Brevo list.
 
@@ -81,10 +87,11 @@ export async function subscribersCsv(query: SubscriberQuery): Promise<string> {
     .sort({ createdAt: -1 })
     .lean<NewsletterSubscriberDoc[]>();
   return buildCsv(
-    ["E-mail", "Inscription"],
+    ["E-mail", "Inscription", "Adresse confirmée"],
     docs.map((doc) => [
       doc.email,
       new Date(doc.createdAt.getTime() + 60 * 60 * 1000).toISOString().slice(0, 10),
+      doc.confirmationPending ? "Non" : "Oui",
     ]),
   );
 }
@@ -99,12 +106,21 @@ export async function deleteSubscriber(id: string, list: NewsletterList) {
   if (list.configured) inBackground(list.remove(doc.email), "Brevo contact removal");
 }
 
-/** "Réessayer": adds the subscriber to the Brevo list again (waits for the answer). */
-export async function retrySubscriberSync(id: string, list: NewsletterList) {
+/**
+ * "Réessayer": adds a confirmed subscriber to the Brevo list again, or sends a new confirmation
+ * e-mail to one who has not confirmed (never added before the link is clicked). Waits for the
+ * answer.
+ */
+export async function retrySubscriberSync(
+  id: string,
+  list: NewsletterList,
+  confirmation: ConfirmationOptions,
+) {
   const doc = await NewsletterSubscriberModel.findById(parseId(id)).lean<NewsletterSubscriberDoc>();
   if (!doc) throw new HttpError(404, NOT_FOUND);
   if (!list.configured) throw new HttpError(503, NOT_CONFIGURED);
-  await syncSubscriber(list, doc._id, doc.email);
+  if (doc.confirmationPending) await sendConfirmation(list, doc, confirmation);
+  else await syncSubscriber(list, doc._id, doc.email);
   const updated = await NewsletterSubscriberModel.findById(doc._id).lean<NewsletterSubscriberDoc>();
   return toAdminSubscriber(updated ?? doc, list.configured);
 }

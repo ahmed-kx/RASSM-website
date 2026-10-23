@@ -5,7 +5,7 @@ import { wilayaCodeSchema } from "./delivery";
 import { getVariantStock, type Product } from "./product";
 
 /** Most units of one product (one color, one size) in a single order. */
-export const MAX_QUANTITY_PER_ORDER = 10;
+export const MAX_QUANTITY_PER_ORDER = 5;
 
 export const COLOR_REQUIRED_MESSAGE = "Veuillez choisir une couleur.";
 export const SIZE_REQUIRED_MESSAGE = "Veuillez choisir une taille.";

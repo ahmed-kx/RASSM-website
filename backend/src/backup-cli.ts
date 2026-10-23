@@ -1,9 +1,10 @@
 // pnpm backup: saves the whole database into backend/backups (BACKUP_DIR) as one compressed,
-// dated file, encrypted when BACKUP_PASSPHRASE is set, and keeps the BACKUP_KEEP newest.
+// dated file, encrypted when BACKUP_PASSPHRASE is set (required in production, unless
+// `-- --unencrypted`), and keeps the BACKUP_KEEP newest.
 // Safe to run at any time (read only). See docs/SECURITY.md for the schedule and restoring.
 import path from "node:path";
 import mongoose from "mongoose";
-import { fileSize, pruneBackups, writeBackup } from "./backup";
+import { fileSize, plainBackupRefusal, pruneBackups, writeBackup } from "./backup";
 import { connectDatabase, disconnectDatabase } from "./db";
 import { loadEnv } from "./env";
 import { describeError, logger } from "./lib/logger";
@@ -17,6 +18,12 @@ try {
   });
   const db = mongoose.connection.db;
   if (!db) throw new Error("No database connection");
+  const refused = plainBackupRefusal({
+    production: env.NODE_ENV === "production",
+    passphrase: env.BACKUP_PASSPHRASE,
+    allowPlain: process.argv.includes("--unencrypted"),
+  });
+  if (refused) throw new Error(refused);
   if (!env.BACKUP_PASSPHRASE) {
     logger.warn(
       "BACKUP_PASSPHRASE is not set: the backup is not encrypted (keep it on this computer only)",

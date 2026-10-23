@@ -20,7 +20,8 @@
     "migrate-images": "pnpm --filter @rassm/backend migrate-images",
     "sync-newsletter": "pnpm --filter @rassm/backend sync-newsletter",
     "backup": "pnpm --filter @rassm/backend backup",
-    "restore": "pnpm --filter @rassm/backend restore"
+    "restore": "pnpm --filter @rassm/backend restore",
+    "purge-client-data": "pnpm --filter @rassm/backend purge-client-data"
   },
   "devDependencies": {
     "prettier": "^3.9.10",

@@ -37,6 +37,7 @@ import {
   csrfFrom,
   fakeSecurityMailer,
   testApp,
+  viaSite,
 } from "./helpers";
 
 // Admin account security: 5-attempt lock, sessions, password change and reset, alerts.
@@ -60,7 +61,7 @@ afterEach(() => {
 
 type Api = ReturnType<typeof testApp>["api"];
 
-/** A login from a given IP (the API trusts X-Forwarded-For from the local proxy). */
+/** A login from a given IP (the website signs the visitor IP of dashboard requests). */
 const loginFrom = (
   api: Api | ReturnType<typeof request.agent>,
   ip: string,
@@ -69,7 +70,7 @@ const loginFrom = (
 ) =>
   api
     .post("/api/admin/auth/login")
-    .set("X-Forwarded-For", ip)
+    .set(viaSite(ip))
     .set("User-Agent", userAgent)
     .set("Origin", ORIGIN)
     .send(body);
@@ -226,7 +227,7 @@ describe("login lock: 5 attempts per account and per IP", () => {
     await api
       .post("/api/admin/auth/password/forgot")
       .set("Origin", ORIGIN)
-      .set("X-Forwarded-For", "203.0.113.5")
+      .set(viaSite("203.0.113.5"))
       .send({ email: ADMIN_EMAIL })
       .expect(200);
     await vi.waitFor(() => expect(securityMailer.sendPasswordReset).toHaveBeenCalled());
@@ -235,7 +236,7 @@ describe("login lock: 5 attempts per account and per IP", () => {
     await api
       .post("/api/admin/auth/password/reset")
       .set("Origin", ORIGIN)
-      .set("X-Forwarded-For", "203.0.113.5")
+      .set(viaSite("203.0.113.5"))
       .send({ token, password: NEW_PASSWORD })
       .expect(200);
     await loginFrom(api, "203.0.113.5", { email: ADMIN_EMAIL, password: NEW_PASSWORD }).expect(200);
@@ -400,7 +401,7 @@ describe("password reset by e-mail", () => {
   const forgot = (api: Api, email: string, ip = "198.51.100.20") =>
     api
       .post("/api/admin/auth/password/forgot")
-      .set("X-Forwarded-For", ip)
+      .set(viaSite(ip))
       .set("Origin", ORIGIN)
       .send({ email });
 
@@ -567,7 +568,7 @@ describe("security alerts", () => {
     const mailer = createSecurityMailer({
       brevoApiKey: "test-brevo-key-0123456789",
       notifyEmail: "team@rassm.test",
-      from: "rassmwear@gmail.com",
+      from: "equipe@rassm.test",
       adminUrl: TEST_ADMIN_URL,
     });
     await mailer.sendAlert(ADMIN_EMAIL, {

@@ -516,7 +516,9 @@ export function OrderDetail({ id }: { id: string }) {
             </InfoRow>
             <InfoRow label="Adresse IP">{order.ip ?? "—"}</InfoRow>
             <InfoRow label="Meta : achat (serveur)">
-              {META_STATUS[order.metaPurchaseStatus]}
+              {order.metaPurchaseNote
+                ? `Non envoyé : ${order.metaPurchaseNote}`
+                : META_STATUS[order.metaPurchaseStatus]}
             </InfoRow>
             <InfoRow label="Meta : commande confirmée">
               <span className={order.metaConfirmed?.status === "failed" ? "text-error" : undefined}>

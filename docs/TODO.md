@@ -6,23 +6,26 @@ Things that are placeholders or decisions still to make. Remove an item once it 
 
 - [ ] **Size guide measurements** (`frontend/src/content/size-guide.ts`, marked `TO REPLACE`). The values are placeholders for an oversized fit, not real RASSM measurements. Ideally one table per garment type (hoodie, sweatshirt, t-shirt).
 - [ ] **Photos**: see `docs/PHOTOS-NEEDED.md`.
+- [ ] **Privacy page** (`/confidentialite`, `frontend/src/app/(site)/confidentialite/page.tsx`): to review with a legal advisor (Law 18-07, ANPDP): wording, how long orders are kept, whether the Meta Pixel needs consent before loading, and the declaration to the ANPDP.
 
 ## Setup
 
 - [ ] **Meta Pixel ID**: set `NEXT_PUBLIC_META_PIXEL_ID` in `frontend/.env.local` (and in the hosting environment). Without it, no Meta script is loaded.
 
 - [ ] **Meta Conversions API**: set `META_PIXEL_ID` and `META_CAPI_ACCESS_TOKEN` in `backend/.env` (and on the API host). Check the events in Events Manager > Test events (`META_TEST_EVENT_CODE`).
-- [ ] **Hosting the API**: set `FRONTEND_ORIGIN` to the real domain(s), `TRUST_PROXY` to the number of proxies of the host, `NEXT_PUBLIC_API_URL` in the frontend, and allow the server IP in MongoDB Atlas Network Access.
+- [ ] **Hosting the API**: set `FRONTEND_ORIGIN` to the real domain(s), `TRUST_PROXY` (required) in both apps, the same `ADMIN_PROXY_SECRET` in both apps, `NEXT_PUBLIC_API_URL` in the frontend, and allow the server IP in MongoDB Atlas Network Access. Full list: `docs/SECURITY.md` > Before going live.
+- [ ] **Dashboard subdomain**: `admin.rassmstore.live` (DNS to the website; `ADMIN_HOST` in the website, `ADMIN_ORIGIN` and `ADMIN_URL` in the API). See `docs/SECURITY.md` > Before going live.
+- [ ] **Meta Events Manager**: turn off Automatic advanced matching and automatic events (Pixel > Settings).
 
 - [ ] **Brevo**: paste `BREVO_API_KEY` in `backend/.env` (and on the API host). Later, send from your own domain: validate it in Brevo (Senders, domains) and change `EMAIL_FROM`.
-- [ ] **Dashboard in production**: set `ADMIN_URL` (e-mail links) to the real `https://…/admin`.
+- [ ] **Dashboard in production**: set `ADMIN_URL` (e-mail links) to the real `https://admin.rassmstore.live/admin`.
 - [ ] **Cloudinary and page refresh in production**: set `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` on the API host, and the same long `REVALIDATE_SECRET` on both hosts (`REVALIDATE_URL` = `https://<site>/api/revalidate` if the first `FRONTEND_ORIGIN` is not the site). Optional: `CLOUDINARY_CLOUD_NAME` in the frontend so next/image only accepts this account's photos.
 
 ## Dashboard
 
 - [ ] **Costs for the profit**: fill the "Prix de revient" of every product (Produits > edit) and the packaging and return costs (Paramètres). Orders placed before a product had a cost price show as "coût manquant" (their profit counts no product cost).
 - [ ] **Ads spend**: enter the Meta Ads spend in Publicité (by day or by period) so the profit, cost per order and ROAS are right.
-- [ ] **Newsletter**: paste `BREVO_NEWSLETTER_LIST_ID` in `backend/.env` (and on the API host), then run `pnpm sync-newsletter` once for the existing subscribers.
+- [ ] **Newsletter**: paste `BREVO_NEWSLETTER_LIST_ID` in `backend/.env` (and on the API host), then run `pnpm sync-newsletter` once for the existing subscribers (sign-ups made before the double opt-in count as confirmed; new ones join the list after clicking the confirmation e-mail).
 - [ ] Photos uploaded in the product form and abandoned by closing the browser tab before saving stay in Cloudinary (leaving the page in the dashboard deletes them). Clean them from the Cloudinary media library from time to time, or add a cleanup job later.
 - [ ] Renaming a color of a product that has pending orders: their stock is given back to the color name they were ordered in. Rename only colors without open orders (or add the units by hand).
 - [ ] Phone notifications when the dashboard is closed: needs the dashboard as an installable app (PWA + Web Push). Today: live toast and sound while it is open, browser notifications on computers.
@@ -31,5 +34,6 @@ Things that are placeholders or decisions still to make. Remove an item once it 
 
 - [ ] When there are around 50 confirmed orders per week, create a custom conversion on ConfirmedOrder in Meta Events Manager and test a campaign optimized for it.
 
+- [ ] Several API instances (or serverless hosting): move the rate limits from memory to a shared store (Redis), see `docs/SECURITY.md`.
 - [ ] Search: add a search page and the header search icon back once the catalogue is bigger (removed for now, only 9 products).
 - [ ] Lookbook page: add back later when we have a photoshoot (photos linking to the products worn).

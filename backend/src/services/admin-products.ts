@@ -125,6 +125,8 @@ export async function listProducts(
   const costs = new Map(docs.map((doc) => [doc._id, doc.costPrice ?? null]));
   const rows: AdminProductRow[] = products.map((product) => ({
     ...product,
+    // Every product gets one at startup (ensureProductSkus).
+    sku: product.sku ?? "",
     costPrice: costs.get(product.id) ?? null,
     stockTotal: getTotalStock(product),
     status: getProductStatus(product, lowStockThreshold),

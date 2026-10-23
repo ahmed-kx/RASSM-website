@@ -21,14 +21,15 @@ the history (`user:pass@cluster0.example…`, `xkeysib-test-…`).
 Rotate a secret right away if it may have leaked (a screenshot, a shared file, a former helper), and
 once a year anyway. After changing a value, restart the app that reads it.
 
-| Secret                                         | Where                                                     | If it leaks                                                          |
-| ---------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------- |
-| `MONGODB_URI` (the database user's password)   | `backend/.env`                                            | Full read and write access to every order, customer and admin        |
-| `BREVO_API_KEY`                                | `backend/.env`                                            | E-mails sent in your name; the contact lists can be read             |
-| `CLOUDINARY_API_KEY` + `CLOUDINARY_API_SECRET` | `backend/.env`                                            | Photos uploaded or deleted in your Cloudinary account                |
-| `META_CAPI_ACCESS_TOKEN`                       | `backend/.env`                                            | Fake conversion events sent to your Pixel (ads optimisation broken)  |
-| `REVALIDATE_SECRET`                            | `backend/.env` **and** `frontend/.env.local` (same value) | Someone can force the site to rebuild its pages (load, no data leak) |
-| `BACKUP_PASSPHRASE`                            | `backend/.env` + your password manager                    | The encrypted backups can be read by whoever has the files           |
+| Secret                                         | Where                                                     | If it leaks                                                                                                     |
+| ---------------------------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `MONGODB_URI` (the database user's password)   | `backend/.env`                                            | Full read and write access to every order, customer and admin                                                   |
+| `BREVO_API_KEY`                                | `backend/.env`                                            | E-mails sent in your name; the contact lists can be read                                                        |
+| `CLOUDINARY_API_KEY` + `CLOUDINARY_API_SECRET` | `backend/.env`                                            | Photos uploaded or deleted in your Cloudinary account                                                           |
+| `META_CAPI_ACCESS_TOKEN`                       | `backend/.env`                                            | Fake conversion events sent to your Pixel (ads optimisation broken)                                             |
+| `REVALIDATE_SECRET`                            | `backend/.env` **and** `frontend/.env.local` (same value) | Someone can force the site to rebuild its pages (load, no data leak)                                            |
+| `ADMIN_PROXY_SECRET`                           | `backend/.env` **and** `frontend/.env.local` (same value) | Someone who can reach the API directly can choose the IP the dashboard sees (gets around the per-IP login lock) |
+| `BACKUP_PASSPHRASE`                            | `backend/.env` + your password manager                    | The encrypted backups can be read by whoever has the files                                                      |
 
 Not secrets (public by design): `NEXT_PUBLIC_META_PIXEL_ID`, `META_PIXEL_ID`, `CLOUDINARY_CLOUD_NAME`,
 `BREVO_NEWSLETTER_LIST_ID`, the URLs.
@@ -76,6 +77,12 @@ developing), never `0.0.0.0/0` in production.
 2. Put the **same** value in `backend/.env` and `frontend/.env.local` (or both hosting environments).
 3. Restart both apps. Change a product in the dashboard: the public page shows it at once.
 
+#### `ADMIN_PROXY_SECRET`
+
+1. Generate a value: `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`.
+2. Put the **same** value in `backend/.env` and `frontend/.env.local` (or both hosting environments).
+3. Restart both apps. Log in to the dashboard: Paramètres > Sécurité shows your real IP.
+
 #### `BACKUP_PASSPHRASE`
 
 1. Choose a long passphrase (5+ random words), save it in your password manager.
@@ -90,14 +97,23 @@ Paramètres > Sécurité > "Changer le mot de passe", or "Mot de passe oublié ?
 
 ### Production refuses weak secrets
 
-With `NODE_ENV=production`, the API does not start (and says which variable is wrong) when:
+An `https://` `FRONTEND_ORIGIN` is a deployed site: without `NODE_ENV=production` the API refuses to
+start, so forgetting it never turns off the checks below, the `Secure` cookies, or puts reset links
+in the logs. With `NODE_ENV=production`, the API does not start (and says which variable is wrong)
+when:
 
 - `MONGODB_URI` has no user or password, a password shorter than 12 characters or a placeholder
   (`password`, `changeme`…), or points to `localhost` or an example host;
-- `FRONTEND_ORIGIN`, `ADMIN_URL` or `REVALIDATE_URL` are not `https://` (or are `localhost`);
+- `FRONTEND_ORIGIN`, `ADMIN_ORIGIN`, `ADMIN_URL` or `REVALIDATE_URL` are not `https://` (or are
+  `localhost`);
+- `TRUST_PROXY` is not set (it must be explicit: see "Before going live");
+- `ADMIN_PROXY_SECRET` is missing, shorter than 32 characters, a placeholder or too repetitive;
 - `REVALIDATE_SECRET` is shorter than 32 characters, a placeholder, or too repetitive;
 - `BREVO_API_KEY` does not look like a Brevo key (`xkeysib-…`), `META_CAPI_ACCESS_TOKEN` like a Meta
   token (100+ letters and digits), or `CLOUDINARY_API_SECRET` is short or a placeholder.
+
+In every mode, `BREVO_API_KEY` needs `NOTIFY_EMAIL` and `EMAIL_FROM` (no address is written in the
+code). `META_TEST_EVENT_CODE` in production starts, but with a loud warning: remove it.
 
 ### Secret check before each commit
 
@@ -134,10 +150,19 @@ pages show no HTML written by visitors.
 **Adding a third-party service** (a chat widget, analytics, a font host…): add its domains to
 `security-headers.ts`, or the browser blocks it.
 
-**Fake orders and spam** (never a CAPTCHA, customers are never slowed down):
+**Fake orders and spam** (never a CAPTCHA, customers are never slowed down). Many mobile customers in
+Algeria share one IP address (carrier-grade NAT): rules per IP flag and alert at normal volumes and
+refuse only far above them.
 
-- Rate limits per IP: orders 10, contact 5, newsletter 10, catalog 1 200, everything 5 000 per 15
+- Rate limits per IP: orders 30, contact 5, newsletter 10, catalog 1 200, everything 5 000 per 15
   minutes. Per phone: at most 5 orders in 24 hours (then a French message pointing to WhatsApp).
+- At most 5 units per order. Per IP in 24 hours: beyond 5 orders or 15 units the orders are flagged
+  "Suspecte" and the team gets one e-mail alert; beyond 60 units (cancelled orders not counted) the
+  order is refused with a French message pointing to WhatsApp. A suspicious order still reserves
+  its stock but holds 3 units at most.
+- An e-mail alert when a size loses more than half of its stock within an hour (at least 3 units).
+- "Annuler" on several selected orders in the dashboard (after a confirmation), never automatic:
+  call a "Suspecte" order first.
 - Phone numbers are normalised everywhere (`normalizeAlgerianPhone`: spaces, dashes, `+213`, `00213`,
   Arabic digits → `0555123456`), so duplicates, counts and the blacklist always match.
 - Honeypot field on the order, contact and newsletter forms: a bot that fills it gets a normal
@@ -146,21 +171,43 @@ pages show no HTML written by visitors.
   without the form, it is **saved and flagged** "Suspecte" / "Suspect" with the reason (fast
   newsletter sign-ups are kept but not sent to Brevo).
 - Same phone + same product within 30 minutes: nothing created, and the answer only repeats what
-  was sent (never another customer's name or address). 3+ orders per phone or 5+ per IP in 24 h:
-  flagged. Blacklisted numbers: flagged "Liste noire". Quantity: 10 at most per order.
+  was sent with a new random id (never another customer's name, address or order id). 3+ orders per
+  phone in 24 h: flagged. Blacklisted numbers: flagged "Liste noire".
+- Newsletter: double opt-in. A French confirmation e-mail (Brevo); the address joins the Brevo
+  list only once its link is clicked (7 days, single use). Nobody can fill the list with other
+  people's addresses.
 
 **Dashboard and API.**
 
 - Every `/api/admin` route except login, logout and the password reset needs a valid session (a test
   lists every route of the router and checks it).
-- CSRF, two locks on every change: the request must come from the site (`Origin`, and
-  `Sec-Fetch-Site` not `cross-site`), and carry the session's token in `X-CSRF-Token` (cookie
-  `rassm_csrf`, readable by the dashboard only, SameSite=Strict). On top of the SameSite=Strict
+- CSRF, two locks on every change: the request must come from the dashboard's origin (`Origin`,
+  and `Sec-Fetch-Site` not `cross-site`), and carry the session's token in `X-CSRF-Token`. The token
+  is given in the answer of the login and of `GET /auth/me` and kept in the dashboard's memory,
+  never in a cookie, so no other script of the site can read it. On top of the SameSite=Strict
   session cookie.
+- Cookies: in production `__Host-rassm_admin` and `__Host-rassm_device` (httpOnly, Secure,
+  SameSite=Strict, path "/", no domain: the browser keeps them to that exact host, never shared
+  with or set by a subdomain).
+- The dashboard can run on its own subdomain (`admin.rassmstore.live`, see "Before going live").
+  Then the public pages (which allow inline scripts and load Meta's Pixel) never share an origin
+  or a cookie with the dashboard: a flaw on a public page cannot reach it.
+- The client IP: public routes read `X-Forwarded-For` only for the `TRUST_PROXY` proxies of the host.
+  Dashboard requests go through the website, which signs the visitor's IP with `ADMIN_PROXY_SECRET`;
+  the API ignores `X-Forwarded-For` there (a visitor could write any IP in it and get around the
+  per-IP login lock). Tested with a forged header.
+- Login: 5 failures lock the account and the IP (doubling up to 24 h); a browser the admin already
+  logged in with is only stopped by its own IP lock, so nobody can keep the admin locked out. A
+  wrong current password when changing it counts as a failure; when it locks the account, that
+  session is closed. At most 3 password checks at once (64 MiB each; beyond that a 503 at once),
+  and 100 logins per 15 minutes from every IP together (known browsers excepted). "Mot de passe
+  oublié ?" answers at once and handles the requests one after the other (same timing whether the
+  e-mail is an admin's or not).
 - Every body is validated with a shared Zod schema; JSON bodies limited to 20 kB (200 kB for the
   dashboard); keys like `$gt` or `a.b` refused (NoSQL injection); unexpected errors answer a generic
   French message, never a stack trace or a database message.
-- Public answers contain public data only: products without cost price, the customer's own order
+- Public answers contain public data only: products without cost price, SKU or exact stock (each
+  size is available, low with its number when 3 or less, or sold out), the customer's own order
   summary without order number, IP, history, notes or costs.
 - Photo uploads: the real type is read from the file's first bytes (JPG, PNG, WebP only), 8 MB max,
   one file; GPS position, camera, date, comments, XMP and IPTC are removed before the photo leaves
@@ -172,25 +219,39 @@ pages show no HTML written by visitors.
 
 **Logs** (`backend/src/lib/logger.ts`): phone numbers are masked (`05••••••56`); addresses,
 passwords, tokens, keys, cookies and connection-string credentials are replaced by `[redacted]`,
-also inside error messages. Development only: without Brevo, the password reset link is printed in
-the API terminal so you can open it; production never prints it.
+also inside error messages. On a local computer only (`ADMIN_URL` on localhost, not production):
+without Brevo, the password reset and newsletter confirmation links are printed in the API terminal
+so you can open them; a deployed server never prints them.
 
-**Rate limits are kept in memory**: fine for one API server. With several instances behind a load
-balancer, move them to a shared store (Redis) or each instance counts separately.
+**Data retention**: the IP address and browser kept with orders, contact messages and newsletter
+sign-ups are deleted 12 months after them (the API runs it at startup and once a day; `pnpm
+purge-client-data` by hand). The privacy page `/confidentialite` describes what is collected, why,
+how long, and how to ask for deletion (WhatsApp). It must be reviewed with a legal advisor (Law
+18-07, ANPDP: see `docs/TODO.md`).
+
+**Rate limits are kept in memory** (decided: fine for one API server). They start again from zero
+when the API restarts, and with several instances (or serverless hosting) each instance counts
+separately: then move them to a shared store (Redis, `rate-limit-redis`). The login locks are in
+MongoDB and are not affected.
 
 ## What is sent to Meta
 
 Only when the Meta variables are set. Nothing else, and nothing from the dashboard.
 
 - **Browser (Pixel)**: PageView, ViewContent, InitiateCheckout, Purchase (product, value, DZD).
-  Meta also records its own automatic events (e.g. button clicks); turn them off in Events Manager >
-  Settings > Automatic events if not wanted.
+  The site turns off Meta's automatic configuration (`fbq("set", "autoConfig", false, …)`): no
+  automatic events and no automatic advanced matching, so the Pixel never reads the order form's
+  name or phone. Also turn it off on Meta's side: Events Manager > Data sources > your Pixel >
+  **Settings** > **Automatic advanced matching** > off (and **Track events automatically without
+  code** > off).
 - **Server (Conversions API), two events, the same customer data for both**: the phone, first name,
   last name, wilaya (city) and country, **hashed with SHA-256** before leaving the server; the IP and
   browser of the order; Meta's `_fbp` (browser id) and `_fbc` (ad click id) cookies; the order
   value in DZD and the product.
   - **Purchase**: when the order is placed (same event id as the browser Purchase, so Meta counts
-    it once).
+    it once). Never for a bot (a form sent in under 2 seconds or straight to the API: "Non envoyé :
+    robot probable" in the order), so the ads do not learn to find bots. Other suspicious orders
+    are sent.
   - **ConfirmedOrder**: once per order, when the team confirms it by phone. Never for an order marked
     "Commande de test" or a blacklisted number; a "Suspecte" order is sent only once shipped. Its
     status is in the order's "Informations internes".
@@ -202,7 +263,8 @@ Only when the Meta variables are set. Nothing else, and nothing from the dashboa
 ## Backups
 
 MongoDB Atlas free clusters (M0) have no automatic backups. `pnpm backup` saves the whole database in
-one compressed file, encrypted with AES-256-GCM when `BACKUP_PASSPHRASE` is set:
+one compressed file, encrypted with AES-256-GCM when `BACKUP_PASSPHRASE` is set (in production it
+refuses to write an unencrypted file, unless `pnpm backup -- --unencrypted` on purpose):
 `backend/backups/rassm-backup-2026-10-21T03-00-00Z.ndjson.gz.enc`. It keeps the 14 newest
 (`BACKUP_KEEP`) and deletes older ones. It only reads the database (safe at any time) and exits with
 an error code when it fails (so a scheduler can alert you).
@@ -255,8 +317,19 @@ Test a restore once a month: a backup that was never restored is not a backup.
 ## Before going live
 
 - Atlas **Network Access**: only the API server's IP (remove `0.0.0.0/0`).
-- `NODE_ENV=production`, `https://` URLs, `TRUST_PROXY` = the number of proxies in front of the API
-  (otherwise rate limits and fraud checks see the proxy's IP, not the customer's).
+- `NODE_ENV=production` and `https://` URLs in both apps.
+- `TRUST_PROXY` in **both** apps = the number of proxies in front of each (hosting load balancer,
+  CDN; usually `1`, `0` if reached directly). Too low: every customer gets the proxy's IP (shared
+  limits, every order flagged). Too high: anyone can choose their IP. Check: place a test order and
+  open it in the dashboard (Adresse IP must be yours), and Paramètres > Sécurité.
+- `ADMIN_PROXY_SECRET`: the same 32+ random characters in both apps.
+- Dashboard on its own subdomain: DNS `admin.rassmstore.live` pointing to the website, then in the
+  website `ADMIN_HOST=admin.rassmstore.live`, in the API `ADMIN_ORIGIN=https://admin.rassmstore.live`
+  and `ADMIN_URL=https://admin.rassmstore.live/admin`. Check that `https://rassmstore.live/admin`
+  redirects there and `https://rassmstore.live/api/admin/auth/me` answers 404.
+- Remove `META_TEST_EVENT_CODE`; turn off Automatic advanced matching in Events Manager (above).
 - `BACKUP_PASSPHRASE` set, the nightly backup scheduled, one restore tested.
+- `/confidentialite` reviewed with a legal advisor (Law 18-07), and the ANPDP declaration done if
+  needed.
 - Once the whole domain is on HTTPS for good, optionally submit it to https://hstspreload.org (add
   `; preload` to the HSTS header first). This cannot be undone quickly.

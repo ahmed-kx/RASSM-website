@@ -60,10 +60,11 @@ describe("productOrderFormSchema", () => {
     expect(errors({ address: "", deliveryType: "stopdesk" })).toEqual({});
   });
 
-  it("limits the quantity to 1–10", () => {
+  it("limits the quantity to 1–5", () => {
     expect(errors({ quantity: 0 }).quantity).toBe("La quantité doit être d'au moins 1.");
-    expect(errors({ quantity: 11 }).quantity).toBe(
-      "Vous pouvez commander au maximum 10 exemplaires du même article.",
+    expect(errors({ quantity: 5 }).quantity).toBeUndefined();
+    expect(errors({ quantity: 6 }).quantity).toBe(
+      "Vous pouvez commander au maximum 5 exemplaires du même article.",
     );
   });
 

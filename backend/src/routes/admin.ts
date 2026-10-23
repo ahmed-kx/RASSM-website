@@ -15,6 +15,7 @@ import { z } from "zod";
 import { HttpError, parseOrThrow } from "../lib/http-error";
 import type { MetaEvents } from "../meta/conversions-api";
 import {
+  csrfTokenFor,
   currentAdmin,
   requireAdmin,
   requireCsrfToken,
@@ -23,6 +24,7 @@ import {
 import {
   blacklistOrderPhone,
   addToBlacklist,
+  cancelOrders,
   changeStatus,
   confirmedOrdersForExport,
   editOrder,
@@ -66,8 +68,12 @@ export function adminRouter(options: AdminRouterOptions): Router {
   // Everything below requires a session, and every change its CSRF token.
   router.use(options.adminLimiter, requireAdmin(options.secureCookies), requireCsrfToken);
 
+  // The dashboard reads its anti-CSRF token here (kept in memory, never in a cookie).
   router.get("/auth/me", (_req, res) => {
-    res.json({ admin: currentAdmin(res) });
+    res.json({
+      admin: currentAdmin(res),
+      csrfToken: csrfTokenFor(res.locals.sessionToken ?? ""),
+    });
   });
   addSecurityRoutes(router, options);
 
@@ -78,6 +84,7 @@ export function adminRouter(options: AdminRouterOptions): Router {
   });
   addInsightRoutes(router, {
     newsletterList: options.newsletterList,
+    confirmation: options.confirmation,
     sensitiveLimiter: options.sensitiveLimiter,
   });
 
@@ -117,6 +124,12 @@ export function adminRouter(options: AdminRouterOptions): Router {
   router.post("/orders/ship", async (req, res) => {
     const { ids } = parseOrThrow(bulkShipSchema, req.body);
     res.json(await shipOrders(ids, currentAdmin(res), options.metaEvents));
+  });
+
+  // "Annuler" on the selected orders (after confirmation in the dashboard; never automatic).
+  router.post("/orders/cancel", async (req, res) => {
+    const { ids } = parseOrThrow(bulkShipSchema, req.body);
+    res.json(await cancelOrders(ids, currentAdmin(res), options.metaEvents));
   });
 
   router.get("/orders/:id", async (req, res) => {

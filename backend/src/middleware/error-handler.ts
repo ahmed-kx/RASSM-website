@@ -1,6 +1,7 @@
 import type { ErrorRequestHandler, RequestHandler } from "express";
 import { HttpError } from "../lib/http-error";
 import { describeError, logger } from "../lib/logger";
+import { PasswordBusyError } from "../lib/password";
 
 const DATABASE_UNAVAILABLE = new Set([
   "MongoServerSelectionError",
@@ -37,6 +38,18 @@ export const errorHandler: ErrorRequestHandler = (error: unknown, req, res, _nex
   }
   if (type === "entity.parse.failed" || type === "encoding.unsupported") {
     res.status(400).json(new HttpError(400, "Requête invalide.").toBody());
+    return;
+  }
+  if (error instanceof PasswordBusyError) {
+    logger.warn(`Password checks busy on ${req.method} ${req.originalUrl}`);
+    res
+      .status(503)
+      .json(
+        new HttpError(
+          503,
+          "Le service est très sollicité. Veuillez réessayer dans un instant.",
+        ).toBody(),
+      );
     return;
   }
   if (isDatabaseUnavailable(error)) {

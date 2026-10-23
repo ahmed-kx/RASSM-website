@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
-import { rateLimit } from "express-rate-limit";
+import { ipKeyGenerator, rateLimit } from "express-rate-limit";
+import { clientIpOf } from "../lib/client-ip";
 import { HttpError } from "../lib/http-error";
 
 const INVALID_REQUEST = "Requête invalide.";
@@ -38,13 +39,29 @@ export interface RateLimitOptions {
   limit: number;
 }
 
-/** Per-IP rate limit with a French 429 answer. */
-export function limitRequests({ windowMs, limit }: RateLimitOptions) {
+export interface LimitScope {
+  /**
+   * "ip" (default): one counter per client IP (`clientIpOf`). "all": one counter for every
+   * request, whatever its IP (a ceiling against attacks spread over many addresses).
+   */
+  per?: "ip" | "all";
+  /** Requests that are not counted (e.g. a login from a browser the admin already used). */
+  skip?: (req: Request) => boolean | Promise<boolean>;
+}
+
+/**
+ * Rate limit with a French 429 answer. Counters are kept in memory: fine for one API server (with
+ * several instances, move them to a shared store such as Redis, see docs/SECURITY.md).
+ */
+export function limitRequests({ windowMs, limit }: RateLimitOptions, scope: LimitScope = {}) {
   return rateLimit({
     windowMs,
     limit,
     standardHeaders: "draft-8",
     legacyHeaders: false,
+    keyGenerator: (req) =>
+      scope.per === "all" ? "all" : ipKeyGenerator(clientIpOf(req) ?? "unknown"),
+    ...(scope.skip && { skip: scope.skip }),
     handler: (_req, res) => {
       res
         .status(429)

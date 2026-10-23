@@ -26,7 +26,7 @@ import { formatPhone, formatTableDate, wilayaName } from "@/lib/admin/format";
 import { adminRoutes } from "@/lib/admin/routes";
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/cn";
-import { exportForAnderson, fetchAdminOrders, shipOrders } from "@/lib/data/admin";
+import { cancelOrders, exportForAnderson, fetchAdminOrders, shipOrders } from "@/lib/data/admin";
 import { AdminDialog } from "./admin-dialog";
 import {
   AdminEmpty,
@@ -92,6 +92,7 @@ export function OrdersPage() {
   const [showFilters, setShowFilters] = useState(activeFilters > 0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [toShip, setToShip] = useState<ShipRequest | null>(null);
+  const [toCancel, setToCancel] = useState<string[] | null>(null);
   const queryClient = useQueryClient();
   const { showToast } = useToast();
 
@@ -165,6 +166,27 @@ export function OrdersPage() {
         message: result.skipped
           ? `${result.skipped} ignorée(s) : elles n'étaient pas confirmées.`
           : undefined,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });
+    },
+    onError: (error) =>
+      showToast({
+        title: "Action impossible",
+        message: error instanceof ApiError ? error.message : undefined,
+        tone: "error",
+      }),
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: cancelOrders,
+    onSuccess: async (result) => {
+      setToCancel(null);
+      setSelected(new Set());
+      showToast({
+        title: `${plural(result.cancelled, "commande")} annulée${result.cancelled > 1 ? "s" : ""}`,
+        message: result.skipped
+          ? `${result.skipped} ignorée(s) : seules les commandes nouvelles ou confirmées peuvent être annulées.`
+          : "Le stock est remis.",
       });
       await queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });
     },
@@ -436,6 +458,13 @@ export function OrdersPage() {
           </button>
           <button
             type="button"
+            onClick={() => setToCancel([...selected])}
+            className={buttonClass("onDarkOutline")}
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
             onClick={() => setToShip({ ids: [...selected], afterExport: false })}
             className={buttonClass("onDarkOutline")}
           >
@@ -482,6 +511,39 @@ export function OrdersPage() {
             className={buttonClass("outline", "h-12")}
           >
             Plus tard
+          </button>
+        </div>
+      </AdminDialog>
+
+      <AdminDialog
+        open={toCancel !== null}
+        onClose={() => setToCancel(null)}
+        title="Annuler les commandes ?"
+      >
+        <p className="text-[15px] leading-relaxed text-ash">
+          Voulez-vous annuler{" "}
+          {toCancel?.length === 1 ? "cette commande" : `ces ${toCancel?.length ?? 0} commandes`} ?
+          Le stock sera remis. Seules les commandes nouvelles ou confirmées seront annulées.
+        </p>
+        <p className="mt-3 text-[15px] leading-relaxed text-warning">
+          Une commande « Suspecte » peut venir d&apos;un vrai client : appelez avant de
+          l&apos;annuler.
+        </p>
+        <div className="mt-6 grid gap-2 sm:grid-cols-2">
+          <button
+            type="button"
+            disabled={cancelMutation.isPending}
+            onClick={() => toCancel && once(() => cancelMutation.mutateAsync(toCancel))}
+            className={buttonClass("dangerSolid", "h-12")}
+          >
+            {cancelMutation.isPending ? "En cours…" : "Oui, annuler"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setToCancel(null)}
+            className={buttonClass("outline", "h-12")}
+          >
+            Non, garder
           </button>
         </div>
       </AdminDialog>

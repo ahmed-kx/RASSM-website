@@ -123,6 +123,8 @@ export const adminOrderSchema = orderFieldsSchema.extend({
   /** True while the ordered units are taken from the stock. */
   stockReserved: z.boolean(),
   metaPurchaseStatus: z.enum(["pending", "sent", "failed", "skipped"]),
+  /** Why the server Purchase was not sent (e.g. "robot probable…"), else null. */
+  metaPurchaseNote: z.string().nullable().default(null),
   /** Null until the order is first confirmed. */
   metaConfirmed: metaConfirmedSchema.nullable(),
   /** Cost price of one unit when the order was placed. Null = "coût manquant". */
@@ -290,5 +292,11 @@ export const bulkShipSchema = z.object({
 
 export const bulkShipResultSchema = z.object({
   shipped: z.number().int().nonnegative(),
+  skipped: z.number().int().nonnegative(),
+});
+
+/** "Annuler" on the selected orders (only new and confirmed ones can be cancelled). */
+export const bulkCancelResultSchema = z.object({
+  cancelled: z.number().int().nonnegative(),
   skipped: z.number().int().nonnegative(),
 });

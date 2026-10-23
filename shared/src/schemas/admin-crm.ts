@@ -151,9 +151,20 @@ export type AdminMessageUpdate = z.infer<typeof adminMessageUpdateSchema>;
 // ---------- Newsletter subscribers ----------
 
 /** Brevo list sync: "off" = BREVO_NEWSLETTER_LIST_ID not set. */
-export const SUBSCRIBER_SYNC_STATUSES = ["pending", "synced", "failed", "off"] as const;
+/**
+ * "unconfirmed": signed up, the confirmation e-mail is sent, the link not clicked yet (double
+ * opt-in): not in the Brevo list until it is.
+ */
+export const SUBSCRIBER_SYNC_STATUSES = [
+  "unconfirmed",
+  "pending",
+  "synced",
+  "failed",
+  "off",
+] as const;
 export type SubscriberSyncStatus = (typeof SUBSCRIBER_SYNC_STATUSES)[number];
 export const SUBSCRIBER_SYNC_LABELS: Record<SubscriberSyncStatus, string> = {
+  unconfirmed: "À confirmer",
   pending: "En cours",
   synced: "Synchronisé",
   failed: "En erreur",

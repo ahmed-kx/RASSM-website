@@ -21,7 +21,37 @@ const TEST_PARAMS: Argon2Params = { m: 8192, t: 1, p: 1 };
 const params = process.env.VITEST ? TEST_PARAMS : ARGON2_PARAMS;
 const TAG_LENGTH = 32;
 
-function argon2id(password: string, salt: Buffer, { m, t, p }: Argon2Params): Promise<Buffer> {
+/**
+ * Password checks running at the same time, at most. Each one takes 64 MiB of memory: many
+ * logins at once (an attack from many addresses) could otherwise use up the server's memory.
+ * Beyond this, the request is answered 503 at once (try again in a moment).
+ */
+export const MAX_CONCURRENT_PASSWORD_CHECKS = 3;
+let running = 0;
+
+/** Thrown when every password check slot is busy (the routes answer 503). */
+export class PasswordBusyError extends Error {
+  constructor() {
+    super("Too many password checks at once");
+    this.name = "PasswordBusyError";
+  }
+}
+
+async function withSlot<T>(task: () => Promise<T>): Promise<T> {
+  if (running >= MAX_CONCURRENT_PASSWORD_CHECKS) throw new PasswordBusyError();
+  running += 1;
+  try {
+    return await task();
+  } finally {
+    running -= 1;
+  }
+}
+
+function argon2id(password: string, salt: Buffer, params: Argon2Params): Promise<Buffer> {
+  return withSlot(() => argon2idNow(password, salt, params));
+}
+
+function argon2idNow(password: string, salt: Buffer, { m, t, p }: Argon2Params): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     argon2(
       "argon2id",
@@ -75,12 +105,8 @@ export async function verifyPassword(password: string, stored: string): Promise<
   const [scheme, n, r, p, salt, hash] = stored.split("$");
   if (scheme !== "scrypt" || !n || !r || !p || !salt || !hash) return false;
   const expected = Buffer.from(hash, "base64");
-  const key = await scryptKey(
-    password,
-    Buffer.from(salt, "base64"),
-    Number(n),
-    Number(r),
-    Number(p),
+  const key = await withSlot(() =>
+    scryptKey(password, Buffer.from(salt, "base64"), Number(n), Number(r), Number(p)),
   );
   return key.length === expected.length && timingSafeEqual(key, expected);
 }
@@ -98,3 +124,6 @@ export function needsRehash(stored: string): boolean {
 
 /** A valid hash of a random password: verified for unknown e-mails so timing looks the same. */
 export const DUMMY_PASSWORD_HASH = await hashPassword(randomBytes(16).toString("hex"));
+
+/** Test hook: how many password checks are running. */
+export const runningPasswordChecks = () => running;

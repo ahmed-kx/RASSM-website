@@ -69,6 +69,8 @@ function toAdminOrder(doc: OrderDoc, blacklist: Map<string, BlacklistDoc>): Admi
     })),
     stockReserved: doc.stockReserved ?? true,
     metaPurchaseStatus: doc.metaPurchase?.status ?? "pending",
+    metaPurchaseNote:
+      doc.metaPurchase?.status === "skipped" ? (doc.metaPurchase.error ?? null) : null,
     metaConfirmed: doc.metaConfirmed?.status
       ? {
           status: doc.metaConfirmed.status,
@@ -354,6 +356,23 @@ export async function shipOrders(ids: readonly string[], admin: Admin, metaEvent
     }
   }
   return { shipped, skipped: ids.length - shipped };
+}
+
+/**
+ * "Annuler" on several orders chosen in the dashboard: only new and confirmed orders can be
+ * cancelled (the others are skipped); each one gives its units back once, like a single cancel.
+ */
+export async function cancelOrders(ids: readonly string[], admin: Admin, metaEvents: MetaEvents) {
+  let cancelled = 0;
+  for (const id of ids) {
+    try {
+      await changeStatus(id, "cancelled", admin, metaEvents);
+      cancelled += 1;
+    } catch (error) {
+      if (!(error instanceof HttpError)) throw error;
+    }
+  }
+  return { cancelled, skipped: ids.length - cancelled };
 }
 
 // ---------- Edit ----------

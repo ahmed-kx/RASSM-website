@@ -1,14 +1,25 @@
-import { contactRequestSchema, formTimingReason, newsletterRequestSchema } from "@rassm/shared";
+import {
+  contactRequestSchema,
+  formTimingReason,
+  newsletterConfirmSchema,
+  newsletterRequestSchema,
+} from "@rassm/shared";
 import { Router, type RequestHandler } from "express";
 import { getClientInfo } from "../lib/client-info";
+import { clientIpOf } from "../lib/client-ip";
 import { parseOrThrow } from "../lib/http-error";
 import { logger } from "../lib/logger";
 import type { MetaEvents } from "../meta/conversions-api";
 import type { MessageNotifier } from "../notifications/new-message-email";
 import type { OrderNotifier } from "../notifications/new-order-email";
 import { ContactMessageModel } from "../models/contact-message";
-import { NewsletterSubscriberModel } from "../models/newsletter-subscriber";
-import { inBackground, syncSubscriber, type NewsletterList } from "../services/newsletter-sync";
+import {
+  confirmSubscription,
+  inBackground,
+  subscribe,
+  type ConfirmationOptions,
+  type NewsletterList,
+} from "../services/newsletter-sync";
 import { placeOrder } from "../services/orders";
 
 export interface FormLimiters {
@@ -25,6 +36,8 @@ export function formsRouter(
     notifier: OrderNotifier;
     messageNotifier: MessageNotifier;
     newsletterList: NewsletterList;
+    /** Links of the newsletter confirmation e-mail. */
+    confirmation: ConfirmationOptions;
   },
 ): Router {
   const router = Router();
@@ -42,7 +55,7 @@ export function formsRouter(
     const { website, elapsedMs, ...message } = parseOrThrow(contactRequestSchema, req.body);
     // Honeypot filled: a bot. Pretend it worked and save nothing.
     if (website?.trim()) {
-      logger.warn("Contact honeypot filled: ignored", { ip: req.ip });
+      logger.warn("Contact honeypot filled: ignored", { ip: clientIpOf(req) });
     } else {
       // Sent too fast or without the form: kept, flagged "Suspect" in the dashboard.
       const suspiciousReason = formTimingReason(elapsedMs);
@@ -62,47 +75,24 @@ export function formsRouter(
     const { email, website, elapsedMs } = parseOrThrow(newsletterRequestSchema, req.body);
     // Honeypot filled: a bot. Pretend it worked and save nothing.
     if (website?.trim()) {
-      logger.warn("Newsletter honeypot filled: ignored", { ip: req.ip });
+      logger.warn("Newsletter honeypot filled: ignored", { ip: clientIpOf(req) });
       res.status(201).json({ ok: true });
       return;
     }
-    // Signed up too fast or without the form: kept but not sent to Brevo (a list full of
-    // addresses typed by bots hurts the sender reputation). "Réessayer" in Abonnés sends it.
-    const suspiciousReason = formTimingReason(elapsedMs);
-    const listConfigured = services.newsletterList.configured;
+    // Double opt-in: a confirmation e-mail, and the Brevo list only once the link is clicked.
     // Signing up twice keeps one entry, and the answer is the same (no way to probe emails).
-    const address = email.toLowerCase();
-    const result = await NewsletterSubscriberModel.updateOne(
-      { email: address },
-      {
-        $setOnInsert: {
-          email: address,
-          client: getClientInfo(req),
-          suspicious: suspiciousReason !== null,
-          suspiciousReason,
-          brevo: !listConfigured
-            ? { status: "off" }
-            : suspiciousReason
-              ? {
-                  status: "failed",
-                  error: `Inscription suspecte : ${suspiciousReason}`,
-                  at: new Date(),
-                }
-              : { status: "pending" },
-        },
-      },
-      { upsert: true },
-    ).catch((error: unknown) => {
-      // Two simultaneous sign-ups of the same email: the other one created it.
-      if ((error as { code?: number }).code !== 11000) throw error;
-      return null;
-    });
-    // New subscriber: added to the Brevo list in the background (never blocks the sign-up).
-    const id = result?.upsertedId;
-    if (id && listConfigured && !suspiciousReason) {
-      inBackground(syncSubscriber(services.newsletterList, id, address), "Brevo newsletter sync");
-    }
+    await subscribe(
+      { email, client: getClientInfo(req), suspiciousReason: formTimingReason(elapsedMs) },
+      services.newsletterList,
+      services.confirmation,
+    );
     res.status(201).json({ ok: true });
+  });
+
+  router.post("/newsletter/confirm", limiters.newsletter, async (req, res) => {
+    const { token } = parseOrThrow(newsletterConfirmSchema, req.body);
+    await confirmSubscription(token, services.newsletterList);
+    res.json({ ok: true });
   });
 
   return router;

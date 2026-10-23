@@ -192,10 +192,11 @@ const productListSchema = z
     for (const key of ["id", "slug", "sku"] as const) {
       const seen = new Set<string>();
       products.forEach((product, index) => {
-        if (seen.has(product[key])) {
+        const value = product[key] ?? "";
+        if (seen.has(value)) {
           ctx.addIssue({ code: "custom", path: [index, key], message: `${key} en double.` });
         }
-        seen.add(product[key]);
+        seen.add(value);
       });
     }
   });

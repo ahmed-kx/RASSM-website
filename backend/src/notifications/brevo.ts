@@ -3,7 +3,7 @@
 
 export interface EmailConfig {
   brevoApiKey: string;
-  /** Recipient, e.g. rassmwear@gmail.com. */
+  /** Recipient of the team e-mails (NOTIFY_EMAIL). */
   notifyEmail: string;
   /** Sender, validated in Brevo. */
   from: string;

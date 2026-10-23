@@ -781,7 +781,26 @@ describe("admin insights: messages", () => {
 });
 
 describe("admin insights: newsletter subscribers", () => {
-  it("adds sign-ups to the Brevo list in the background and records the result", async () => {
+  type Api = ReturnType<typeof testApp>["api"];
+  type List = ReturnType<typeof fakeNewsletterList>;
+
+  /** The token of the last confirmation e-mail sent. */
+  async function lastConfirmationToken(newsletterList: List, calls = 1) {
+    await vi.waitFor(() =>
+      expect(newsletterList.sendConfirmation.mock.calls.length).toBeGreaterThanOrEqual(calls),
+    );
+    const link = newsletterList.sendConfirmation.mock.calls.at(-1)?.[1] ?? "";
+    return link.split("#jeton=")[1] ?? "";
+  }
+
+  /** A sign-up, then a click on the link of the confirmation e-mail (double opt-in). */
+  async function signUpAndConfirm(api: Api, newsletterList: List, email: string) {
+    await api.post("/api/newsletter").send({ elapsedMs: 9000, email }).expect(201);
+    const token = await lastConfirmationToken(newsletterList);
+    await api.post("/api/newsletter/confirm").send({ token }).expect(200);
+  }
+
+  it("double opt-in: confirmation e-mail first, the Brevo list only after the link", async () => {
     const newsletterList = fakeNewsletterList();
     const { app, api } = testApp({ newsletterList });
     const agent = await adminAgent(app);
@@ -789,12 +808,37 @@ describe("admin insights: newsletter subscribers", () => {
       .post("/api/newsletter")
       .send({ elapsedMs: 9000, email: "Lina@Example.com" })
       .expect(201);
-    await vi.waitFor(() => expect(newsletterList.add).toHaveBeenCalledWith("lina@example.com"));
-    // Signing up again: nothing sent twice.
+    await vi.waitFor(() =>
+      expect(newsletterList.sendConfirmation).toHaveBeenCalledWith(
+        "lina@example.com",
+        expect.stringMatching(
+          /^http:\/\/localhost:3000\/newsletter\/confirmation#jeton=[\w-]{43}$/,
+        ),
+      ),
+    );
+    const token = await lastConfirmationToken(newsletterList);
+    // Only the hash of the token is kept; not in the list before the click.
+    const stored = await NewsletterSubscriberModel.findOne().lean();
+    expect(stored?.confirmationPending?.tokenHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(newsletterList.add).not.toHaveBeenCalled();
+    const pending = await agent.get("/api/admin/subscribers").expect(200);
+    expect(pending.body.subscribers[0].sync.status).toBe("unconfirmed");
+    // Signing up again within the hour: no second e-mail, same answer.
     await api
       .post("/api/newsletter")
       .send({ elapsedMs: 9000, email: "lina@example.com" })
       .expect(201);
+    expect(newsletterList.sendConfirmation).toHaveBeenCalledTimes(1);
+
+    await api.post("/api/newsletter/confirm").send({ token }).expect(200);
+    await vi.waitFor(() => expect(newsletterList.add).toHaveBeenCalledWith("lina@example.com"));
+    // The link works once.
+    const again = await api.post("/api/newsletter/confirm").send({ token }).expect(400);
+    expect(again.body.error.message).toMatch(/^Ce lien de confirmation n'est plus valable/);
+    await api
+      .post("/api/newsletter/confirm")
+      .send({ token: "x".repeat(43) })
+      .expect(400);
     expect(newsletterList.add).toHaveBeenCalledTimes(1);
 
     await vi.waitFor(async () => {
@@ -805,8 +849,10 @@ describe("admin insights: newsletter subscribers", () => {
     expect(list.body).toMatchObject({ total: 1, brevoConfigured: true });
 
     const csv = await agent.get("/api/admin/subscribers/export").expect(200);
-    expect(csv.text.replace(/^\uFEFF/, "").split("\r\n")[0]).toBe("E-mail;Inscription");
-    expect(csv.text).toContain("lina@example.com;");
+    expect(csv.text.replace(/^\uFEFF/, "").split("\r\n")[0]).toBe(
+      "E-mail;Inscription;Adresse confirm\u00E9e",
+    );
+    expect(csv.text).toMatch(/lina@example\.com;[\d-]+;Oui/);
 
     const id = list.body.subscribers[0].id;
     await agent.delete(`/api/admin/subscribers/${id}`).expect(200);
@@ -820,11 +866,8 @@ describe("admin insights: newsletter subscribers", () => {
     newsletterList.add.mockRejectedValueOnce(new Error("Brevo answered 401: unauthorized"));
     const { app, api } = testApp({ newsletterList });
     const agent = await adminAgent(app);
-    // The sign-up itself never fails.
-    await api
-      .post("/api/newsletter")
-      .send({ elapsedMs: 9000, email: "omar@example.com" })
-      .expect(201);
+    // The sign-up and the confirmation never fail.
+    await signUpAndConfirm(api, newsletterList, "omar@example.com");
     await vi.waitFor(async () => {
       const list = await agent.get("/api/admin/subscribers?sync=failed").expect(200);
       expect(list.body.subscribers[0]?.sync).toMatchObject({
@@ -836,6 +879,24 @@ describe("admin insights: newsletter subscribers", () => {
     const retried = await agent.post(`/api/admin/subscribers/${id}/sync`).expect(200);
     expect(retried.body.subscriber.sync).toMatchObject({ status: "synced", error: null });
     expect(newsletterList.add).toHaveBeenCalledTimes(2);
+  });
+
+  it("« Renvoyer l'e-mail » sends a new confirmation link, never adds an unconfirmed address", async () => {
+    const newsletterList = fakeNewsletterList();
+    const { app, api } = testApp({ newsletterList });
+    const agent = await adminAgent(app);
+    await api.post("/api/newsletter").send({ elapsedMs: 9000, email: "nadia@example.com" });
+    const first = await lastConfirmationToken(newsletterList);
+    const id = (await agent.get("/api/admin/subscribers").expect(200)).body.subscribers[0].id;
+    const resent = await agent.post(`/api/admin/subscribers/${id}/sync`).expect(200);
+    expect(resent.body.subscriber.sync.status).toBe("unconfirmed");
+    const second = await lastConfirmationToken(newsletterList, 2);
+    expect(second).not.toBe(first);
+    expect(newsletterList.add).not.toHaveBeenCalled();
+    // Only the latest link works.
+    await api.post("/api/newsletter/confirm").send({ token: first }).expect(400);
+    await api.post("/api/newsletter/confirm").send({ token: second }).expect(200);
+    await vi.waitFor(() => expect(newsletterList.add).toHaveBeenCalledWith("nadia@example.com"));
   });
 
   it("keeps sign-ups on the site when the Brevo list is not configured", async () => {
@@ -858,7 +919,11 @@ describe("admin insights: newsletter subscribers", () => {
   it("calls the Brevo contacts API with the list id", async () => {
     const fetchMock = vi.fn(async () => new Response("{}", { status: 201 }));
     vi.stubGlobal("fetch", fetchMock);
-    const list = createBrevoNewsletterList({ apiKey: "brevo-test-key-0123456789", listId: 7 });
+    const list = createBrevoNewsletterList({
+      apiKey: "brevo-test-key-0123456789",
+      listId: 7,
+      from: "equipe@rassm.test",
+    });
     await list.add("lina@example.com");
     await list.remove("lina@example.com");
     const [addUrl, addInit] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];

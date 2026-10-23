@@ -1,6 +1,7 @@
 import { DELIVERY_TYPE_LABELS, formatPrice, formatWilaya, getWilaya } from "@rassm/shared";
 import { describeError, logger } from "../lib/logger";
 import { OrderModel, type MetaEventStatus, type OrderDoc } from "../models/order";
+import { buildAlertEmail, type TeamAlert } from "./alert-email";
 import { formatPhone, renderTeamEmail, sendTeamEmail, type EmailConfig } from "./brevo";
 
 export type { EmailConfig } from "./brevo";
@@ -36,6 +37,8 @@ export interface NewOrderFlags {
 export interface OrderNotifier {
   /** Sends the new order e-mail; records the result on the order. Never throws. */
   notifyNewOrder(order: NewOrderEmailOrder, flags: NewOrderFlags): Promise<void>;
+  /** Sends an alert to the team (many orders from one IP, stock dropping fast). Never throws. */
+  notifyAlert(alert: TeamAlert): Promise<void>;
 }
 
 export function orderLink(adminUrl: string, orderId: string): string {
@@ -132,6 +135,18 @@ export function createOrderNotifier(config: EmailConfig | null): OrderNotifier {
           ...describeError(error),
         });
         await record(order._id, "failed", error instanceof Error ? error.message : String(error));
+      }
+    },
+    async notifyAlert(alert) {
+      if (!config) {
+        logger.warn("Team alert not sent: BREVO_API_KEY is not set", { kind: alert.kind });
+        return;
+      }
+      try {
+        await sendTeamEmail(config, buildAlertEmail(alert, config.adminUrl));
+        logger.info("Team alert sent", { kind: alert.kind });
+      } catch (error) {
+        logger.error("Team alert failed", { kind: alert.kind, ...describeError(error) });
       }
     },
   };

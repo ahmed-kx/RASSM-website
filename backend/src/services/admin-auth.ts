@@ -54,8 +54,21 @@ const contextOf = (client: ClientInfo, now: Date): SecurityContext => ({
   location: client.location,
 });
 
-const throttleKeys = (email: string, ip: string | null) =>
-  ip ? [accountKey(email), ipKey(ip)] : [accountKey(email)];
+/** The lock keys: the account (unless null) and the IP. */
+const throttleKeys = (email: string | null, ip: string | null) => [
+  ...(email ? [accountKey(email)] : []),
+  ...(ip ? [ipKey(ip)] : []),
+];
+
+/** True when this device cookie belongs to a browser the admin already logged in with. */
+function isKnownDevice(
+  admin: Pick<AdminDoc, "knownDevices"> | null,
+  deviceToken: string | null,
+): boolean {
+  if (!admin || !deviceToken) return false;
+  const hash = hashToken(deviceToken);
+  return admin.knownDevices.some((device) => device.idHash === hash);
+}
 
 const lockError = (until: Date, now: Date) =>
   new HttpError(429, formatLockMessage((until.getTime() - now.getTime()) / MINUTE));
@@ -93,11 +106,16 @@ export async function login(
 ): Promise<LoginResult> {
   const email = input.email.trim().toLowerCase();
   const { client } = input;
-  const keys = throttleKeys(email, client.ip);
+  const admin = await AdminModel.findOne({ email });
+  // A browser this admin already logged in with is only stopped by its own IP lock: someone
+  // typing wrong passwords elsewhere cannot lock the admin out (the account lock still stops
+  // every other browser).
+  const keys = isKnownDevice(admin, input.deviceToken)
+    ? throttleKeys(null, client.ip)
+    : throttleKeys(email, client.ip);
   const locked = await activeLock(keys, now);
   if (locked) throw lockError(locked, now);
 
-  const admin = await AdminModel.findOne({ email });
   const valid = admin
     ? await verifyPassword(input.password, admin.passwordHash)
     : await verifyPassword(input.password, DUMMY_PASSWORD_HASH).then(() => false);
@@ -123,7 +141,7 @@ export async function login(
     throw new HttpError(401, INVALID_LOGIN);
   }
 
-  await clearThrottle(keys);
+  await clearThrottle(throttleKeys(email, client.ip));
   // No session fixation: a session already in this browser is closed, a new token is made.
   if (input.previousToken) {
     await AdminSessionModel.deleteOne({ tokenHash: hashToken(input.previousToken) });
@@ -286,7 +304,11 @@ export async function revokeOtherSessions(adminId: string, currentSessionId: str
 
 // ---------- Password ----------
 
-/** Paramètres > Sécurité: needs the current password; the other sessions are logged out. */
+/**
+ * Paramètres > Sécurité: needs the current password; the other sessions are logged out. A wrong
+ * current password counts as a failed login (same 5-attempt lock): someone who stole a session
+ * cannot try passwords one after the other. When it locks the account, that session is closed.
+ */
 export async function changePassword(
   input: {
     adminId: string;
@@ -294,17 +316,45 @@ export async function changePassword(
     currentPassword: string;
     newPassword: string;
     client: ClientInfo;
+    deviceToken: string | null;
   },
   deps: AuthDeps,
   now = new Date(),
 ): Promise<{ closedSessions: number }> {
   const admin = await AdminModel.findById(input.adminId);
   if (!admin) throw new HttpError(401, "Veuillez vous connecter.");
+  const keys = isKnownDevice(admin, input.deviceToken)
+    ? throttleKeys(null, input.client.ip)
+    : throttleKeys(admin.email, input.client.ip);
+  const locked = await activeLock(keys, now);
+  if (locked) throw lockError(locked, now);
   if (!(await verifyPassword(input.currentPassword, admin.passwordHash))) {
+    const failure = await recordFailure(admin.email, input.client.ip, now);
+    logger.warn("Wrong current password on a password change", {
+      locked: Boolean(failure.lockedUntil),
+      ip: input.client.ip,
+    });
+    if (failure.lockedUntil) {
+      await AdminSessionModel.deleteOne({ _id: new Types.ObjectId(input.sessionId) });
+      if (failure.accountLockedUntil) {
+        inBackground(
+          deps.mailer.sendAlert(admin.email, {
+            kind: "locked",
+            context: contextOf(input.client, now),
+            lockMinutes: Math.round(
+              (failure.accountLockedUntil.getTime() - now.getTime()) / MINUTE,
+            ),
+          }),
+          "Locked account alert",
+        );
+      }
+      throw lockError(failure.lockedUntil, now);
+    }
     throw new HttpError(400, "Le mot de passe actuel est incorrect.", {
       currentPassword: "Le mot de passe actuel est incorrect.",
     });
   }
+  await clearThrottle(throttleKeys(admin.email, input.client.ip));
   await AdminModel.updateOne(
     { _id: admin._id },
     { $set: { passwordHash: await hashPassword(input.newPassword), passwordChangedAt: now } },

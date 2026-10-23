@@ -109,7 +109,9 @@ export function NewsletterForm() {
         role="status"
         className={failure ? "mt-2 min-h-4 text-xs text-error" : "mt-2 min-h-4 text-xs text-ash"}
       >
-        {failure ?? (subscribed && "Merci ! Votre inscription à la newsletter est confirmée.")}
+        {failure ??
+          (subscribed &&
+            "Merci ! Confirmez votre inscription avec le lien que nous venons de vous envoyer par e-mail.")}
       </p>
     </form>
   );

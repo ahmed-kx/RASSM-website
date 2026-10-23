@@ -5,6 +5,7 @@ import {
   checkTierAmounts,
   productColorSchema,
   productSchema,
+  skuSchema,
   stockBySizeSchema,
   type Product,
 } from "./product";
@@ -246,6 +247,8 @@ export interface AdminProductQuery {
 }
 
 export const adminProductRowSchema = productSchema.extend({
+  /** Always set in the dashboard (only the public API leaves it out). */
+  sku: skuSchema,
   costPrice: costPriceSchema,
   stockTotal: z.number().int().nonnegative(),
   status: z.enum(PRODUCT_STATUSES),

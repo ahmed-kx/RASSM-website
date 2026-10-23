@@ -1,16 +1,29 @@
-import { API_PATHS, productSchema, type Product } from "@rassm/shared";
+import {
+  API_PATHS,
+  MAX_QUANTITY_PER_ORDER,
+  fromPublicProduct,
+  publicProductSchema,
+  type Product,
+} from "@rassm/shared";
 import { z } from "zod";
 import { apiGet } from "@/lib/api";
 
 // Data access for products, from the API. Pages are server-rendered with a short cache,
 // refreshed at once after a dashboard change ("products" tag); the API checks the stock again
 // on every order.
+//
+// The API never gives the exact stock: each size is available, low (with its number, 3 or less)
+// or sold out. The pages work with a `Product` where "available" counts as the most a customer
+// can order at once, so the size and quantity pickers behave as before.
 
 /** Seconds Next keeps a product response before asking the API again. */
 const PRODUCTS_REVALIDATE = 30;
 
-const productListSchema = z.object({ products: z.array(productSchema) });
-const productResponseSchema = z.object({ product: productSchema });
+const productListSchema = z.object({ products: z.array(publicProductSchema) });
+const productResponseSchema = z.object({ product: publicProductSchema });
+
+const toShopProduct = (product: z.infer<typeof publicProductSchema>) =>
+  fromPublicProduct(product, MAX_QUANTITY_PER_ORDER);
 
 /** Products on sale, in catalog order (featured first). */
 export async function getProducts(): Promise<Product[]> {
@@ -18,7 +31,7 @@ export async function getProducts(): Promise<Product[]> {
     revalidate: PRODUCTS_REVALIDATE,
     tags: ["products"],
   });
-  return data?.products ?? [];
+  return (data?.products ?? []).map(toShopProduct);
 }
 
 export async function getFeaturedProducts(limit = 5): Promise<Product[]> {
@@ -31,5 +44,5 @@ export async function getProductBySlug(slug: string): Promise<Product | undefine
     revalidate: PRODUCTS_REVALIDATE,
     tags: ["products"],
   });
-  return data?.product;
+  return data?.product ? toShopProduct(data.product) : undefined;
 }

@@ -1,10 +1,12 @@
-// pnpm sync-newsletter: adds the newsletter subscribers not yet in the Brevo list
+// pnpm sync-newsletter: adds the confirmed newsletter subscribers not yet in the Brevo list
 // (BREVO_NEWSLETTER_LIST_ID). Safe to re-run: Brevo updates a contact that already exists, and
-// subscribers already synchronised are skipped (`--all` sends every subscriber again).
+// subscribers already synchronised are skipped (`--all` sends every confirmed subscriber again).
+// Addresses not confirmed yet (double opt-in) are never sent.
 
 import { connectDatabase, disconnectDatabase } from "./db";
 import { loadEnv } from "./env";
 import {
+  CONFIRMED_SUBSCRIBERS,
   NewsletterSubscriberModel,
   type NewsletterSubscriberDoc,
 } from "./models/newsletter-subscriber";
@@ -21,6 +23,7 @@ if (!env.BREVO_API_KEY || !env.BREVO_NEWSLETTER_LIST_ID) {
 const list = createBrevoNewsletterList({
   apiKey: env.BREVO_API_KEY,
   listId: env.BREVO_NEWSLETTER_LIST_ID,
+  from: env.EMAIL_FROM ?? "",
 });
 const all = process.argv.includes("--all");
 
@@ -28,9 +31,11 @@ try {
   await connectDatabase(env.MONGODB_URI, env.MONGODB_DB_NAME, {
     dnsFallbackServers: env.DNS_FALLBACK_SERVERS,
   });
-  const subscribers = await NewsletterSubscriberModel.find(
-    all ? {} : { "brevo.status": { $ne: "synced" } },
-  )
+  // Confirmed addresses only (double opt-in): the others wait for their confirmation link.
+  const subscribers = await NewsletterSubscriberModel.find({
+    ...CONFIRMED_SUBSCRIBERS,
+    ...(all ? {} : { "brevo.status": { $ne: "synced" } }),
+  })
     .sort({ createdAt: 1 })
     .lean<NewsletterSubscriberDoc[]>();
   const results = { synced: 0, failed: 0 };

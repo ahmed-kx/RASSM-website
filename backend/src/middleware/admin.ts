@@ -1,14 +1,16 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import {
-  ADMIN_CSRF_COOKIE,
   ADMIN_CSRF_HEADER,
   ADMIN_DEVICE_COOKIE,
   ADMIN_SESSION_COOKIE,
+  CSRF_REFUSED_MESSAGE,
+  adminCookieName,
   type Admin,
 } from "@rassm/shared";
 import type { CookieOptions, NextFunction, Request, Response } from "express";
 import { HttpError } from "../lib/http-error";
-import { authenticate } from "../services/admin-auth";
+import { AdminModel } from "../models/admin";
+import { authenticate, hashToken } from "../services/admin-auth";
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace -- Express type augmentation
@@ -26,8 +28,8 @@ declare global {
 
 export const NOT_LOGGED_IN = "Veuillez vous connecter.";
 const REFUSED = "Requête refusée.";
-/** Expired page or token: reloading the page gives a fresh token. */
-export const CSRF_REFUSED = "Requête refusée. Rechargez la page puis réessayez.";
+/** Expired page or token: the dashboard fetches a fresh token and tries again. */
+export const CSRF_REFUSED = CSRF_REFUSED_MESSAGE;
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
@@ -49,13 +51,22 @@ function readTokenCookie(req: Request, cookie: string): string | null {
   return null;
 }
 
-export const readSessionToken = (req: Request) => readTokenCookie(req, ADMIN_SESSION_COOKIE);
-export const readDeviceToken = (req: Request) => readTokenCookie(req, ADMIN_DEVICE_COOKIE);
+/**
+ * The cookie names: `__Host-rassm_admin` and `__Host-rassm_device` over HTTPS (the browser keeps
+ * them to this exact host: never sent to or set by a subdomain), the plain names in development.
+ */
+export const sessionCookieName = (secure: boolean) => adminCookieName(ADMIN_SESSION_COOKIE, secure);
+export const deviceCookieName = (secure: boolean) => adminCookieName(ADMIN_DEVICE_COOKIE, secure);
+
+export const readSessionToken = (req: Request, secure: boolean) =>
+  readTokenCookie(req, sessionCookieName(secure));
+export const readDeviceToken = (req: Request, secure: boolean) =>
+  readTokenCookie(req, deviceCookieName(secure));
 
 /**
  * Session cookie: httpOnly (no JavaScript access), SameSite=Strict (never sent by other
- * sites), Secure in production (HTTPS only). Path "/" so the site (Next.js) sees it too:
- * the dashboard calls the API through the site's own domain.
+ * sites), Secure in production (HTTPS only). Path "/" (required by `__Host-`) so the site
+ * (Next.js) sees it too: the dashboard calls the API through the site's own domain.
  */
 export function sessionCookieOptions(secure: boolean, expires?: Date): CookieOptions {
   return { httpOnly: true, secure, sameSite: "strict", path: "/", ...(expires && { expires }) };
@@ -74,15 +85,11 @@ export function deviceCookieOptions(secure: boolean): CookieOptions {
 
 /**
  * The anti-CSRF token of a session: an HMAC of the session token (which only the API and the
- * httpOnly cookie know). Nothing to store, and it changes with every new session.
+ * httpOnly cookie know). Nothing to store, and it changes with every new session. Given to the
+ * dashboard in the answers of the login and of GET /auth/me, never in a cookie.
  */
 export const csrfTokenFor = (sessionToken: string) =>
   createHmac("sha256", sessionToken).update("rassm-admin-csrf").digest("base64url");
-
-/** The CSRF cookie: readable by the dashboard's JavaScript (it copies it into a header). */
-export function csrfCookieOptions(secure: boolean, expires?: Date): CookieOptions {
-  return { httpOnly: false, secure, sameSite: "strict", path: "/", ...(expires && { expires }) };
-}
 
 const sameToken = (given: string | undefined, expected: string) => {
   if (!given) return false;
@@ -92,13 +99,22 @@ const sameToken = (given: string | undefined, expected: string) => {
 };
 
 /**
- * 401 unless the request carries a valid session. Sets `res.locals.admin`, and (re)sets the
- * CSRF cookie when the browser does not have the right one (sessions opened before it existed,
- * cookie cleared).
+ * True when the browser carries a device cookie that an admin already logged in with. Such a
+ * browser is not stopped by the account lock nor by the login limit shared by every IP, so
+ * nobody can lock the admin out by typing wrong passwords from elsewhere.
  */
+export function knownDevice(secure: boolean) {
+  return async (req: Request): Promise<boolean> => {
+    const token = readDeviceToken(req, secure);
+    if (!token) return false;
+    return Boolean(await AdminModel.exists({ "knownDevices.idHash": hashToken(token) }));
+  };
+}
+
+/** 401 unless the request carries a valid session. Sets `res.locals.admin`. */
 export function requireAdmin(secureCookies: boolean) {
   return async (req: Request, res: Response, next: NextFunction) => {
-    const token = readSessionToken(req);
+    const token = readSessionToken(req, secureCookies);
     const session = token ? await authenticate(token) : null;
     if (!token || !session) {
       next(new HttpError(401, NOT_LOGGED_IN));
@@ -107,14 +123,6 @@ export function requireAdmin(secureCookies: boolean) {
     res.locals.admin = session.admin;
     res.locals.sessionToken = token;
     res.locals.sessionId = session.sessionId;
-    const csrf = csrfTokenFor(token);
-    if (readTokenCookie(req, ADMIN_CSRF_COOKIE) !== csrf) {
-      res.cookie(
-        ADMIN_CSRF_COOKIE,
-        csrf,
-        csrfCookieOptions(secureCookies, session.remember ? session.expiresAt : undefined),
-      );
-    }
     next();
   };
 }
@@ -122,7 +130,7 @@ export function requireAdmin(secureCookies: boolean) {
 /**
  * CSRF, second lock (after SameSite=Strict cookies and the Origin check): every change made
  * with a session must carry the session's token in the X-CSRF-Token header. Another site can
- * neither read the cookie nor compute the token.
+ * neither read it nor compute it.
  */
 export function requireCsrfToken(req: Request, res: Response, next: NextFunction) {
   const token = res.locals.sessionToken;
@@ -138,9 +146,10 @@ export function requireCsrfToken(req: Request, res: Response, next: NextFunction
 }
 
 /**
- * Changes (POST, PATCH, PUT, DELETE) must come from the site: browsers always send Origin with
- * them, so a request without it (a script) or from another site is refused (CSRF, first lock).
- * A browser that says the request comes from another site (Sec-Fetch-Site) is refused too.
+ * Changes (POST, PATCH, PUT, DELETE) must come from the dashboard's origin: browsers always send
+ * Origin with them, so a request without it (a script) or from another site is refused (CSRF,
+ * first lock). A browser that says the request comes from another site (Sec-Fetch-Site) is
+ * refused too.
  */
 export function requireSameOrigin(allowedOrigins: readonly string[]) {
   return (req: Request, _res: Response, next: NextFunction) => {

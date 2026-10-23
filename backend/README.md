@@ -22,29 +22,31 @@ pnpm dev                               # website on :3000 and API on :4000
 
 Validated at startup (`src/env.ts`): the API refuses to start and lists what is wrong.
 
-| Variable                                                               | Required | Example / default                                                                         |
-| ---------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------- |
-| `MONGODB_URI`                                                          | yes      | `mongodb+srv://user:pass@cluster0.xxx.mongodb.net/rassm`                                  |
-| `MONGODB_DB_NAME`                                                      | no       | `rassm` (database inside the cluster)                                                     |
-| `DNS_FALLBACK_SERVERS`                                                 | no       | `1.1.1.1,8.8.8.8` (Atlas lookup when this computer's DNS refuses it; empty = none)        |
-| `FRONTEND_ORIGIN`                                                      | yes      | `http://localhost:3000` (comma-separated list)                                            |
-| `PORT`                                                                 | no       | `4000`                                                                                    |
-| `TRUST_PROXY`                                                          | no       | `0`; set to the number of proxies of the host (often `1`) so the real client IP is used   |
-| `META_PIXEL_ID`                                                        | no       | Same ID as `NEXT_PUBLIC_META_PIXEL_ID`                                                    |
-| `META_CAPI_ACCESS_TOKEN`                                               | no       | Events Manager > Pixel > Settings > Conversions API                                       |
-| `META_TEST_EVENT_CODE`                                                 | no       | Events Manager "Test events" code                                                         |
-| `META_GRAPH_API_VERSION`                                               | no       | `v23.0`                                                                                   |
-| `BREVO_API_KEY`                                                        | no       | Brevo > SMTP & API > API keys (empty = no e-mail)                                         |
-| `BREVO_NEWSLETTER_LIST_ID`                                             | no       | Brevo > Contacts > Lists: the list ID (empty = subscribers stay on the site)              |
-| `NOTIFY_EMAIL`                                                         | no       | `rassmwear@gmail.com`                                                                     |
-| `EMAIL_FROM`                                                           | no       | `rassmwear@gmail.com` (validated sender in Brevo)                                         |
-| `ADMIN_URL`                                                            | no       | `http://localhost:3000/admin`                                                             |
-| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | no       | Cloudinary > Settings > API Keys (empty = photo uploads off). The secret stays on the API |
-| `CLOUDINARY_FOLDER`                                                    | no       | `rassm/products`                                                                          |
-| `REVALIDATE_SECRET`                                                    | no       | Same 24+ character value as the frontend `REVALIDATE_SECRET` (empty = no instant refresh) |
-| `BACKUP_DIR` / `BACKUP_KEEP`                                           | no       | `backups` (relative to `backend/`) / `14` backups kept                                    |
-| `BACKUP_PASSPHRASE`                                                    | no       | 16+ characters: encrypts `pnpm backup` files (needed to restore them)                     |
-| `REVALIDATE_URL`                                                       | no       | Default: first `FRONTEND_ORIGIN` + `/api/revalidate`                                      |
+| Variable                                                               | Required   | Example / default                                                                                   |
+| ---------------------------------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------- |
+| `MONGODB_URI`                                                          | yes        | `mongodb+srv://user:pass@cluster0.xxx.mongodb.net/rassm`                                            |
+| `MONGODB_DB_NAME`                                                      | no         | `rassm` (database inside the cluster)                                                               |
+| `DNS_FALLBACK_SERVERS`                                                 | no         | `1.1.1.1,8.8.8.8` (Atlas lookup when this computer's DNS refuses it; empty = none)                  |
+| `FRONTEND_ORIGIN`                                                      | yes        | `http://localhost:3000` (comma-separated list)                                                      |
+| `PORT`                                                                 | no         | `4000`                                                                                              |
+| `ADMIN_ORIGIN`                                                         | no         | The dashboard's subdomain, e.g. `https://admin.rassmstore.live` (only it may use the dashboard API) |
+| `TRUST_PROXY`                                                          | prod       | `0` in development; in production required: the number of proxies of the host (often `1`)           |
+| `ADMIN_PROXY_SECRET`                                                   | prod       | 32+ random characters, same value in the website: signs the visitor IP of dashboard requests        |
+| `META_PIXEL_ID`                                                        | no         | Same ID as `NEXT_PUBLIC_META_PIXEL_ID`                                                              |
+| `META_CAPI_ACCESS_TOKEN`                                               | no         | Events Manager > Pixel > Settings > Conversions API                                                 |
+| `META_TEST_EVENT_CODE`                                                 | no         | Events Manager "Test events" code                                                                   |
+| `META_GRAPH_API_VERSION`                                               | no         | `v23.0`                                                                                             |
+| `BREVO_API_KEY`                                                        | no         | Brevo > SMTP & API > API keys (empty = no e-mail)                                                   |
+| `BREVO_NEWSLETTER_LIST_ID`                                             | no         | Brevo > Contacts > Lists: the list ID (empty = subscribers stay on the site)                        |
+| `NOTIFY_EMAIL`                                                         | with Brevo | Who receives the team e-mails (new orders, messages, alerts)                                        |
+| `EMAIL_FROM`                                                           | with Brevo | Sender validated in Brevo                                                                           |
+| `ADMIN_URL`                                                            | no         | `http://localhost:3000/admin`                                                                       |
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | no         | Cloudinary > Settings > API Keys (empty = photo uploads off). The secret stays on the API           |
+| `CLOUDINARY_FOLDER`                                                    | no         | `rassm/products`                                                                                    |
+| `REVALIDATE_SECRET`                                                    | no         | Same 24+ character value as the frontend `REVALIDATE_SECRET` (empty = no instant refresh)           |
+| `BACKUP_DIR` / `BACKUP_KEEP`                                           | no         | `backups` (relative to `backend/`) / `14` backups kept                                              |
+| `BACKUP_PASSPHRASE`                                                    | no         | 16+ characters: encrypts `pnpm backup` files (needed to restore them)                               |
+| `REVALIDATE_URL`                                                       | no         | Default: first `FRONTEND_ORIGIN` + `/api/revalidate`                                                |
 
 Never commit `.env`. On MongoDB Atlas, allow the IP address of the server (or of your
 computer in development) in **Network Access**.

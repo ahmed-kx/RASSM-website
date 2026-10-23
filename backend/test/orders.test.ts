@@ -191,7 +191,11 @@ describe("POST /api/orders: fake orders", () => {
       .post("/api/orders")
       .send(orderBody({ quantity: 2, fullName: "Autre Personne", address: "Ailleurs 12" }))
       .expect(201);
-    expect(second.body.eventId).toBe(first.body.eventId);
+    // A new random id that looks like a real one: the stored order's id would tell that this
+    // phone ordered this product, and when.
+    expect(second.body.eventId).toMatch(/^[0-9a-f]{24}$/);
+    expect(second.body.eventId).not.toBe(first.body.eventId);
+    expect(await OrderModel.exists({ _id: second.body.eventId })).toBeNull();
     expect(second.body.order).toMatchObject({
       fullName: "Autre Personne",
       address: "Ailleurs 12",
@@ -223,15 +227,21 @@ describe("POST /api/orders: fake orders", () => {
     expect(orders[2]?.suspiciousReason).toBe("3 commandes avec ce numéro de téléphone en 24 h");
   });
 
-  it("flags many orders from the same IP in 24 h", async () => {
+  it("flags orders from one IP beyond 5 orders in 24 h (customers often share an IP)", async () => {
     const { api } = testApp();
     const phones = ["0551000001", "0551000002", "0551000003", "0551000004", "0551000005"];
     for (const phone of phones)
       await api.post("/api/orders").send(orderBody({ phone })).expect(201);
+    // Five customers behind the same mobile operator IP: nothing flagged.
+    expect(await OrderModel.countDocuments({ suspicious: true })).toBe(0);
+    await api
+      .post("/api/orders")
+      .send(orderBody({ phone: "0551000006" }))
+      .expect(201);
     const last = await OrderModel.findOne().sort({ createdAt: -1 }).lean();
     expect(last).toMatchObject({
       suspicious: true,
-      suspiciousReason: "5 commandes depuis la même adresse IP en 24 h",
+      suspiciousReason: "6 commandes (6 articles) depuis la même adresse IP en 24 h",
     });
   });
 

@@ -61,6 +61,20 @@ async function collectionNames(db: Db): Promise<string[]> {
     .sort();
 }
 
+/**
+ * Why an unencrypted backup is refused, or null. The file holds every customer's name, phone and
+ * address: in production it must be encrypted, unless a plain file is asked for on purpose
+ * (`pnpm backup -- --unencrypted`).
+ */
+export function plainBackupRefusal(options: {
+  production: boolean;
+  passphrase?: string;
+  allowPlain: boolean;
+}): string | null {
+  if (options.passphrase || !options.production || options.allowPlain) return null;
+  return "BACKUP_PASSPHRASE is not set: refusing to write an unencrypted backup in production (set it, or run pnpm backup -- --unencrypted on purpose)";
+}
+
 /** Writes a backup of the whole database into `dir`. */
 export async function writeBackup(
   db: Db,

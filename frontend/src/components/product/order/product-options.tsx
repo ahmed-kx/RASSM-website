@@ -2,6 +2,7 @@
 
 import {
   MAX_QUANTITY_PER_ORDER,
+  PUBLIC_LOW_STOCK,
   SIZES,
   getSizeStock,
   getVariantStock,
@@ -16,7 +17,8 @@ import { QuantityStepper } from "../quantity-stepper";
 import { SizeGuideDialog } from "../size-guide-dialog";
 import { useProductOrder } from "./product-order-provider";
 
-const LOW_STOCK = 3;
+/** "Plus que 2 en stock": the API gives the exact number only at or below this. */
+const LOW_STOCK = PUBLIC_LOW_STOCK;
 
 /**
  * Units in stock for a size: of the chosen color, or across all colors while no color

@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/lib/api";
-import { UNREACHABLE_ERROR, adminLogin, fetchAdminSettings, saveAdminSettings } from "./admin";
+import {
+  UNREACHABLE_ERROR,
+  adminLogin,
+  adminLogout,
+  fetchAdminSettings,
+  saveAdminSettings,
+} from "./admin";
 
 // Login errors as the dashboard shows them (French).
 
@@ -47,36 +53,69 @@ describe("adminLogin errors", () => {
   });
 });
 
-describe("CSRF token", () => {
+describe("CSRF token (kept in memory, never in a cookie)", () => {
   const settings = { lowStockThreshold: 10, packagingCost: 0, returnCost: 0 };
+  const admin = { id: "a1", email: "admin@rassm.dz" };
 
-  function stubFetch(cookieAfterMe?: string) {
+  /** Answers like the API; `tokens` are given in turn by /auth/me. */
+  function stubFetch(tokens: string[] = [], refuse: string[] = []) {
     const calls: { url: string; headers: Record<string, string> }[] = [];
-    const fetchMock = vi.fn(async (url: string, init: RequestInit = {}) => {
-      calls.push({ url, headers: (init.headers ?? {}) as Record<string, string> });
-      if (url === "/api/admin/auth/me" && cookieAfterMe) {
-        vi.stubGlobal("document", { cookie: cookieAfterMe });
-      }
-      return Response.json(settings);
-    });
-    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init: RequestInit = {}) => {
+        const headers = (init.headers ?? {}) as Record<string, string>;
+        calls.push({ url, headers });
+        if (url === "/api/admin/auth/me") {
+          return Response.json({ admin, csrfToken: tokens.shift() ?? "" });
+        }
+        if (url === "/api/admin/auth/login") return Response.json({ admin, csrfToken: "du-login" });
+        if (refuse.includes(headers["x-csrf-token"] ?? "")) {
+          return Response.json(
+            { error: { message: "Requête refusée. Rechargez la page puis réessayez." } },
+            { status: 403 },
+          );
+        }
+        return Response.json(settings);
+      }),
+    );
     return calls;
   }
 
-  it("sends the session's token with every change, never with reads", async () => {
-    vi.stubGlobal("document", { cookie: "rassm_device=x; rassm_csrf=jeton%2Dde%2Dsession" });
-    const calls = stubFetch();
-    await saveAdminSettings({ lowStockThreshold: 12 });
-    await fetchAdminSettings();
-    expect(calls[0]?.headers["x-csrf-token"]).toBe("jeton-de-session");
-    expect(calls[1]?.headers["x-csrf-token"]).toBeUndefined();
+  afterEach(async () => {
+    stubFetch();
+    await adminLogout(); // forgets the token kept by the module
   });
 
-  it("asks the API for a new token when the browser lost it", async () => {
-    vi.stubGlobal("document", { cookie: "" });
-    const calls = stubFetch("rassm_csrf=nouveau");
+  it("uses the token of the login answer for every change, never for reads", async () => {
+    const calls = stubFetch();
+    await adminLogin(credentials);
     await saveAdminSettings({ lowStockThreshold: 12 });
-    expect(calls.map((call) => call.url)).toEqual(["/api/admin/auth/me", "/api/admin/settings"]);
-    expect(calls[1]?.headers["x-csrf-token"]).toBe("nouveau");
+    await fetchAdminSettings();
+    expect(calls[1]).toMatchObject({ url: "/api/admin/settings" });
+    expect(calls[1]?.headers["x-csrf-token"]).toBe("du-login");
+    expect(calls[2]?.headers["x-csrf-token"]).toBeUndefined();
+  });
+
+  it("asks GET /auth/me for the token after a page reload, once", async () => {
+    const calls = stubFetch(["jeton-1"]);
+    await saveAdminSettings({ lowStockThreshold: 12 });
+    await saveAdminSettings({ lowStockThreshold: 13 });
+    expect(calls.map((call) => call.url)).toEqual([
+      "/api/admin/auth/me",
+      "/api/admin/settings",
+      "/api/admin/settings",
+    ]);
+    expect(calls[2]?.headers["x-csrf-token"]).toBe("jeton-1");
+  });
+
+  it("fetches a new token and retries once when the API refuses an old one", async () => {
+    const calls = stubFetch(["ancien", "nouveau"], ["ancien"]);
+    await saveAdminSettings({ lowStockThreshold: 12 });
+    expect(calls.map((call) => call.headers["x-csrf-token"] ?? call.url)).toEqual([
+      "/api/admin/auth/me",
+      "ancien",
+      "/api/admin/auth/me",
+      "nouveau",
+    ]);
   });
 });

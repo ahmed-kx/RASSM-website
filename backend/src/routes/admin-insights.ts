@@ -20,10 +20,12 @@ import {
   retrySubscriberSync,
   subscribersCsv,
 } from "../services/admin-subscribers";
-import type { NewsletterList } from "../services/newsletter-sync";
+import type { ConfirmationOptions, NewsletterList } from "../services/newsletter-sync";
 
 export interface InsightRouteOptions {
   newsletterList: NewsletterList;
+  /** "Réessayer" on a subscriber who has not confirmed: a new confirmation e-mail. */
+  confirmation: ConfirmationOptions;
   /** Stricter limit for the CSV exports (customer data). */
   sensitiveLimiter: () => RequestHandler;
 }
@@ -114,7 +116,9 @@ export function addInsightRoutes(router: Router, options: InsightRouteOptions): 
   });
 
   router.post("/subscribers/:id/sync", async (req, res) => {
-    res.json({ subscriber: await retrySubscriberSync(req.params.id, list) });
+    res.json({
+      subscriber: await retrySubscriberSync(req.params.id, list, options.confirmation),
+    });
   });
 
   router.delete("/subscribers/:id", async (req, res) => {

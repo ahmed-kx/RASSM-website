@@ -82,13 +82,13 @@ describe("security", () => {
 describe("environment", () => {
   const valid = {
     MONGODB_URI: "mongodb+srv://user:pass@cluster0.example.mongodb.net/rassm",
-    FRONTEND_ORIGIN: "http://localhost:3000, https://rassm.dz/",
+    FRONTEND_ORIGIN: "http://localhost:3000, http://127.0.0.1:3000/",
   };
 
   it("parses valid variables with defaults", () => {
     expect(parseEnv(valid)).toMatchObject({
       PORT: 4000,
-      FRONTEND_ORIGIN: ["http://localhost:3000", "https://rassm.dz"],
+      FRONTEND_ORIGIN: ["http://localhost:3000", "http://127.0.0.1:3000"],
       META_GRAPH_API_VERSION: "v23.0",
       MONGODB_DB_NAME: "rassm",
       DNS_FALLBACK_SERVERS: ["1.1.1.1", "8.8.8.8"],

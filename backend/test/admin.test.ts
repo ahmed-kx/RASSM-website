@@ -583,8 +583,8 @@ describe("new order e-mail", () => {
     vi.stubGlobal("fetch", fetchMock);
     const notifier = createOrderNotifier({
       brevoApiKey: "xkeysib-test-0123456789abcdef",
-      notifyEmail: "rassmwear@gmail.com",
-      from: "rassmwear@gmail.com",
+      notifyEmail: "equipe@rassm.test",
+      from: "equipe@rassm.test",
       adminUrl: "http://localhost:3000/admin",
     });
     const { api } = testApp({ notifier });
@@ -598,8 +598,8 @@ describe("new order e-mail", () => {
     );
     const body = JSON.parse(String(init.body));
     expect(body).toMatchObject({
-      sender: { name: "RASSM", email: "rassmwear@gmail.com" },
-      to: [{ email: "rassmwear@gmail.com" }],
+      sender: { name: "RASSM", email: "equipe@rassm.test" },
+      to: [{ email: "equipe@rassm.test" }],
       subject: `Nouvelle commande : Fragment Sweatshirt, ${formatPrice(7200)}`,
     });
     expect(body.htmlContent).toContain(orderLink("http://localhost:3000/admin", id));

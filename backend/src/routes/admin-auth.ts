@@ -1,7 +1,4 @@
 import {
-  ADMIN_CSRF_COOKIE,
-  ADMIN_DEVICE_COOKIE,
-  ADMIN_SESSION_COOKIE,
   FORGOT_PASSWORD_MESSAGE,
   adminChangePasswordSchema,
   adminForgotPasswordSchema,
@@ -11,14 +8,16 @@ import {
 import type { RequestHandler, Response, Router } from "express";
 import { getClientInfo } from "../lib/client-info";
 import { parseOrThrow } from "../lib/http-error";
+import { describeError, logger } from "../lib/logger";
 import {
-  csrfCookieOptions,
   csrfTokenFor,
   currentAdmin,
   currentSessionId,
+  deviceCookieName,
   deviceCookieOptions,
   readDeviceToken,
   readSessionToken,
+  sessionCookieName,
   sessionCookieOptions,
 } from "../middleware/admin";
 import {
@@ -34,24 +33,37 @@ import {
 } from "../services/admin-auth";
 
 export interface AuthRouteOptions extends AuthDeps {
-  /** Secure cookies (HTTPS only): true in production. */
+  /** Secure cookies (HTTPS only, `__Host-` names): true in production. */
   secureCookies: boolean;
   loginLimiter: RequestHandler;
+  /** One login limit for every IP together (browsers already known are not counted). */
+  loginLimiterAll: RequestHandler;
   /** A new per-IP limiter for each password route (forgot, reset, change). */
   passwordLimiter: () => RequestHandler;
 }
 
-/** Removes the session and CSRF cookies (logout, reset, revoked). */
+/** The anti-CSRF cookie of the previous version: removed wherever it is still set. */
+const LEGACY_CSRF_COOKIE = "rassm_csrf";
+
+/** Removes the session cookie (logout, reset, revoked). */
 function clearSessionCookies(res: Response, secure: boolean) {
-  res.clearCookie(ADMIN_SESSION_COOKIE, sessionCookieOptions(secure));
-  res.clearCookie(ADMIN_CSRF_COOKIE, csrfCookieOptions(secure));
+  res.clearCookie(sessionCookieName(secure), sessionCookieOptions(secure));
+  res.clearCookie(LEGACY_CSRF_COOKIE, { path: "/" });
 }
+
+/**
+ * "Mot de passe oublié ?" requests are handled one after the other, after the answer: the
+ * answer takes the same time whether the e-mail is an admin's or not, and the 3-per-hour limit
+ * per account cannot be passed by sending many requests at once.
+ */
+let resetQueue: Promise<void> = Promise.resolve();
 
 /** Login, logout and the password reset by e-mail: no session needed. */
 export function addPublicAuthRoutes(router: Router, options: AuthRouteOptions) {
   const deps: AuthDeps = { mailer: options.mailer, adminUrl: options.adminUrl };
+  const secure = options.secureCookies;
 
-  router.post("/auth/login", options.loginLimiter, async (req, res) => {
+  router.post("/auth/login", options.loginLimiter, options.loginLimiterAll, async (req, res) => {
     const { email, password, remember } = parseOrThrow(adminLoginSchema, req.body);
     const session = await login(
       {
@@ -59,51 +71,45 @@ export function addPublicAuthRoutes(router: Router, options: AuthRouteOptions) {
         password,
         remember: remember ?? false,
         client: getClientInfo(req),
-        deviceToken: readDeviceToken(req),
-        previousToken: readSessionToken(req),
+        deviceToken: readDeviceToken(req, secure),
+        previousToken: readSessionToken(req, secure),
       },
       deps,
     );
     // "Se souvenir de moi": the cookie lasts 30 days; otherwise it ends with the browser
     // (and the server ends the session after 12 hours or 2 hours without activity).
     const expires = session.remember ? session.expiresAt : undefined;
-    res.cookie(
-      ADMIN_SESSION_COOKIE,
-      session.token,
-      sessionCookieOptions(options.secureCookies, expires),
-    );
-    res.cookie(
-      ADMIN_CSRF_COOKIE,
-      csrfTokenFor(session.token),
-      csrfCookieOptions(options.secureCookies, expires),
-    );
+    res.cookie(sessionCookieName(secure), session.token, sessionCookieOptions(secure, expires));
+    res.clearCookie(LEGACY_CSRF_COOKIE, { path: "/" });
     if (session.newDeviceToken) {
-      res.cookie(
-        ADMIN_DEVICE_COOKIE,
-        session.newDeviceToken,
-        deviceCookieOptions(options.secureCookies),
-      );
+      res.cookie(deviceCookieName(secure), session.newDeviceToken, deviceCookieOptions(secure));
     }
-    res.json({ admin: session.admin });
+    // The anti-CSRF token goes in the answer only: the dashboard keeps it in memory.
+    res.json({ admin: session.admin, csrfToken: csrfTokenFor(session.token) });
   });
 
   router.post("/auth/logout", async (req, res) => {
-    const token = readSessionToken(req);
+    const token = readSessionToken(req, secure);
     if (token) await logout(token);
-    clearSessionCookies(res, options.secureCookies);
+    clearSessionCookies(res, secure);
     res.json({ ok: true });
   });
 
   router.post("/auth/password/forgot", options.passwordLimiter(), async (req, res) => {
     const { email } = parseOrThrow(adminForgotPasswordSchema, req.body);
-    await requestPasswordReset(email, getClientInfo(req), deps);
+    const client = getClientInfo(req);
+    resetQueue = resetQueue
+      .then(() => requestPasswordReset(email, client, deps))
+      .catch((error: unknown) =>
+        logger.error("Password reset request crashed", describeError(error)),
+      );
     res.json({ message: FORGOT_PASSWORD_MESSAGE });
   });
 
   router.post("/auth/password/reset", options.passwordLimiter(), async (req, res) => {
     const { token, password } = parseOrThrow(adminResetPasswordSchema, req.body);
     await resetPassword(token, password, getClientInfo(req), deps);
-    clearSessionCookies(res, options.secureCookies);
+    clearSessionCookies(res, secure);
     res.json({ ok: true });
   });
 }
@@ -111,6 +117,7 @@ export function addPublicAuthRoutes(router: Router, options: AuthRouteOptions) {
 /** Paramètres > Sécurité: open sessions and password change (behind requireAdmin). */
 export function addSecurityRoutes(router: Router, options: AuthRouteOptions) {
   const deps: AuthDeps = { mailer: options.mailer, adminUrl: options.adminUrl };
+  const secure = options.secureCookies;
 
   router.get("/security/sessions", async (_req, res) => {
     res.json({ sessions: await listSessions(currentAdmin(res).id, currentSessionId(res)) });
@@ -124,7 +131,7 @@ export function addSecurityRoutes(router: Router, options: AuthRouteOptions) {
   router.delete("/security/sessions/:id", async (req, res) => {
     await revokeSession(currentAdmin(res).id, String(req.params.id));
     const current = req.params.id === currentSessionId(res);
-    if (current) clearSessionCookies(res, options.secureCookies);
+    if (current) clearSessionCookies(res, secure);
     res.json({ ok: true, current });
   });
 
@@ -137,6 +144,7 @@ export function addSecurityRoutes(router: Router, options: AuthRouteOptions) {
         currentPassword,
         newPassword,
         client: getClientInfo(req),
+        deviceToken: readDeviceToken(req, secure),
       },
       deps,
     );

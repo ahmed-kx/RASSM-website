@@ -14,4 +14,8 @@ export const routes = {
   exchanges: "/echanges",
   sizeGuide: "/guide-des-tailles",
   faq: "/faq",
+  /** Politique de confidentialité: what is collected, why, how long, how to delete it. */
+  privacy: "/confidentialite",
+  /** Opened from the newsletter confirmation e-mail (double opt-in). */
+  newsletterConfirm: "/newsletter/confirmation",
 } as const;

@@ -52,6 +52,9 @@ function getFbq(): Fbq | undefined {
   script.src = SCRIPT_URL;
   document.head.appendChild(script);
 
+  // No automatic events or automatic advanced matching: Meta would otherwise read the page's
+  // buttons and forms (the order form's name and phone). Only the events sent below.
+  fbq("set", "autoConfig", false, PIXEL_ID);
   fbq("init", PIXEL_ID);
   return fbq;
 }

@@ -30,6 +30,7 @@ import {
   fakeNewsletterList,
   fakeRevalidator,
   fakeSecurityMailer,
+  loginAgent,
   orderBody,
   testApp,
 } from "./helpers";
@@ -63,12 +64,12 @@ describe("CSRF (admin changes)", () => {
       .expect(200);
     const token = csrfFrom(login) ?? "";
     expect(token).toMatch(/^[\w-]{40,}$/);
-    // Readable by the dashboard (no HttpOnly), never sent by other sites.
-    const cookie = ([] as string[])
-      .concat(login.headers["set-cookie"] ?? [])
-      .find((line) => line.startsWith("rassm_csrf="));
-    expect(cookie).toMatch(/SameSite=Strict/);
-    expect(cookie).not.toMatch(/HttpOnly/);
+    // In the answer only: no cookie that other scripts of the site could read.
+    const cookies = ([] as string[]).concat(login.headers["set-cookie"] ?? []);
+    expect(cookies.some((line) => /^rassm_csrf=[^;]+/.test(line))).toBe(false);
+    expect(cookies.find((line) => line.startsWith("rassm_admin="))).toMatch(
+      /HttpOnly.*SameSite=Strict|SameSite=Strict.*HttpOnly/,
+    );
 
     const change = () => agent.put("/api/admin/settings").send({ lowStockThreshold: 7 });
     // No token, a wrong token, no Origin, another site: refused.
@@ -90,39 +91,44 @@ describe("CSRF (admin changes)", () => {
     await agent.get("/api/admin/settings").expect(200);
   });
 
-  it("gives the token back when the browser lost it, and clears it at logout", async () => {
+  it("gives the token with GET /auth/me (page reloaded), and logout clears the cookies", async () => {
     const { app } = testApp();
-    const agent = await adminAgent(app);
-    const session = await agent.get("/api/admin/auth/me").expect(200);
-    expect(csrfFrom(session)).toBeNull(); // already has the right one
+    await createTestAdmin();
+    const agent = request.agent(app);
+    const login = await loginAgent(agent);
+    const me = await agent.get("/api/admin/auth/me").expect(200);
+    expect(csrfFrom(me)).toBe(csrfFrom(login));
+    expect(me.headers["set-cookie"]).toBeUndefined();
+    await agent.put("/api/admin/settings").send({ lowStockThreshold: 8 }).expect(200);
 
-    // A session cookie alone (cookie cleared, session opened before CSRF tokens existed).
-    const cookies = ([] as string[]).concat(
-      (
-        await request(app)
-          .post("/api/admin/auth/login")
-          .set("Origin", ORIGIN)
-          .send({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD })
-      ).headers["set-cookie"] ?? [],
-    );
-    const sessionOnly =
-      cookies.find((line) => line.startsWith("rassm_admin="))?.split(";")[0] ?? "";
-    const renewed = await request(app)
-      .get("/api/admin/auth/me")
-      .set("Cookie", sessionOnly)
-      .expect(200);
-    const token = csrfFrom(renewed);
-    expect(token).toBeTruthy();
-    await request(app)
-      .put("/api/admin/settings")
-      .set("Cookie", sessionOnly)
-      .set("Origin", ORIGIN)
-      .set(ADMIN_CSRF_HEADER, token ?? "")
-      .send({ lowStockThreshold: 8 })
-      .expect(200);
-
+    // An old readable rassm_csrf cookie (previous version) is removed at logout.
     const logout = await agent.post("/api/admin/auth/logout").expect(200);
+    expect(String(logout.headers["set-cookie"])).toMatch(/rassm_admin=;/);
     expect(String(logout.headers["set-cookie"])).toMatch(/rassm_csrf=;/);
+    await agent.get("/api/admin/auth/me").expect(401);
+  });
+
+  it("uses __Host- cookies over HTTPS (production)", async () => {
+    const { api } = testApp({ secureCookies: true });
+    await createTestAdmin();
+    const login = await api
+      .post("/api/admin/auth/login")
+      .set("Origin", ORIGIN)
+      .send({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD })
+      .expect(200);
+    const cookies = ([] as string[]).concat(login.headers["set-cookie"] ?? []);
+    const session = cookies.find((line) => line.startsWith("__Host-rassm_admin="));
+    const device = cookies.find((line) => line.startsWith("__Host-rassm_device="));
+    for (const cookie of [session, device]) {
+      expect(cookie).toMatch(/; Path=\//);
+      expect(cookie).toMatch(/; Secure/);
+      expect(cookie).toMatch(/; HttpOnly/);
+      expect(cookie).not.toMatch(/Domain=/i);
+    }
+    // The plain name is not accepted in production.
+    const token = session?.split(";")[0]?.split("=")[1] ?? "";
+    await api.get("/api/admin/auth/me").set("Cookie", `rassm_admin=${token}`).expect(401);
+    await api.get("/api/admin/auth/me").set("Cookie", `__Host-rassm_admin=${token}`).expect(200);
   });
 });
 
@@ -134,6 +140,7 @@ describe("every admin route needs a session", () => {
       allowedOrigins: [ORIGIN],
       secureCookies: false,
       loginLimiter: limiter,
+      loginLimiterAll: limiter,
       passwordLimiter: () => limiter,
       adminLimiter: limiter,
       sensitiveLimiter: () => limiter,
@@ -143,6 +150,7 @@ describe("every admin route needs a session", () => {
       revalidator: fakeRevalidator(),
       imageStorage: fakeImageStorage(),
       newsletterList: fakeNewsletterList(),
+      confirmation: { siteUrl: ORIGIN },
     });
     const routes = (
       router.stack as { route?: { path: string; methods: Record<string, boolean> } }[]
@@ -227,8 +235,16 @@ describe("bot timing (forms sent in under 2 seconds)", () => {
       .send({ email: "bot@example.com", elapsedMs: 300 })
       .expect(201);
     await api.post("/api/newsletter").send({ email: "humain@example.com", elapsedMs: 20_000 });
-    await vi.waitFor(() => expect(newsletterList.add).toHaveBeenCalledWith("humain@example.com"));
-    expect(newsletterList.add).toHaveBeenCalledTimes(1);
+    // A person gets the confirmation e-mail; the fast sign-up gets nothing (no e-mail to an
+    // address a bot typed), and nobody is in the Brevo list before confirming.
+    await vi.waitFor(() =>
+      expect(newsletterList.sendConfirmation).toHaveBeenCalledWith(
+        "humain@example.com",
+        expect.any(String),
+      ),
+    );
+    expect(newsletterList.sendConfirmation).toHaveBeenCalledTimes(1);
+    expect(newsletterList.add).not.toHaveBeenCalled();
     expect(
       await NewsletterSubscriberModel.findOne({ email: "bot@example.com" }).lean(),
     ).toMatchObject({ suspicious: true, brevo: { status: "failed" } });
@@ -532,6 +548,8 @@ describe("production environment", () => {
     FRONTEND_ORIGIN: "https://rassm.dz,https://www.rassm.dz",
     ADMIN_URL: "https://rassm.dz/admin",
     REVALIDATE_SECRET: strong,
+    TRUST_PROXY: "1",
+    ADMIN_PROXY_SECRET: `${strong}-proxy`,
   };
 
   it("starts with strong secrets and https URLs", () => {
@@ -554,6 +572,18 @@ describe("production environment", () => {
     refused({ CLOUDINARY_API_SECRET: "your-api-secret-here-1234" });
     refused({ META_CAPI_ACCESS_TOKEN: "placeholder-token-123456789" });
     refused({ META_CAPI_ACCESS_TOKEN: "x".repeat(40) + "-not-a-token" });
+    // The IP settings must be explicit, the proxy secret strong, the dashboard origin https.
+    const { TRUST_PROXY: _trust, ...noTrustProxy } = base;
+    expect(() => parseEnv(noTrustProxy)).toThrow(/TRUST_PROXY/);
+    const { ADMIN_PROXY_SECRET: _secret, ...noSecret } = base;
+    expect(() => parseEnv(noSecret)).toThrow(/ADMIN_PROXY_SECRET/);
+    refused({ ADMIN_PROXY_SECRET: "changeme-changeme-changeme-changeme" });
+    refused({ ADMIN_ORIGIN: "http://admin.rassm.dz" });
+    expect(() => parseEnv({ ...base, ADMIN_ORIGIN: "https://admin.rassm.dz" })).not.toThrow();
+    // Brevo needs the team address and the sender (no default address in the code).
+    expect(() =>
+      parseEnv({ ...base, BREVO_API_KEY: "xkeysib-" + "a1b2c3d4e5f6".repeat(6) }),
+    ).toThrow(/NOTIFY_EMAIL[\s\S]*EMAIL_FROM/);
     // Real tokens: long letters and digits, with or without the usual EAA prefix.
     expect(() =>
       parseEnv({ ...base, META_CAPI_ACCESS_TOKEN: "EAAG" + "Zq7rL2xK9mPz4Tw8".repeat(12) }),
@@ -568,6 +598,10 @@ describe("production environment", () => {
         FRONTEND_ORIGIN: "http://localhost:3000",
       }),
     ).not.toThrow();
+    // An https site is a deployed site: forgetting NODE_ENV=production is refused.
+    const { NODE_ENV: _mode, ...noMode } = base;
+    expect(() => parseEnv(noMode)).toThrow(/NODE_ENV/);
+    expect(() => parseEnv({ ...base, NODE_ENV: "development" })).toThrow(/NODE_ENV/);
   });
 });
 

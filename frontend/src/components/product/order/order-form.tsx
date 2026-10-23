@@ -316,6 +316,12 @@ export function OrderForm() {
             Échange possible le jour de la livraison
           </Link>
         </p>
+        <p className="-mt-2 text-center text-[11px] leading-relaxed text-stone">
+          Vos données servent à traiter votre commande.{" "}
+          <Link href={routes.privacy} className="underline underline-offset-4 hover:no-underline">
+            Confidentialité
+          </Link>
+        </p>
       </form>
     </section>
   );

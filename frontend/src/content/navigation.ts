@@ -37,6 +37,7 @@ export const FOOTER_COLUMNS: readonly { title: string; links: readonly NavLink[]
       { label: "Échanges", href: routes.exchanges },
       { label: "Guide des tailles", href: routes.sizeGuide },
       { label: "FAQ", href: routes.faq },
+      { label: "Confidentialité", href: routes.privacy },
     ],
   },
 ];
