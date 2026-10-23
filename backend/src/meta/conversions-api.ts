@@ -18,7 +18,7 @@ export interface MetaConfig {
 /** Prices are in Algerian dinars (same as the browser Pixel). */
 export const META_CURRENCY = "DZD";
 
-type MetaOrder = Pick<
+export type MetaOrder = Pick<
   OrderDoc,
   | "_id"
   | "fullName"
@@ -116,16 +116,27 @@ export function buildPurchaseEvent(order: MetaOrder): MetaEvent {
   };
 }
 
+/** Meta refuses events older than 7 days: older confirmations are sent with a recent time. */
+const MAX_EVENT_AGE_MS = 7 * 24 * 60 * 60 * 1000 - 60 * 60 * 1000;
+
 /**
- * Event for an order confirmed by phone (sent from the admin dashboard, later step), so
- * campaigns can optimise on confirmed orders. Custom event "CommandeConfirmee".
+ * Custom event "ConfirmedOrder": the order was confirmed by phone (dashboard), so campaigns can
+ * later optimise on real orders rather than on every form sent. Same customer data as Purchase
+ * (with the fbc / fbp of the order, so Meta links it to the ad click), the order's current value
+ * in DZD, and `action_source: website` like Purchase: the conversion started on the site.
  */
-export function buildOrderConfirmedEvent(order: MetaOrder, confirmedAt = new Date()): MetaEvent {
+export function buildConfirmedOrderEvent(
+  order: MetaOrder,
+  confirmedAt: Date,
+  now = new Date(),
+): MetaEvent {
+  const time = now.getTime() - confirmedAt.getTime() > MAX_EVENT_AGE_MS ? now : confirmedAt;
   return {
-    event_name: "CommandeConfirmee",
-    event_time: Math.floor(confirmedAt.getTime() / 1000),
+    event_name: "ConfirmedOrder",
+    event_time: Math.floor(time.getTime() / 1000),
     event_id: `${order._id.toString()}:confirmed`,
-    action_source: "phone_call",
+    action_source: "website",
+    ...(order.tracking?.eventSourceUrl && { event_source_url: order.tracking?.eventSourceUrl }),
     user_data: buildUserData(order),
     custom_data: customData(order),
   };
@@ -154,8 +165,13 @@ export async function postMetaEvents(config: MetaConfig, events: MetaEvent[]): P
 export interface MetaEvents {
   /** Sends the Purchase event of a new order; records the result on the order. Never throws. */
   sendPurchase(order: MetaOrder): Promise<void>;
-  /** For the dashboard step: event when an order is confirmed by phone. Never throws. */
-  sendOrderConfirmed(order: MetaOrder, confirmedAt?: Date): Promise<void>;
+  /** False when the Pixel ID or the token is not set (nothing is ever sent). */
+  readonly enabled: boolean;
+  /**
+   * Sends the ConfirmedOrder event. Throws when Meta refuses it or cannot be reached: the
+   * caller (services/meta-confirmed.ts) records the result and makes sure it is sent once.
+   */
+  sendConfirmedOrder(order: MetaOrder, confirmedAt: Date): Promise<void>;
 }
 
 async function recordPurchase(orderId: MetaOrder["_id"], status: MetaEventStatus, error?: string) {
@@ -176,6 +192,7 @@ async function recordPurchase(orderId: MetaOrder["_id"], status: MetaEventStatus
 /** Meta sender. Does nothing (status "skipped") when the Pixel ID or the token is not set. */
 export function createMetaEvents(config: MetaConfig | null): MetaEvents {
   return {
+    enabled: config !== null,
     async sendPurchase(order) {
       if (!config) {
         await recordPurchase(order._id, "skipped");
@@ -196,16 +213,9 @@ export function createMetaEvents(config: MetaConfig | null): MetaEvents {
         );
       }
     },
-    async sendOrderConfirmed(order, confirmedAt) {
-      if (!config) return;
-      try {
-        await postMetaEvents(config, [buildOrderConfirmedEvent(order, confirmedAt)]);
-      } catch (error) {
-        logger.error("Meta order confirmed event failed", {
-          orderId: order._id.toString(),
-          ...describeError(error),
-        });
-      }
+    async sendConfirmedOrder(order, confirmedAt) {
+      if (!config) throw new Error("Meta Conversions API is not configured");
+      await postMetaEvents(config, [buildConfirmedOrderEvent(order, confirmedAt)]);
     },
   };
 }

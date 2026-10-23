@@ -1,11 +1,13 @@
 import {
   DELIVERY_TYPES,
+  META_CONFIRMED_STATUSES,
   ORDER_STATUSES,
   PAYMENT_METHODS,
   SIZES,
   orderSchema,
   orderSummarySchema,
   type DeliveryDiscountLine,
+  type MetaConfirmedStatus,
   type MetaTracking,
   type Order,
   type OrderItem,
@@ -36,8 +38,23 @@ export interface OrderDoc extends Omit<Order, "id" | "createdAt" | "item"> {
   suspicious: boolean;
   /** French, for the dashboard: why the order was flagged. */
   suspiciousReason: string | null;
+  /** Marked "Commande de test" by the team (never sent to Meta as a confirmed order). */
+  test?: boolean;
   /** Server-side Purchase event (Conversions API). */
   metaPurchase: { status: MetaEventStatus; sentAt?: Date; error?: string };
+  /**
+   * Server-side ConfirmedOrder event, sent once per order (services/meta-confirmed.ts). Absent
+   * until the order is first confirmed.
+   */
+  metaConfirmed?: {
+    status?: MetaConfirmedStatus;
+    /** When the order was confirmed (the event time). */
+    confirmedAt?: Date;
+    /** When it was sent, failed or skipped. */
+    at?: Date;
+    /** French: why it failed or was not sent. */
+    detail?: string;
+  };
   /** New order e-mail to the team (Brevo). */
   emailNotification: { status: MetaEventStatus; sentAt?: Date; error?: string };
   /**
@@ -129,10 +146,17 @@ const orderMongooseSchema = new Schema<OrderDoc>(
     },
     suspicious: { type: Boolean, default: false },
     suspiciousReason: { type: String, default: null },
+    test: { type: Boolean, default: false },
     metaPurchase: {
       status: { type: String, enum: ["pending", "sent", "failed", "skipped"], default: "pending" },
       sentAt: Date,
       error: String,
+    },
+    metaConfirmed: {
+      status: { type: String, enum: META_CONFIRMED_STATUSES },
+      confirmedAt: Date,
+      at: Date,
+      detail: String,
     },
     emailNotification: {
       status: { type: String, enum: ["pending", "sent", "failed", "skipped"], default: "pending" },

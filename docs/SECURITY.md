@@ -178,6 +178,27 @@ the API terminal so you can open it; production never prints it.
 **Rate limits are kept in memory**: fine for one API server. With several instances behind a load
 balancer, move them to a shared store (Redis) or each instance counts separately.
 
+## What is sent to Meta
+
+Only when the Meta variables are set. Nothing else, and nothing from the dashboard.
+
+- **Browser (Pixel)**: PageView, ViewContent, InitiateCheckout, Purchase (product, value, DZD).
+  Meta also records its own automatic events (e.g. button clicks); turn them off in Events Manager >
+  Settings > Automatic events if not wanted.
+- **Server (Conversions API), two events, the same customer data for both**: the phone, first name,
+  last name, wilaya (city) and country, **hashed with SHA-256** before leaving the server; the IP and
+  browser of the order; Meta's `_fbp` (browser id) and `_fbc` (ad click id) cookies; the order
+  value in DZD and the product.
+  - **Purchase**: when the order is placed (same event id as the browser Purchase, so Meta counts
+    it once).
+  - **ConfirmedOrder**: once per order, when the team confirms it by phone. Never for an order marked
+    "Commande de test" or a blacklisted number; a "Suspecte" order is sent only once shipped. Its
+    status is in the order's "Informations internes".
+- **Ad click id**: a visitor arriving from an ad has `?fbclid=` in the address; the site keeps it in
+  the `_fbc` cookie for 90 days (Meta's format), only to link the order to the ad.
+- `META_TEST_EVENT_CODE` sends the server events to Events Manager > Test events instead of the real
+  statistics: **remove it in production**.
+
 ## Backups
 
 MongoDB Atlas free clusters (M0) have no automatic backups. `pnpm backup` saves the whole database in

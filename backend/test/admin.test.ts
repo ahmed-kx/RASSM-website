@@ -306,7 +306,7 @@ describe("admin orders", () => {
     await setStatus(agent, id, "shipped").expect(409);
 
     await setStatus(agent, id, "confirmed").expect(200);
-    expect(metaEvents.sendOrderConfirmed).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(metaEvents.sendConfirmedOrder).toHaveBeenCalledTimes(1));
     await setStatus(agent, id, "shipped").expect(200);
     const delivered = await setStatus(agent, id, "delivered").expect(200);
     expect(delivered.body.order.status).toBe("delivered");

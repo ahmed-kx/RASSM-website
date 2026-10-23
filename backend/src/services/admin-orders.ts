@@ -28,6 +28,7 @@ import { BlacklistModel, findBlacklisted, type BlacklistDoc } from "../models/bl
 import { ContactMessageModel } from "../models/contact-message";
 import { loadSettings } from "../models/setting";
 import { OrderModel, toOrderSummary, type OrderDoc, type OrderHistoryDoc } from "../models/order";
+import { onStatusChanged } from "./meta-confirmed";
 import { priceOrder } from "./pricing";
 import { loadProduct, releaseStock, reserveStock, stockError, type Variant } from "./stock";
 
@@ -49,6 +50,7 @@ function toAdminOrder(doc: OrderDoc, blacklist: Map<string, BlacklistDoc>): Admi
     userAgent: doc.client?.userAgent ?? null,
     suspicious: doc.suspicious ?? false,
     suspiciousReason: doc.suspiciousReason ?? null,
+    test: doc.test ?? false,
     blacklist: entry ? { reason: entry.reason, createdAt: entry.createdAt.toISOString() } : null,
     openedAt: doc.openedAt?.toISOString() ?? null,
     adminNote: doc.adminNote ?? "",
@@ -61,6 +63,13 @@ function toAdminOrder(doc: OrderDoc, blacklist: Map<string, BlacklistDoc>): Admi
     })),
     stockReserved: doc.stockReserved ?? true,
     metaPurchaseStatus: doc.metaPurchase?.status ?? "pending",
+    metaConfirmed: doc.metaConfirmed?.status
+      ? {
+          status: doc.metaConfirmed.status,
+          at: doc.metaConfirmed.at?.toISOString() ?? null,
+          detail: doc.metaConfirmed.detail ?? null,
+        }
+      : null,
     unitCost: doc.item.unitCost ?? null,
     costs: {
       packaging: doc.costs?.packaging ?? null,
@@ -315,12 +324,12 @@ export async function changeStatus(
     }
   }
 
-  if (to === "confirmed") {
-    void metaEvents
-      .sendOrderConfirmed(result)
-      .catch((error: unknown) =>
-        logger.error("Meta confirmed event crashed", describeError(error)),
-      );
+  // Meta ConfirmedOrder (once per order), in the background: never slows down or blocks the
+  // status change.
+  if (to === "confirmed" || to === "shipped" || to === "cancelled") {
+    void onStatusChanged(doc._id, to, metaEvents).catch((error: unknown) =>
+      logger.error("Meta ConfirmedOrder crashed", describeError(error)),
+    );
   }
   logger.info("Order status changed", { orderNumber: doc.orderNumber, from, to, by: admin.email });
   return toAdminOrderOne(result);
@@ -466,6 +475,28 @@ export async function setNote(id: string, note: string): Promise<AdminOrder> {
   const updated = await OrderModel.findByIdAndUpdate(
     parseId(id),
     { $set: { adminNote: note } },
+    { returnDocument: "after" },
+  ).lean<OrderDoc>();
+  if (!updated) throw new HttpError(404, ORDER_NOT_FOUND);
+  return toAdminOrderOne(updated);
+}
+
+/** "Commande de test": such orders are never sent to Meta as confirmed orders. */
+export async function setTestFlag(id: string, test: boolean, admin: Admin): Promise<AdminOrder> {
+  const doc = await loadOrder(id);
+  if ((doc.test ?? false) === test) return toAdminOrderOne(doc);
+  const updated = await OrderModel.findByIdAndUpdate(
+    doc._id,
+    {
+      $set: { test },
+      $push: {
+        history: historyLine(
+          admin,
+          "edit",
+          test ? "Marquée comme commande de test." : "Marquage « test » retiré.",
+        ),
+      },
+    },
     { returnDocument: "after" },
   ).lean<OrderDoc>();
   if (!updated) throw new HttpError(404, ORDER_NOT_FOUND);

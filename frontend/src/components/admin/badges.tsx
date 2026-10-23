@@ -10,7 +10,8 @@ import { cn } from "@/lib/cn";
 
 // Soft pills of the dashboard (design/admin-orders.png): status colors, then the flags.
 
-type Tone = "sand" | "success" | "info" | "danger" | "rose" | "warning" | "ink" | "alert";
+type Tone =
+  "sand" | "success" | "info" | "danger" | "rose" | "warning" | "ink" | "alert" | "neutral";
 
 const TONES: Record<Tone, string> = {
   sand: "bg-sand text-ash",
@@ -21,6 +22,7 @@ const TONES: Record<Tone, string> = {
   warning: "bg-warning/12 text-warning",
   ink: "bg-ink text-paper",
   alert: "bg-error text-paper",
+  neutral: "bg-cream text-ash",
 };
 
 const SIZES = {
@@ -89,7 +91,7 @@ export function StatusBadge({
   );
 }
 
-/** "Nouveau", "Liste noire" (red) and "Suspecte" (ochre) flags of an order. */
+/** "Nouveau", "Liste noire" (red), "Suspecte" (ochre) and "Test" (grey) flags of an order. */
 export function OrderFlags({
   order,
   withReasons = false,
@@ -100,7 +102,7 @@ export function OrderFlags({
   showNew?: boolean;
 }) {
   const isNew = showNew && order.openedAt === null && order.status === "pending";
-  if (!isNew && !order.suspicious && !order.blacklist) return null;
+  if (!isNew && !order.suspicious && !order.blacklist && !order.test) return null;
   return (
     <span className="flex flex-wrap items-center gap-1.5">
       {isNew && (
@@ -111,6 +113,15 @@ export function OrderFlags({
       {order.blacklist && (
         <Pill tone="alert" size="sm" title={order.blacklist.reason}>
           Liste noire{withReasons ? ` : ${order.blacklist.reason}` : ""}
+        </Pill>
+      )}
+      {order.test && (
+        <Pill
+          tone="neutral"
+          size="sm"
+          title="Commande de test : jamais envoyée à Meta comme confirmée"
+        >
+          Test
         </Pill>
       )}
       {order.suspicious && (

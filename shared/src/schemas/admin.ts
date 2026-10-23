@@ -87,12 +87,33 @@ export type OrderHistoryEntry = z.infer<typeof orderHistoryEntrySchema>;
 
 export const blacklistInfoSchema = z.object({ reason: z.string(), createdAt: isoDateSchema });
 
+/**
+ * Meta "ConfirmedOrder" event of an order (sent once, when the order is confirmed by phone):
+ * waiting = suspicious order, sent once it is shipped; sending; sent; failed; skipped = not sent
+ * (test order, blacklisted number, suspicious order cancelled, Meta not configured).
+ */
+export const META_CONFIRMED_STATUSES = ["waiting", "sending", "sent", "failed", "skipped"] as const;
+export type MetaConfirmedStatus = (typeof META_CONFIRMED_STATUSES)[number];
+export const metaConfirmedSchema = z.object({
+  status: z.enum(META_CONFIRMED_STATUSES),
+  /** When it was sent, failed or skipped (null while waiting or sending). */
+  at: isoDateSchema.nullable(),
+  /** French: why it failed or was not sent. */
+  detail: z.string().nullable(),
+});
+export type MetaConfirmed = z.infer<typeof metaConfirmedSchema>;
+
+/** Body of PUT /api/admin/orders/:id/test. */
+export const adminOrderTestSchema = z.object({ test: z.boolean() });
+
 /** An order as the dashboard sees it: everything, internal data included. */
 export const adminOrderSchema = orderFieldsSchema.extend({
   ip: z.string().nullable(),
   userAgent: z.string().nullable(),
   suspicious: z.boolean(),
   suspiciousReason: z.string().nullable(),
+  /** Marked "Commande de test" by the team: never sent to Meta as a confirmed order. */
+  test: z.boolean(),
   /** Set when the phone number is on the blacklist (checked when the order is read). */
   blacklist: blacklistInfoSchema.nullable(),
   /** Null until an admin opens the order ("Nouveau" badge). */
@@ -102,6 +123,8 @@ export const adminOrderSchema = orderFieldsSchema.extend({
   /** True while the ordered units are taken from the stock. */
   stockReserved: z.boolean(),
   metaPurchaseStatus: z.enum(["pending", "sent", "failed", "skipped"]),
+  /** Null until the order is first confirmed. */
+  metaConfirmed: metaConfirmedSchema.nullable(),
   /** Cost price of one unit when the order was placed. Null = "coût manquant". */
   unitCost: z.number().int().nonnegative().nullable(),
   /** Packaging and return costs copied when the order became delivered / returned. */

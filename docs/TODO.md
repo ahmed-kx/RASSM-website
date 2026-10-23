@@ -29,5 +29,7 @@ Things that are placeholders or decisions still to make. Remove an item once it 
 
 ## Later
 
+- [ ] When there are around 50 confirmed orders per week, create a custom conversion on ConfirmedOrder in Meta Events Manager and test a campaign optimized for it.
+
 - [ ] Search: add a search page and the header search icon back once the catalogue is bigger (removed for now, only 9 products).
 - [ ] Lookbook page: add back later when we have a photoshoot (photos linking to the products worn).

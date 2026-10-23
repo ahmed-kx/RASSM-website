@@ -44,7 +44,8 @@ export function fakeRevalidator() {
 export function fakeMetaEvents() {
   return {
     sendPurchase: vi.fn<MetaEvents["sendPurchase"]>(async () => undefined),
-    sendOrderConfirmed: vi.fn<MetaEvents["sendOrderConfirmed"]>(async () => undefined),
+    enabled: true,
+    sendConfirmedOrder: vi.fn<MetaEvents["sendConfirmedOrder"]>(async () => undefined),
   } satisfies MetaEvents;
 }
 

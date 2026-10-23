@@ -33,6 +33,7 @@ export const ADMIN_API_PATHS = {
   order: (id: string) => `/api/admin/orders/${encodeURIComponent(id)}`,
   orderStatus: (id: string) => `/api/admin/orders/${encodeURIComponent(id)}/status`,
   orderNote: (id: string) => `/api/admin/orders/${encodeURIComponent(id)}/note`,
+  orderTest: (id: string) => `/api/admin/orders/${encodeURIComponent(id)}/test`,
   orderBlacklist: (id: string) => `/api/admin/orders/${encodeURIComponent(id)}/blacklist`,
   andersonExport: "/api/admin/orders/export",
   bulkShip: "/api/admin/orders/ship",

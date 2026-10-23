@@ -2,6 +2,7 @@ import {
   adminNoteSchema,
   adminOrderEditSchema,
   adminOrderQuerySchema,
+  adminOrderTestSchema,
   adminSearchQuerySchema,
   adminStatusChangeSchema,
   andersonExportSchema,
@@ -31,6 +32,7 @@ import {
   orderUpdates,
   removeFromBlacklist,
   setNote,
+  setTestFlag,
   shipOrders,
 } from "../services/admin-orders";
 import { searchDashboard } from "../services/admin-search";
@@ -136,6 +138,11 @@ export function adminRouter(options: AdminRouterOptions): Router {
   router.put("/orders/:id/note", async (req, res) => {
     const { note } = parseOrThrow(adminNoteSchema, req.body);
     res.json({ order: await setNote(req.params.id, note) });
+  });
+
+  router.put("/orders/:id/test", async (req, res) => {
+    const { test } = parseOrThrow(adminOrderTestSchema, req.body);
+    res.json({ order: await setTestFlag(req.params.id, test, currentAdmin(res)) });
   });
 
   router.post("/orders/:id/blacklist", async (req, res) => {

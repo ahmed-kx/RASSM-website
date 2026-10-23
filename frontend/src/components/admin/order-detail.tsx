@@ -18,6 +18,7 @@ import Link from "next/link";
 import { useState } from "react";
 import {
   BanIcon,
+  CheckIcon,
   CopyIcon,
   DownloadIcon,
   EditIcon,
@@ -44,6 +45,7 @@ import {
   exportForAnderson,
   fetchAdminOrder,
   saveOrderNote,
+  setOrderTest,
 } from "@/lib/data/admin";
 import { AdminDialog } from "./admin-dialog";
 import { AdminMenu } from "./admin-top-bar";
@@ -100,6 +102,24 @@ const META_STATUS = {
   pending: "En attente",
 } as const;
 
+/** The Meta ConfirmedOrder event, as the team reads it ("Envoyé à Meta le 23/10/2026 14:05"). */
+function confirmedOrderLabel(meta: AdminOrder["metaConfirmed"]) {
+  if (!meta) return "Pas encore confirmée";
+  const when = meta.at ? ` le ${formatDateTime(meta.at)}` : "";
+  switch (meta.status) {
+    case "sent":
+      return `Envoyé à Meta${when}`;
+    case "failed":
+      return `Échec${when}${meta.detail ? ` (${meta.detail})` : ""}`;
+    case "skipped":
+      return `Non envoyé${meta.detail ? ` : ${meta.detail}` : ""}`;
+    case "waiting":
+      return "En attente de l'expédition (commande suspecte)";
+    case "sending":
+      return "Envoi en cours…";
+  }
+}
+
 const menuItem =
   "flex min-h-12 w-full items-center gap-3 px-4 text-left text-sm hover:bg-cream/60 disabled:opacity-50";
 
@@ -155,6 +175,18 @@ export function OrderDetail({ id }: { id: string }) {
       showToast({ title: "Note enregistrée", tone: "success" });
     },
     onError: onError("Note non enregistrée"),
+  });
+
+  const testMutation = useMutation({
+    mutationFn: (test: boolean) => setOrderTest(id, test),
+    onSuccess: (order) => {
+      applyOrder(order);
+      showToast({
+        title: order.test ? "Marquée comme commande de test" : "Marquage « test » retiré",
+        tone: "success",
+      });
+    },
+    onError: onError("Modification impossible"),
   });
 
   const blacklistMutation = useMutation({
@@ -274,6 +306,20 @@ export function OrderDetail({ id }: { id: string }) {
                     }}
                   >
                     <CopyIcon width={18} height={18} /> Copier le numéro de commande
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    className={menuItem}
+                    disabled={testMutation.isPending}
+                    onClick={() => {
+                      close();
+                      testMutation.mutate(!order.test);
+                    }}
+                  >
+                    <CheckIcon width={18} height={18} />{" "}
+                    {order.test ? "Retirer le marquage « test »" : "Marquer comme commande de test"}
                   </button>
                 </li>
                 {!order.blacklist && (
@@ -469,7 +515,14 @@ export function OrderDetail({ id }: { id: string }) {
               <span title={order.userAgent ?? undefined}>{describeUserAgent(order.userAgent)}</span>
             </InfoRow>
             <InfoRow label="Adresse IP">{order.ip ?? "—"}</InfoRow>
-            <InfoRow label="Meta (serveur)">{META_STATUS[order.metaPurchaseStatus]}</InfoRow>
+            <InfoRow label="Meta : achat (serveur)">
+              {META_STATUS[order.metaPurchaseStatus]}
+            </InfoRow>
+            <InfoRow label="Meta : commande confirmée">
+              <span className={order.metaConfirmed?.status === "failed" ? "text-error" : undefined}>
+                {confirmedOrderLabel(order.metaConfirmed)}
+              </span>
+            </InfoRow>
             {order.suspicious && (
               <InfoRow label="Suspecte">
                 <span className="text-warning">{order.suspiciousReason ?? "Oui"}</span>

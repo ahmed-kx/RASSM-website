@@ -109,17 +109,53 @@ function readCookie(name: string): string | undefined {
   return match ? decodeURIComponent(match.slice(name.length + 1)) : undefined;
 }
 
+/** Meta keeps the click (_fbc) and browser (_fbp) ids 90 days. */
+const META_COOKIE_DAYS = 90;
+
+function writeCookie(name: string, value: string): void {
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${name}=${encodeURIComponent(value)}; Max-Age=${META_COOKIE_DAYS * 24 * 60 * 60}; Path=/; SameSite=Lax${secure}`;
+}
+
+/** The fbclid inside an _fbc value ("fb.1.<time>.<fbclid>"). */
+const fbclidOf = (fbc: string) => fbc.split(".").slice(3).join(".");
+
 /**
- * Meta browser data sent with an order, for the server-side Conversions API: the _fbp and
- * _fbc cookies set by the Pixel, and the page URL. Without the _fbc cookie, fbc is built
- * from the ?fbclid= of an ad click (Meta format "fb.1.<time>.<fbclid>"). Read even when
- * the Pixel is off (the cookies are then simply absent).
+ * Ad click id: a visitor arriving from a Meta ad has ?fbclid= in the address. It is kept in the
+ * _fbc cookie (Meta format "fb.1.<time>.<fbclid>", 90 days) unless the Pixel already wrote this
+ * same click, so it is not lost when the visitor lands on one page and orders from another, or
+ * when the Pixel is blocked. Called on every page of the site (MetaPixelPageView).
+ */
+export function captureAdClick(): void {
+  if (typeof window === "undefined") return;
+  const fbclid = new URLSearchParams(window.location.search).get("fbclid")?.trim();
+  if (!fbclid || fbclid.length > 500) return;
+  const current = readCookie("_fbc");
+  if (current && fbclidOf(current) === fbclid) return;
+  writeCookie("_fbc", `fb.1.${Date.now()}.${fbclid}`);
+}
+
+/** Meta's browser id format, "fb.1.<time>.<random>", as the Pixel writes it. */
+function newFbp(): string {
+  const random = crypto.getRandomValues(new Uint32Array(1))[0] ?? Date.now();
+  return `fb.1.${Date.now()}.${1_000_000_000 + (random % 9_000_000_000)}`;
+}
+
+/**
+ * Meta browser data sent with an order, for the server-side Conversions API (stored on the
+ * order, sent with Purchase and ConfirmedOrder): the _fbc cookie (ad click, captureAdClick) or,
+ * as a last resort, the ?fbclid= of this page; the _fbp cookie, created in Meta's format when the
+ * Pixel is on but could not write it (blocker); and the page URL.
  */
 export function getMetaTracking(): MetaTracking {
   if (typeof window === "undefined") return {};
-  const fbclid = new URLSearchParams(window.location.search).get("fbclid");
-  const fbc = readCookie("_fbc") ?? (fbclid ? `fb.1.${Date.now()}.${fbclid}` : undefined);
-  const fbp = readCookie("_fbp");
+  captureAdClick();
+  const fbc = readCookie("_fbc");
+  let fbp = readCookie("_fbp");
+  if (!fbp && isMetaPixelEnabled()) {
+    fbp = newFbp();
+    writeCookie("_fbp", fbp);
+  }
   return {
     ...(fbp && { fbp }),
     ...(fbc && { fbc }),

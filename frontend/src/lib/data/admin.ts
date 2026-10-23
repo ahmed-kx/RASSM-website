@@ -230,6 +230,12 @@ export async function saveOrderNote(id: string, note: string) {
     .order;
 }
 
+/** "Commande de test" on / off (test orders are never sent to Meta as confirmed). */
+export async function setOrderTest(id: string, test: boolean) {
+  return (await requestJson(ADMIN_API_PATHS.orderTest(id), orderResponse, send("PUT", { test })))
+    .order;
+}
+
 export async function blacklistOrderPhone(id: string, reason: string) {
   return (
     await requestJson(ADMIN_API_PATHS.orderBlacklist(id), orderResponse, send("POST", { reason }))
