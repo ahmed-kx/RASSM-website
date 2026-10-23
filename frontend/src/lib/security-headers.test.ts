@@ -15,6 +15,11 @@ describe("Content-Security-Policy", () => {
       "connect-src 'self' https://api.rassm.dz https://www.facebook.com https://connect.facebook.net",
     );
     expect(directive(policy, "img-src")).toContain("https://res.cloudinary.com");
+    // The Pixel reports its own errors with an image from connect.facebook.net.
+    expect(directive(policy, "img-src")).toContain("https://connect.facebook.net");
+    // ...and posts large events (Purchase) through a hidden frame and form.
+    expect(directive(policy, "frame-src")).toBe("frame-src https://www.facebook.com");
+    expect(directive(policy, "form-action")).toBe("form-action 'self' https://www.facebook.com");
     expect(policy).toContain("frame-ancestors 'none'");
     expect(policy).toContain("object-src 'none'");
     expect(policy).toContain("base-uri 'self'");

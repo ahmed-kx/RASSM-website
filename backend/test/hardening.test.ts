@@ -553,6 +553,14 @@ describe("production environment", () => {
     refused({ BREVO_API_KEY: "xkeysib-test-0123456789abcdef" });
     refused({ CLOUDINARY_API_SECRET: "your-api-secret-here-1234" });
     refused({ META_CAPI_ACCESS_TOKEN: "placeholder-token-123456789" });
+    refused({ META_CAPI_ACCESS_TOKEN: "x".repeat(40) + "-not-a-token" });
+    // Real tokens: long letters and digits, with or without the usual EAA prefix.
+    expect(() =>
+      parseEnv({ ...base, META_CAPI_ACCESS_TOKEN: "EAAG" + "Zq7rL2xK9mPz4Tw8".repeat(12) }),
+    ).not.toThrow();
+    expect(() =>
+      parseEnv({ ...base, META_CAPI_ACCESS_TOKEN: "Q" + "Zq7rL2xK9mPz4Tw8".repeat(12) }),
+    ).not.toThrow();
     // Development keeps working with local values.
     expect(() =>
       parseEnv({

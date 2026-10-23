@@ -38,11 +38,13 @@ export function publicCsp(options: CspOptions): string {
     "default-src": ["'self'"],
     "script-src": ["'self'", "'unsafe-inline'", META_SCRIPTS, options.dev && "'unsafe-eval'"],
     "style-src": ["'self'", "'unsafe-inline'"],
-    "img-src": ["'self'", "data:", "blob:", CLOUDINARY, META_EVENTS],
+    "img-src": ["'self'", "data:", "blob:", CLOUDINARY, META_EVENTS, META_SCRIPTS],
     "font-src": ["'self'", "data:"],
     "connect-src": ["'self'", options.apiOrigin, META_EVENTS, META_SCRIPTS],
-    "frame-src": ["'none'"],
+    // The Pixel's fallback for large events (Purchase): a hidden frame posting a form to Meta.
+    "frame-src": [META_EVENTS],
     ...common(options),
+    "form-action": ["'self'", META_EVENTS],
   });
 }
 

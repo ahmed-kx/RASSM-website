@@ -192,8 +192,9 @@ const envSchema = z
       const weak = weakSecretReason(env.CLOUDINARY_API_SECRET, 20);
       if (weak) fail("CLOUDINARY_API_SECRET", `${weak}.`);
     }
-    if (env.META_CAPI_ACCESS_TOKEN && !/^EAA[A-Za-z0-9]{40,}$/.test(env.META_CAPI_ACCESS_TOKEN)) {
-      fail("META_CAPI_ACCESS_TOKEN", "is not a real Meta access token (they start with EAA).");
+    // Meta tokens are long letters and digits (most start with EAA, not all).
+    if (env.META_CAPI_ACCESS_TOKEN && !/^[A-Za-z0-9]{100,}$/.test(env.META_CAPI_ACCESS_TOKEN)) {
+      fail("META_CAPI_ACCESS_TOKEN", "is not a real Meta access token (100+ letters and digits).");
     }
   });
 

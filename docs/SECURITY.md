@@ -97,7 +97,7 @@ With `NODE_ENV=production`, the API does not start (and says which variable is w
 - `FRONTEND_ORIGIN`, `ADMIN_URL` or `REVALIDATE_URL` are not `https://` (or are `localhost`);
 - `REVALIDATE_SECRET` is shorter than 32 characters, a placeholder, or too repetitive;
 - `BREVO_API_KEY` does not look like a Brevo key (`xkeysib-…`), `META_CAPI_ACCESS_TOKEN` like a Meta
-  token (`EAA…`), or `CLOUDINARY_API_SECRET` is short or a placeholder.
+  token (100+ letters and digits), or `CLOUDINARY_API_SECRET` is short or a placeholder.
 
 ### Secret check before each commit
 
