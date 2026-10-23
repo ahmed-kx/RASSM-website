@@ -49,6 +49,7 @@ interface Filters {
   wilaya: string;
   from: string;
   to: string;
+  tests: boolean;
   page: number;
   pageSize: number;
 }
@@ -65,6 +66,7 @@ function readFilters(params: URLSearchParams): Filters {
     wilaya: params.get("wilaya") ?? "",
     from: params.get("du") ?? "",
     to: params.get("au") ?? "",
+    tests: params.get("tests") === "1",
     page: positive(params.get("page"), 1),
     pageSize: positive(params.get("par"), DEFAULT_PAGE_SIZE),
   };
@@ -84,7 +86,9 @@ export function OrdersPage() {
   const params = useSearchParams();
   const filters = readFilters(params);
   const [search, setSearch] = useState(filters.q);
-  const activeFilters = [filters.wilaya, filters.from, filters.to].filter(Boolean).length;
+  const activeFilters = [filters.wilaya, filters.from, filters.to, filters.tests].filter(
+    Boolean,
+  ).length;
   const [showFilters, setShowFilters] = useState(activeFilters > 0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [toShip, setToShip] = useState<ShipRequest | null>(null);
@@ -100,6 +104,7 @@ export function OrdersPage() {
     if (next.wilaya) query.set("wilaya", next.wilaya);
     if (next.from) query.set("du", next.from);
     if (next.to) query.set("au", next.to);
+    if (next.tests) query.set("tests", "1");
     if (next.page > 1) query.set("page", String(next.page));
     if (next.pageSize !== DEFAULT_PAGE_SIZE) query.set("par", String(next.pageSize));
     const qs = query.toString();
@@ -124,6 +129,7 @@ export function OrdersPage() {
         wilaya: filters.wilaya || undefined,
         from: filters.from || undefined,
         to: filters.to || undefined,
+        tests: filters.tests ? "1" : undefined,
         page: filters.page,
         limit: filters.pageSize,
       }),
@@ -191,7 +197,7 @@ export function OrdersPage() {
   const hasFilters = Boolean(filters.q || activeFilters);
   const clearFilters = () => {
     setSearch("");
-    setFilters({ q: "", wilaya: "", from: "", to: "" });
+    setFilters({ q: "", wilaya: "", from: "", to: "", tests: false });
   };
 
   return (
@@ -332,6 +338,15 @@ export function OrdersPage() {
               <CloseIcon width={14} height={14} /> Effacer
             </button>
           )}
+          <label className="flex min-h-11 items-center gap-2.5 text-sm sm:col-span-full">
+            <input
+              type="checkbox"
+              checked={filters.tests}
+              onChange={(event) => setFilters({ tests: event.target.checked })}
+              className="size-4 accent-ink"
+            />
+            Commandes de test
+          </label>
         </div>
       )}
 

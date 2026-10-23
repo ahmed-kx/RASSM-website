@@ -20,7 +20,7 @@ import {
 } from "@rassm/shared";
 import type { PipelineStage } from "mongoose";
 import { adSpendBetween } from "../models/ad-spend";
-import { OrderModel, type OrderDoc } from "../models/order";
+import { OrderModel, REAL_ORDERS, type OrderDoc } from "../models/order";
 import { ProductModel, toProduct, type ProductDoc } from "../models/product";
 import { loadSettings } from "../models/setting";
 
@@ -180,7 +180,7 @@ async function periodFacets(
 ): Promise<PeriodFacets> {
   const { start, end } = rangeInstants(from, to);
   const [result] = await OrderModel.aggregate<PeriodFacets>([
-    { $match: { createdAt: { $gte: start, $lte: end } } },
+    { $match: { createdAt: { $gte: start, $lte: end }, ...REAL_ORDERS } },
     ...orderFields(settings),
     {
       $facet: {
@@ -270,11 +270,12 @@ export async function dashboardStats(query: StatsQuery): Promise<DashboardStats>
       spendOf(previous.from, previous.to),
       OrderModel.find({
         createdAt: { $gte: rangeInstants(from, to).start, $lte: rangeInstants(from, to).end },
+        ...REAL_ORDERS,
       })
         .sort({ createdAt: -1, _id: -1 })
         .limit(5)
         .lean<OrderDoc[]>(),
-      OrderModel.distinct("phone").then((phones) => phones.length),
+      OrderModel.distinct("phone", REAL_ORDERS).then((phones) => phones.length),
       lowStockCount(settings.lowStockThreshold),
     ]);
 
@@ -411,7 +412,7 @@ export async function adsSummary(from: string, to: string) {
   const [spend, [totals]] = await Promise.all([
     spendOf(from, to),
     OrderModel.aggregate<{ orders: number; delivered: number; revenue: number }>([
-      { $match: { createdAt: { $gte: start, $lte: end } } },
+      { $match: { createdAt: { $gte: start, $lte: end }, ...REAL_ORDERS } },
       {
         $group: {
           _id: null,

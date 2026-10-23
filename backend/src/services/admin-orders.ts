@@ -27,7 +27,13 @@ import type { MetaEvents } from "../meta/conversions-api";
 import { BlacklistModel, findBlacklisted, type BlacklistDoc } from "../models/blacklist";
 import { ContactMessageModel } from "../models/contact-message";
 import { loadSettings } from "../models/setting";
-import { OrderModel, toOrderSummary, type OrderDoc, type OrderHistoryDoc } from "../models/order";
+import {
+  OrderModel,
+  REAL_ORDERS,
+  toOrderSummary,
+  type OrderDoc,
+  type OrderHistoryDoc,
+} from "../models/order";
 import { onStatusChanged } from "./meta-confirmed";
 import { priceOrder } from "./pricing";
 import { loadProduct, releaseStock, reserveStock, stockError, type Variant } from "./stock";
@@ -165,6 +171,7 @@ function baseFilter(query: OrderQuery): QueryFilter<OrderDoc> {
   const q = query.q?.trim();
   const filter: QueryFilter<OrderDoc> = q ? orderSearchFilter(q) : {};
   if (query.wilaya) filter.wilayaCode = query.wilaya;
+  if (query.tests) filter.test = true;
   if (query.from || query.to) {
     filter.createdAt = {
       ...(query.from && { $gte: new Date(`${query.from}T00:00:00.000${ALGIERS_OFFSET}`) }),
@@ -555,7 +562,7 @@ export async function removeFromBlacklist(phone: string): Promise<boolean> {
 
 /** Confirmed orders to export (chosen ids, or every confirmed order), oldest first. */
 export async function confirmedOrdersForExport(ids: readonly string[] | undefined, all: boolean) {
-  const filter: QueryFilter<OrderDoc> = { status: "confirmed" };
+  const filter: QueryFilter<OrderDoc> = { status: "confirmed", ...REAL_ORDERS };
   if (!all)
     filter._id = {
       $in: (ids ?? [])

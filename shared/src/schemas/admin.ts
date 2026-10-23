@@ -145,6 +145,8 @@ export const adminOrderQuerySchema = z.object({
   /** Algiers dates, YYYY-MM-DD, inclusive. */
   from: z.iso.date().optional().catch(undefined),
   to: z.iso.date().optional().catch(undefined),
+  /** "1" = only the orders marked "Commande de test" (they are in the list, never elsewhere). */
+  tests: z.literal("1").optional().catch(undefined),
   /** Page size and cursor (createdAt ISO of the last order of the previous page + id). */
   limit: z.coerce.number().int().min(1).max(100).catch(30),
   cursor: z.string().max(100).optional().catch(undefined),
@@ -158,6 +160,7 @@ export interface AdminOrderQuery {
   wilaya?: number | string;
   from?: string;
   to?: string;
+  tests?: "1";
   limit?: number;
   cursor?: string;
   page?: number;

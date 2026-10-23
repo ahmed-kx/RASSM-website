@@ -882,3 +882,61 @@ describe("admin insights: newsletter subscribers", () => {
     await expect(list.add("x@example.com")).rejects.toThrow("Brevo answered 500");
   });
 });
+
+describe("admin insights: test orders", () => {
+  it("stay in the orders list (filterable) but out of statistics, clients and exports", async () => {
+    const { app } = testApp();
+    const agent = await adminAgent(app);
+    await marchData();
+    const before = (await agent.get(`/api/admin/stats?${MARCH}`).expect(200)).body;
+    const clientsBefore = (await agent.get("/api/admin/clients").expect(200)).body.total;
+
+    const test = await insertOrder({
+      status: "delivered",
+      at: "2026-03-10T10:00:00Z",
+      phone: "0555999999",
+      fullName: "Commande Test",
+      unitPrice: 9000,
+    });
+    await OrderModel.collection.updateOne({ _id: test._id }, { $set: { test: true } });
+    const confirmed = await insertOrder({
+      status: "confirmed",
+      at: "2026-03-10T11:00:00Z",
+      phone: "0555999998",
+    });
+    await OrderModel.collection.updateOne({ _id: confirmed._id }, { $set: { test: true } });
+
+    // Statistics are unchanged.
+    const after = (await agent.get(`/api/admin/stats?${MARCH}`).expect(200)).body;
+    expect(after.kpis).toEqual(before.kpis);
+    expect(after.performance).toEqual(before.performance);
+    expect(after.latestOrders).toEqual(before.latestOrders);
+    expect(after.bestSellers).toEqual(before.bestSellers);
+    expect(after.clientsTotal ?? after.kpis.clients).toEqual(
+      before.clientsTotal ?? before.kpis.clients,
+    );
+
+    // Clients (list, detail, search, CSV) never see them.
+    expect((await agent.get("/api/admin/clients").expect(200)).body.total).toBe(clientsBefore);
+    await agent.get("/api/admin/clients/0555999999").expect(404);
+    const csv = await agent.get("/api/admin/clients/export").expect(200);
+    expect(csv.text).not.toContain("Commande Test");
+    const found = await agent.get("/api/admin/search?q=Commande%20Test").expect(200);
+    expect(found.body.clients).toEqual([]);
+
+    // The Anderson export skips them.
+    const exported = await agent
+      .post("/api/admin/orders/export")
+      .send({ ids: [String(confirmed._id)] })
+      .expect(400);
+    expect(exported.body.error.message).toBe("Aucune commande confirmée à exporter.");
+
+    // Still in the orders list, with the grey pill data, and a filter for them only.
+    const all = await agent.get("/api/admin/orders?status=all&limit=100").expect(200);
+    expect(all.body.orders.filter((order: { test: boolean }) => order.test)).toHaveLength(2);
+    const only = await agent.get("/api/admin/orders?status=all&tests=1").expect(200);
+    expect(only.body.orders).toHaveLength(2);
+    expect(only.body.orders.every((order: { test: boolean }) => order.test)).toBe(true);
+    expect(only.body.counts.all).toBe(2);
+  });
+});

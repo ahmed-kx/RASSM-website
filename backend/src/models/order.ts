@@ -199,6 +199,13 @@ orderMongooseSchema.index({ suspicious: 1, createdAt: -1 });
 orderMongooseSchema.index({ wilayaCode: 1, createdAt: -1 });
 orderMongooseSchema.index({ openedAt: 1, status: 1 });
 
+/**
+ * Orders marked "Commande de test" are only shown in the orders list (grey "Test" pill, "Commandes
+ * de test" filter). Every statistic, the clients, the exports and the best sellers leave them out:
+ * put this in the first $match of such a query.
+ */
+export const REAL_ORDERS = { test: { $ne: true } } as const;
+
 export const OrderModel = model<OrderDoc>("Order", orderMongooseSchema);
 
 type OrderSource = Pick<

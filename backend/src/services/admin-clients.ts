@@ -16,7 +16,7 @@ import type { z } from "zod";
 import { buildCsv, formatPhoneForCsv } from "../lib/csv";
 import { HttpError } from "../lib/http-error";
 import { BlacklistModel } from "../models/blacklist";
-import { OrderModel, type OrderDoc } from "../models/order";
+import { OrderModel, REAL_ORDERS, type OrderDoc } from "../models/order";
 
 // Clients of the dashboard: the orders grouped by phone number (one phone = one client),
 // with a MongoDB aggregation. Name and wilaya come from the latest order.
@@ -52,6 +52,7 @@ function searchMatch(text: string | undefined): PipelineStage.Match["$match"] | 
 /** Orders → one row per phone, with the blacklist flag. */
 function groupStages(): PipelineStage[] {
   return [
+    { $match: REAL_ORDERS },
     { $sort: { createdAt: -1, _id: -1 } },
     {
       $group: {
@@ -205,8 +206,11 @@ export async function clientsCsv(query: ClientQuery): Promise<string> {
 /** One client (by phone): the summary, the blacklist entry and every order. */
 export async function getClient(phone: string): Promise<AdminClientDetail> {
   const [rows, orders, blacklist] = await Promise.all([
-    OrderModel.aggregate<ClientRow>([{ $match: { phone } }, ...groupStages()]),
-    OrderModel.find({ phone }).sort({ createdAt: -1, _id: -1 }).limit(500).lean<OrderDoc[]>(),
+    OrderModel.aggregate<ClientRow>([{ $match: { phone, ...REAL_ORDERS } }, ...groupStages()]),
+    OrderModel.find({ phone, ...REAL_ORDERS })
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(500)
+      .lean<OrderDoc[]>(),
     BlacklistModel.findOne({ phone }).lean<{ reason: string; createdAt: Date }>(),
   ]);
   const row = rows[0];

@@ -22,7 +22,7 @@ import { HttpError, parseOrThrow } from "../lib/http-error";
 import { describeError, logger } from "../lib/logger";
 import type { Revalidator } from "../lib/revalidate";
 import { loadDeliveryFees } from "../models/delivery-fee";
-import { OrderModel } from "../models/order";
+import { OrderModel, REAL_ORDERS } from "../models/order";
 import { loadSettings } from "../models/setting";
 import {
   ProductModel,
@@ -53,6 +53,7 @@ const fold = (text: string) => text.normalize("NFD").replace(/[̀-ͯ]/g, "").toL
 
 async function orderCounts(): Promise<Map<string, number>> {
   const rows = await OrderModel.aggregate<{ _id: string; count: number }>([
+    { $match: REAL_ORDERS },
     { $group: { _id: "$item.productId", count: { $sum: 1 } } },
   ]);
   return new Map(rows.map((row) => [row._id, row.count]));
