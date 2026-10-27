@@ -18,7 +18,7 @@
     "@rassm/shared": "workspace:*",
     "@tanstack/react-form": "^1.33.5",
     "@tanstack/react-query": "5.104.2",
-    "next": "^16.4.2",
+    "next": "^16.4.3",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "recharts": "^3.10.1",
