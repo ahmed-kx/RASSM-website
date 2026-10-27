@@ -6,7 +6,7 @@ E-commerce website of RASSM, an Algerian streetwear brand. pnpm monorepo:
 - `backend/`: the API (Express + MongoDB), see [`backend/README.md`](backend/README.md)
 - `shared/`: Zod schemas, types and helpers used by both, see [`shared/README.md`](shared/README.md)
 
-## Quick start
+## Quick start......
 
 ```bash
 pnpm install
