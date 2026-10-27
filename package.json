@@ -3,7 +3,7 @@
   "private": true,
   "packageManager": "pnpm@10.34.7",
   "engines": {
-    "node": "24.x"
+    "node": ">=24.22.1 <25"
   },
   "scripts": {
     "dev": "pnpm --parallel --filter @rassm/frontend --filter @rassm/backend dev",

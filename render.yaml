@@ -5,7 +5,8 @@
 # Every variable is explained in docs/ENV-PRODUCTION.md.
 #
 # Both services install only the API and the shared package, with the exact pnpm version of the
-# root package.json and the committed lockfile; Node.js comes from .node-version.
+# root package.json and the committed lockfile; Node.js is pinned by NODE_VERSION below (and
+# .node-version, same value) to a release with the 21 October 2026 security fixes.
 
 previews:
   generation: off
@@ -37,6 +38,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: NODE_VERSION
+        value: 24.22.1
       - key: MONGODB_URI
         sync: false
       - key: MONGODB_DB_NAME
@@ -48,9 +51,11 @@ services:
         value: https://admin.rassmstore.live
       - key: ADMIN_URL
         value: https://admin.rassmstore.live/admin
-      # Render's proxy in front of the API. Check it once deployed: https://api.rassmstore.live/health/ip
+      # Three hops in front of the API on Render: Cloudflare (Render's edge), Render's internal
+      # proxy, and the connection to the service itself. Measured with /health/ip (forwardedFor =
+      # [visitor, Cloudflare, Render internal]). Check again after any hosting change.
       - key: TRUST_PROXY
-        value: "1"
+        value: "3"
       - key: ADMIN_PROXY_SECRET
         sync: false
       - key: REVALIDATE_SECRET
@@ -104,6 +109,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: NODE_VERSION
+        value: 24.22.1
       # A read-only database user (docs/DEPLOYMENT.md > Atlas): the backup never writes.
       - key: MONGODB_URI
         sync: false

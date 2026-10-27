@@ -346,9 +346,11 @@ launch day). It covers every point below.
 
 - Atlas **Network Access**: only Render's outbound IP ranges for Frankfurt (remove `0.0.0.0/0`).
 - `TRUST_PROXY`: website on Vercel `1` (Vercel replaces `X-Forwarded-For` with the visitor's IP).
-  API on Render: start with `1`, then open `https://api.rassmstore.live/health/ip` from your phone
+  API on Render: `3` (measured: `forwardedFor` = visitor, Cloudflare, Render internal; with `1` the
+  API saw the internal address). Check it, open `https://api.rassmstore.live/health/ip` from your phone
   on mobile data: `ip` must be the IP that a "what is my IP" site shows. If it is not, count the
-  `forwardedFor` entries from the right up to your IP: that number is `TRUST_PROXY`. Too low: every
+  `forwardedFor` entries from the right up to your IP: that number is `TRUST_PROXY`. A visitor who sends their own `X-Forwarded-For` only adds entries on
+  the far left, which the API never reads (tested with `3`). Too low: every
   customer gets the proxy's IP (shared limits, every order flagged). Too high: anyone can choose
   their IP. Also check a test order in the dashboard (Adresse IP must be yours) and Paramètres >
   Sécurité.

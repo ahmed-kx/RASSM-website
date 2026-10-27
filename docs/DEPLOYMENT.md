@@ -178,7 +178,7 @@ If the deploy fails, open **Logs**: the API says exactly which variable is missi
 ("Invalid environment variables…"). Fix it in **Environment** > **Save, rebuild, and deploy**.
 
 The non-secret values (`NODE_ENV=production`, `FRONTEND_ORIGIN`, `ADMIN_ORIGIN`, `ADMIN_URL`,
-`TRUST_PROXY=1`, `MONGODB_DB_NAME`, `CLOUDINARY_FOLDER`, `BACKUP_S3_PREFIX`) come from `render.yaml`:
+`TRUST_PROXY=3`, `NODE_VERSION`, `MONGODB_DB_NAME`, `CLOUDINARY_FOLDER`, `BACKUP_S3_PREFIX`) come from `render.yaml`:
 nothing to type.
 
 ### 4.3 The domain of the API
@@ -339,12 +339,14 @@ every customer would share one IP and real orders would be flagged. Check it onc
 1. On your phone, **Wi-Fi off** (mobile data), open https://www.whatismyip.com and note your IP.
 2. On the same phone, open `https://api.rassmstore.live/health/ip`. It shows
    `{"ip":"…","forwardedFor":[…]}`.
-3. `ip` must be **the same IP** as in step 1. Then `TRUST_PROXY=1` is right: nothing to do.
+3. `ip` must be **the same IP** as in step 1. Then `TRUST_PROXY=3` is right: nothing to do. (Measured on Render: `forwardedFor` is
+   `[your IP, a Cloudflare address, a Render internal 10.x address]`, three entries, so the API
+   must go three entries back. With `1` it saw Render's internal address.)
 4. If `ip` is different: look at the `forwardedFor` list. Count its entries **from the right** up to
    the one equal to your IP (the last entry is 1). That count is the correct value: Render >
    `rassm-api` > **Environment** > `TRUST_PROXY` > the new value > **Save and deploy**. Check again.
 
-The website's own value is always `1` on Vercel (Vercel replaces that header with the visitor's IP,
+The website's own value is always `1` on Vercel (a different setting, a different host) (Vercel replaces that header with the visitor's IP,
 so nobody can fake it).
 
 ---
@@ -531,8 +533,11 @@ Everything deploys by itself when `main` changes on GitHub:
 - **Render**: the service > **Environment** > edit > **Save and deploy** (or **Save, rebuild, and
   deploy** when told to).
 
-**When upgrading Node.js or pnpm**: Node.js is in `.node-version` (Render) and `engines` in the
-`package.json` files (Vercel); pnpm is in `packageManager` (root `package.json`) and must be the
+**When upgrading Node.js or pnpm**: Node.js 24.22.1 or later (security release of 21 October
+2026). It is pinned by `NODE_VERSION` in `render.yaml` (and `.node-version` / `.nvmrc`, the same
+value); on Vercel `engines` is `24.x` and Vercel runs its newest 24.x (check Settings > Build and
+Deployment > Node.js Version = 24.x, and the build log line "Node.js version"); the numbers must
+stay in step (a test checks `.node-version`, `.nvmrc`, `render.yaml` and `package.json`); pnpm is in `packageManager` (root `package.json`) and must be the
 same in `frontend/vercel.json` and `render.yaml` (a test checks it).
 
 Every **month**: download one backup from Backblaze and restore it into a test database

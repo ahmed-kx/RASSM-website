@@ -10,7 +10,8 @@ import {
   uploadToOffsite,
   type OffsiteStorage,
 } from "../src/lib/offsite-storage";
-import { testApp } from "./helpers";
+import { OrderModel } from "../src/models/order";
+import { orderBody, testApp } from "./helpers";
 
 // Production setup (docs/DEPLOYMENT.md): off-site backups, the cron job's environment, the
 // TRUST_PROXY check page, and the hosting files kept in step with package.json.
@@ -194,6 +195,45 @@ describe("backup environment", () => {
   });
 });
 
+describe("TRUST_PROXY=3 on Render", () => {
+  // Render: the connection comes from Render's proxy; X-Forwarded-For then holds
+  // [visitor, Cloudflare, Render internal].
+  const real = "41.200.10.20";
+  const chain = (...visitorSent: string[]) =>
+    [...visitorSent, real, "172.68.10.5", "10.20.30.40"].join(", ");
+
+  it("reads the real visitor", async () => {
+    const { api } = testApp({ trustProxy: 3 });
+    const res = await api.get("/health/ip").set("X-Forwarded-For", chain());
+    expect(res.body.ip).toBe(real);
+  });
+
+  it("cannot be fooled by a header the visitor sends", async () => {
+    const { api } = testApp({ trustProxy: 3 });
+    const forgeries = [
+      ["9.9.9.9"],
+      ["9.9.9.9", "8.8.8.8", "7.7.7.7"],
+      ["127.0.0.1"],
+      ["10.0.0.1", "172.68.0.1"],
+    ];
+    for (const forged of forgeries) {
+      const res = await api.get("/health/ip").set("X-Forwarded-For", chain(...forged));
+      expect(res.body.ip, forged.join(",")).toBe(real);
+    }
+  });
+
+  it("stores the visitor's IP on an order, whatever the visitor writes", async () => {
+    const { api } = testApp({ trustProxy: 3 });
+    const res = await api
+      .post("/api/orders")
+      .set("X-Forwarded-For", chain("9.9.9.9"))
+      .send(orderBody({ fullName: "Test Client" }));
+    expect(res.status).toBe(201);
+    const stored = await OrderModel.findOne({ fullName: "Test Client" }).lean();
+    expect(stored?.client?.ip).toBe(real);
+  });
+});
+
 describe("GET /health/ip (TRUST_PROXY check)", () => {
   it("shows the IP the API sees and the X-Forwarded-For entries", async () => {
     const { api } = testApp({ trustProxy: 1 });
@@ -221,8 +261,16 @@ describe("hosting files", () => {
       expect(used.length).toBeGreaterThan(0);
       expect(new Set(used)).toEqual(new Set([pnpm]));
     }
-    expect(nodeVersion).toMatch(/^24\.\d+\.\d+$/);
-    expect(pkg.engines.node).toBe("24.x");
+    // Node.js 24.22.1 or later: the security release of 21 October 2026 (Brotli RCE fix).
+    const [major, minor, patch] = nodeVersion.split(".").map(Number);
+    expect(major).toBe(24);
+    expect((minor ?? 0) * 1000 + (patch ?? 0)).toBeGreaterThanOrEqual(22 * 1000 + 1);
+    expect((await readFile(path.join(ROOT, ".nvmrc"), "utf8")).trim()).toBe(nodeVersion);
+    expect(pkg.engines.node).toBe(`>=${nodeVersion} <25`);
+    const pinned = [...render.matchAll(/key: NODE_VERSION\n\s+value: ([\d.]+)/g)].map((m) => m[1]);
+    expect(pinned).toEqual([nodeVersion, nodeVersion]);
+    const frontend = JSON.parse(await readFile(path.join(ROOT, "frontend/package.json"), "utf8"));
+    expect(frontend.engines.node).toBe("24.x");
     // Both Render services: Frankfurt, always on, health check on the API.
     expect(render.match(/region: frankfurt/g)).toHaveLength(2);
     expect(render).toContain("healthCheckPath: /health");
